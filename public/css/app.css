@@ -1,0 +1,30 @@
+/**
+ * CSS khusus aplikasi.
+ *
+ * Hanya untuk hal yang tidak bisa diselesaikan utility Bootstrap/Sneat.
+ * Dimuat paling akhir supaya bisa menimpa core.css.
+ */
+
+/* ---------------------------------------------------------------------------
+ * Logo sidebar
+ *
+ * Sneat menampilkan .app-brand-img saat sidebar terbuka dan menukarnya ke
+ * .app-brand-img-collapsed saat menciut. Di sini hanya ukurannya yang diatur.
+ * ------------------------------------------------------------------------ */
+/* Jangan set `display` di sini: Sneat yang menentukan varian mana yang tampil. */
+.app-brand .app-brand-logo img {
+    inline-size: auto;
+    max-inline-size: 100%;
+    object-fit: contain;
+    transition: block-size 0.3s ease-in-out;
+}
+
+/* Sidebar terbuka */
+.app-brand .app-brand-img {
+    block-size: 60px;
+}
+
+/* Sidebar menciut: ikut menyesuaikan lebar menu yang tersisa */
+.app-brand .app-brand-img-collapsed {
+    block-size: 44px;
+}

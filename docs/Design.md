@@ -19,15 +19,20 @@
 ```text
 resources/views/
 ├── layouts/
-│   ├── app.blade.php
-│   └── auth.blade.php
+│   ├── app.blade.php            # layout utama (sidebar + navbar)
+│   ├── blank.blade.php          # layout tanpa menu (login, error, print)
+│   └── partials/
+│       ├── head.blade.php
+│       ├── scripts.blade.php
+│       ├── sidebar.blade.php
+│       ├── menu-items.blade.php # render menu rekursif
+│       ├── navbar.blade.php
+│       └── footer.blade.php
 ├── components/
-│   ├── alert.blade.php
-│   ├── modal.blade.php
-│   └── table.blade.php
+│   ├── page-header.blade.php    # <x-page-header>
+│   └── alert.blade.php          # <x-alert>
 └── pages/
     ├── dashboard/
-    ├── users/
     └── [module]/
 ```
 
@@ -38,18 +43,27 @@ Gunakan struktur yang sesuai project; jangan memecah file Blade terlalu kecil ta
 Default:
 
 ```text
-resources/js/
-├── pages/
-│   ├── users.js
-│   ├── products.js
-│   └── [module].js
-└── components/
-    ├── datatable.js
-    ├── modal.js
-    └── notification.js
+public/js/
+├── app.js                   # bootstrap: CSRF, App.url(), notifikasi, handle error AJAX
+└── pages/
+    ├── users.js
+    ├── products.js
+    └── [module].js
 ```
 
+JS halaman disimpan di `public/js/` (bukan `resources/js/`) karena template Sneat
+di-serve langsung dari `public/assets/` tanpa bundler. Tidak ada build step untuk
+UI admin, sehingga file JS halaman diperlakukan sama seperti asset Sneat.
+
 Untuk module kecil, satu file page JS sudah cukup.
+
+Muat dengan cache busting:
+
+```blade
+@push('scripts')
+    <script src="{{ asset_v('js/pages/users.js') }}"></script>
+@endpush
+```
 
 ## 4. Pola CRUD page
 
@@ -186,3 +200,111 @@ Hindari inline style yang berulang.
 - modal dapat ditutup dengan cara standar;
 - warna bukan satu-satunya indikator status;
 - keyboard navigation tidak rusak oleh custom JS.
+
+## 15. Layout dan pemuatan asset
+
+Template Sneat berisi ratusan file vendor. Supaya page load tetap ringan,
+**setiap halaman hanya memuat asset yang dideklarasikannya**.
+
+### Cara pakai layout
+
+```blade
+@extends('layouts.app', ['vendors' => ['datatables', 'select2']])
+
+@section('title', 'Daftar User')
+
+@section('content')
+    <x-page-header title="Daftar User" :breadcrumbs="[['label' => 'Master']]">
+        <x-slot:actions>
+            <button class="btn btn-primary">Tambah</button>
+        </x-slot:actions>
+    </x-page-header>
+
+    <x-alert />
+@endsection
+
+@push('scripts')
+    <script src="{{ asset_v('js/pages/users.js') }}"></script>
+@endpush
+```
+
+Yang tersedia di layout:
+
+| Hook | Fungsi |
+|---|---|
+| `['vendors' => [...]]` | daftar vendor dari `config/sneat.php` |
+| `['container' => '...']` | override container content |
+| `@section('title')` | judul halaman |
+| `@section('content')` | isi halaman |
+| `@push('styles')` | CSS khusus halaman |
+| `@push('scripts')` | JS khusus halaman |
+| `@push('head')` | meta/tag tambahan di `<head>` |
+| `@push('modals')` | modal, dirender sebelum script |
+
+### Registry vendor
+
+Nama vendor didefinisikan di `config/sneat.php`:
+
+```php
+'select2' => [
+    'css' => ['vendor/libs/select2/select2.css'],
+    'js'  => ['vendor/libs/select2/select2.js'],
+],
+
+'daterangepicker' => [
+    'requires' => ['moment'],
+    'css' => ['vendor/libs/bootstrap-daterangepicker/bootstrap-daterangepicker.css'],
+    'js'  => ['vendor/libs/bootstrap-daterangepicker/bootstrap-daterangepicker.js'],
+],
+```
+
+Menambah library baru = menambah satu entry di config, bukan mengedit layout.
+Dependency antar vendor diselesaikan lewat `requires`, duplikat otomatis dibuang.
+
+### Hemat resource
+
+- Halaman tanpa `vendors` hanya memuat core CSS/JS (Bootstrap, menu, perfect-scrollbar).
+- `template-customizer.js` mati secara default (`THEME_CUSTOMIZER=false`); tombol
+  light/dark/system di navbar yang menggantikannya. Jika customizer dinyalakan,
+  tombol navbar otomatis disembunyikan agar tidak ada dua pengatur theme.
+- Navbar search (Algolia) mati secara default (`THEME_SEARCH=false`).
+- Semua URL asset diberi `?v=<filemtime>` supaya browser bisa cache agresif
+  dan tetap dapat file baru setelah deploy (`THEME_CACHE_BUST=false` untuk mematikan).
+- Menu, layout, dan registry vendor berasal dari config, sehingga ikut ter-cache
+  oleh `php artisan config:cache`.
+
+### Logo sidebar
+
+Logo diambil dari `config/sneat.php`:
+
+```php
+'brand' => env('THEME_BRAND', 'Satoria'),   // hanya alt/title, tidak tampil sebagai teks
+'logo' => 'img/satoria/satoriapharma_logo.png',
+'logo_collapsed' => null,                   // null = pakai logo yang sama
+```
+
+Sidebar merender dua `<img>`: `.app-brand-img` (sidebar terbuka) dan
+`.app-brand-img-collapsed` (sidebar menciut). Pertukarannya ditangani CSS bawaan
+Sneat, ukurannya diatur di `public/css/app.css`. Tidak ada JavaScript yang terlibat.
+
+Saat logo perlu mengikuti company milik user, cukup isi nilai config tersebut
+dari view composer; Blade tidak perlu diubah.
+
+## 16. Menu sidebar
+
+Menu didefinisikan di `config/menu.php`, bukan di Blade:
+
+```php
+[
+    'title'  => 'Users',
+    'icon'   => 'bx bx-user',
+    'route'  => 'users.index',
+    'active' => ['users.*'],   // opsional
+    'can'    => 'users.view',  // opsional, UX saja
+    'children' => [ ... ],
+]
+```
+
+- State aktif/terbuka dihitung otomatis dari route yang sedang diakses.
+- `can` hanya menyembunyikan menu; authorization tetap wajib di server.
+- Route yang belum terdaftar otomatis jatuh ke `javascript:void(0);`, tidak error.
