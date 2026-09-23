@@ -1,58 +1,188 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel Coding Template v2
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Template Laravel pribadi yang dibuat untuk pola kerja **sederhana, modular, dan mudah dipahami**, dengan fokus pada gaya development:
 
-## About Laravel
+- Laravel 13.x
+- PHP 8.3+
+- PostgreSQL sebagai default
+- Blade
+- Bootstrap 5
+- Sneat Bootstrap sebagai admin template
+- jQuery + AJAX untuk interaksi data
+- `routes/web.php` + Web Controller untuk halaman
+- `routes/api.php` + API Controller untuk CRUD/API
+- Service untuk business logic yang benar-benar membutuhkan layer tambahan
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Template ini bukan implementasi "clean architecture" yang memaksa banyak layer. Prinsip utamanya adalah **gunakan abstraction hanya ketika memang memberi manfaat**.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 1. Prinsip utama
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+> **Simple first. Add abstraction when complexity proves it is needed.**
 
-## Learning Laravel
+Urutan default:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+```text
+Simple CRUD
+Controller -> Model
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+CRUD dengan business rule
+Controller -> Service -> Model
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+Workflow kompleks
+Controller -> Service / Action -> Model / Query / Integration
 
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+Query persistence kompleks/reusable
+Service -> Repository (opsional)
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Jangan membuat:
 
-## Contributing
+```text
+Controller -> Service -> Repository -> Model
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+untuk setiap CRUD hanya karena pola tersebut terlihat rapi.
 
-## Code of Conduct
+## 2. UI dan request flow
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Halaman web
 
-## Security Vulnerabilities
+```text
+Browser
+  -> routes/web.php
+  -> Web/Page Controller
+  -> Blade + Sneat
+  -> jQuery/AJAX
+  -> routes/api.php
+  -> API Controller
+  -> Form Request
+  -> Service (jika diperlukan)
+  -> Model/Query
+  -> PostgreSQL
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Web Controller
 
-## License
+Digunakan untuk:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- menampilkan halaman;
+- menentukan view;
+- redirect;
+- page-level data sederhana jika sesuai.
+
+Web Controller tidak digunakan sebagai tempat business logic panjang.
+
+### API Controller
+
+Digunakan untuk:
+
+- menerima HTTP request;
+- memanggil Form Request;
+- memanggil Service jika business logic non-trivial;
+- mengembalikan JSON response.
+
+## 3. Struktur proyek
+
+```text
+app/
+├── Actions/                  # opsional
+├── Exceptions/
+├── Http/
+│   ├── Controllers/
+│   │   ├── Api/
+│   │   └── Web/
+│   ├── Middleware/
+│   └── Requests/
+├── Jobs/
+├── Models/
+├── Policies/
+├── Providers/
+├── Repositories/             # opsional
+├── Rules/
+└── Services/
+
+database/
+├── factories/
+├── migrations/
+└── seeders/
+
+resources/
+├── css/
+├── js/
+│   ├── pages/
+│   └── components/
+└── views/
+    ├── layouts/
+    ├── components/
+    └── pages/
+
+routes/
+├── web.php
+├── api.php
+└── console.php
+
+tests/
+├── Feature/
+└── Unit/
+
+docs/
+├── PRD.md
+├── Architecture.md
+├── Design.md
+├── Schema.md
+├── Rules.md
+└── Changelog.md
+```
+
+Folder `Actions`, `Repositories`, atau `Services` boleh tidak dipakai jika tidak dibutuhkan.
+
+## 4. Dokumentasi workflow
+
+| File              | Fungsi                                                       |
+| ----------------- | ------------------------------------------------------------ |
+| `PRD.md`          | Scope, user, requirement, business rule, acceptance criteria |
+| `Architecture.md` | Alur aplikasi dan batas tanggung jawab layer                 |
+| `Design.md`       | Blade/Sneat/Bootstrap/jQuery dan aturan UI                   |
+| `Schema.md`       | Database, relasi, index, migration, legacy mapping           |
+| `Rules.md`        | Coding convention dan aturan implementasi                    |
+| `Changelog.md`    | Perubahan penting                                            |
+
+## 5. Cara memulai project
+
+1. Buat project Laravel sesuai versi yang dipakai.
+2. Salin template ini ke root project.
+3. Isi `docs/PRD.md`.
+4. Tentukan schema awal di `docs/Schema.md`.
+5. Tentukan UI di `docs/Design.md`.
+6. Pastikan `docs/Architecture.md` sesuai kebutuhan project.
+7. Baru mulai membuat migration, model, controller, service, view, dan JS.
+
+Script instalasi tersedia di:
+
+```text
+scripts/install-template.sh
+scripts/install-template.ps1
+```
+
+Script hanya menyalin dokumentasi/instruction template.
+
+## 6. Definition of Ready
+
+Fitur siap dikerjakan jika:
+
+- masalah dan hasil yang diharapkan jelas;
+- scope jelas;
+- role/permission diketahui;
+- business rule diketahui atau ditandai TBD;
+- dampak database/API/UI diketahui;
+- acceptance criteria dapat diuji.
+
+## 7. Definition of Done
+
+- acceptance criteria terpenuhi;
+- validation dan authorization diterapkan;
+- test relevan lulus;
+- migration aman;
+- tidak ada unrelated refactor;
+- dokumentasi diperbarui jika diperlukan;
+- changelog diperbarui untuk perubahan penting.
