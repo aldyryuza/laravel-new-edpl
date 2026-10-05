@@ -1,0 +1,4 @@
+laravel-echo 2.5.0 (dist/echo.iife.js)
+pusher-js 8.6.0 (dist/web/pusher.min.js)
+
+Update manual: npm pack laravel-echo pusher-js, salin file dist di atas ke folder ini.

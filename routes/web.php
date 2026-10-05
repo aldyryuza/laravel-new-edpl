@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\Web\ActiveRoleController;
+use App\Http\Controllers\Web\AuditLogController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\ExampleController;
 use App\Http\Controllers\Web\MenuController;
+use App\Http\Controllers\Web\OnlineUserController;
 use App\Http\Controllers\Web\ProfileController;
 use App\Http\Controllers\Web\RoleController;
 use App\Http\Controllers\Web\UserController;
@@ -12,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'create'])->name('login');
-    Route::post('/login', [AuthController::class, 'store'])->middleware('throttle:5,1')->name('login.store');
+    Route::post('/login', [AuthController::class, 'store'])->middleware('throttle:login')->name('login.store');
 });
 
 Route::middleware('auth')->group(function () {
@@ -35,4 +37,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/roles/{role}/access', [RoleController::class, 'access'])->middleware('can:roles.read')->name('roles.access');
 
     Route::get('/menus', [MenuController::class, 'index'])->middleware('can:menus.read')->name('menus.index');
+
+    Route::get('/online-users', [OnlineUserController::class, 'index'])->middleware('can:online-users.read')->name('online-users.index');
+
+    Route::get('/audit-log', [AuditLogController::class, 'index'])->middleware('can:audit-log.read')->name('audit-log.index');
 });

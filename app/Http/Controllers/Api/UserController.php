@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
+use App\Support\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -56,7 +57,7 @@ class UserController extends Controller implements HasMiddleware
     {
         $user = DB::transaction(function () use ($request) {
             $user = User::query()->create($request->safe()->except('role_ids'));
-            $user->roles()->sync($request->validated('role_ids', []));
+            $this->syncRoles($user, $request->validated('role_ids', []));
 
             return $user;
         });
@@ -87,7 +88,15 @@ class UserController extends Controller implements HasMiddleware
 
         DB::transaction(function () use ($request, $user, $data) {
             $user->update($data);
-            $user->roles()->sync($request->validated('role_ids', []));
+            $this->syncRoles($user, $request->validated('role_ids', []));
+
+            if (isset($data['password'])) {
+                activity(AuditLog::AUTH)
+                    ->event('password_reset')
+                    ->performedOn($user)
+                    ->withProperties(AuditLog::requestContext())
+                    ->log("Password user {$user->name} ({$user->nik}) direset admin");
+            }
         });
 
         return response()->json([
@@ -95,6 +104,31 @@ class UserController extends Controller implements HasMiddleware
             'message' => 'User berhasil diperbarui',
             'data' => $user->load('roles:id,name'),
         ]);
+    }
+
+    /**
+     * Sinkronkan role user. Tabel pivot tidak memicu model event, jadi
+     * perubahannya dicatat manual ke audit log (hanya jika ada perubahan).
+     *
+     * @param  array<int, int|string>  $roleIds
+     */
+    private function syncRoles(User $user, array $roleIds): void
+    {
+        $before = $user->roles()->orderBy('name')->pluck('name')->all();
+        $changes = $user->roles()->sync($roleIds);
+
+        if ($changes['attached'] === [] && $changes['detached'] === []) {
+            return;
+        }
+
+        activity(AuditLog::DATA)
+            ->event('roles_updated')
+            ->performedOn($user)
+            ->withChanges([
+                'old' => ['roles' => $before],
+                'attributes' => ['roles' => $user->roles()->orderBy('name')->pluck('name')->all()],
+            ])
+            ->log("Role user {$user->name} ({$user->nik}) diubah");
     }
 
     public function destroy(Request $request, User $user): JsonResponse

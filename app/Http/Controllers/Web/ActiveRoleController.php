@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\ResolveActiveRole;
+use App\Support\AuditLog;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,9 +41,18 @@ class ActiveRoleController extends Controller
             'role_id' => 'role',
         ]);
 
+        $previous = $user->activeRole();
         $request->session()->put(ResolveActiveRole::SESSION_KEY, (int) $validated['role_id']);
 
         $role = $user->roles->firstWhere('id', (int) $validated['role_id']);
+
+        if (! $role->is($previous)) {
+            activity(AuditLog::AUTH)
+                ->event('role_switched')
+                ->performedOn($user)
+                ->withProperties([...AuditLog::requestContext(), 'from' => $previous?->name, 'to' => $role->name])
+                ->log($previous ? "Ganti role dari {$previous->name} ke {$role->name}" : "Memilih role {$role->name}");
+        }
 
         // Saat login: kembali ke halaman yang dituju. Saat ganti role: ke dashboard,
         // karena halaman sebelumnya belum tentu boleh diakses role baru.

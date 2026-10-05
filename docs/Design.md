@@ -333,3 +333,18 @@ Contoh lengkap: `pages/users`, `pages/roles`, `pages/menus` + `public/js/pages/*
 - Tabel besar: DataTables `serverSide` yang memetakan ke `GET api/{resource}?page&per_page&search`.
 - Form tambah/edit di modal, submit AJAX, error 422 ditampilkan per field via `App.handleError(xhr, $form)`.
 - Konfirmasi hapus: `App.confirm(message)`; teks dari data: `App.escape(value)`.
+
+## 19. Real-time di halaman
+
+`public/js/realtime.js` dimuat otomatis untuk user login (saat `BROADCAST_CONNECTION=reverb`)
+dan menyediakan `window.Realtime` (atau `null` jika tidak aktif):
+
+```javascript
+if (window.Realtime) {
+    Realtime.onMembers(list => { /* [{ id, nik, name, role, page, title }] */ });
+    Realtime.onStatus(state => { /* connecting | connected | unavailable | ... */ });
+}
+```
+
+Elemen dengan atribut `data-online-count` otomatis diisi jumlah user online.
+Halaman wajib tetap berfungsi (dengan pesan yang jelas) saat Reverb tidak berjalan.

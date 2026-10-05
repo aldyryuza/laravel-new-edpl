@@ -51,6 +51,18 @@
             </li>
             @endunless
 
+            {{-- Jumlah user online (diisi public/js/realtime.js). --}}
+            @can('online-users.read')
+                <li class="nav-item me-2 me-xl-1">
+                    <a class="nav-link d-flex align-items-center" href="{{ route('online-users.index') }}"
+                        title="User online">
+                        <i class="icon-base bx bx-wifi icon-md"></i>
+                        <span class="badge rounded-pill bg-label-success ms-1" data-online-count>-</span>
+                        <span class="visually-hidden">user online</span>
+                    </a>
+                </li>
+            @endcan
+
             {{-- User --}}
             <li class="nav-item navbar-dropdown dropdown-user dropdown">
                 <a class="nav-link dropdown-toggle hide-arrow p-0" href="javascript:void(0);" data-bs-toggle="dropdown">

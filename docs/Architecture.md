@@ -257,7 +257,55 @@ Log context yang berguna:
 
 Jangan log password, token, secret, atau payload sensitif yang tidak diperlukan.
 
+### Audit log (`spatie/laravel-activitylog` v5)
+
+Tabel `activity_log`, dibaca di halaman **Pengaturan > Audit Log** (`audit-log.read`).
+Konvensi ada di `App\Support\AuditLog`.
+
+| Kategori (`log_name`) | Sumber |
+|---|---|
+| `auth` | Listener `LogAuthenticationActivity` (login, login gagal, logout), ganti role, ganti/reset password |
+| `data` | Trait `LogsActivity` di model `User`, `Role`, `Menu`, `RoleMenuAccess` (hanya atribut yang berubah) + perubahan role user (pivot, dicatat manual) |
+| `security` | Request yang kena rate limit, dicatat sekali per IP + route + user selama window limit |
+
+Model baru yang perlu diaudit: pakai `LogsActivity` dan `AuditLog::dataOptions([...atribut], label)`.
+Jangan masukkan atribut rahasia ke daftar atribut. Pembersihan log lama: `php artisan activitylog:clean`
+(`clean_after_days` di `config/activitylog.php`, default 365); belum dijadwalkan.
+
 ## 11. Security
+
+### Rate limit
+
+Didefinisikan di `AppServiceProvider::registerRateLimiters()`:
+
+| Limiter | Batas | Dipakai di |
+|---|---|---|
+| `login` | 5/menit per NIK + IP, dan 20/menit per IP | `POST /login` |
+| `api` | 60/menit per user | semua `routes/api.php` |
+| `password` | 5/menit per user | `PUT api/profile/password` |
+
+Request yang ditolak tidak sampai ke controller/listener, sehingga tidak membanjiri audit log.
+
+### Real-time (Laravel Reverb)
+
+```text
+Browser (public/js/realtime.js, Echo + pusher-js statis)
+  -> WebSocket Reverb (php artisan reverb:start)
+  -> POST /broadcasting/auth (session web) -> routes/channels.php
+```
+
+- Presence channel `online`: semua user login bergabung, member disimpan Reverb di memori (tanpa query DB).
+- Halaman yang sedang dibuka dikirim browser sebagai parameter otorisasi saat join (`auth.params`),
+  bukan pesan antar-browser, agar beban linear terhadap jumlah user. Jika satu user membuka
+  beberapa tab, yang tampil adalah halaman tab pertama.
+- Kapasitas: event loop bawaan (`stream_select`) kira-kira 1.000 koneksi per proses (1 tab = 1 koneksi).
+  Di atas itu pasang `ext-uv`; di Linux naikkan `ulimit -n` (mis. 10000). `REVERB_APP_MAX_CONNECTIONS`
+  kosong = tanpa batas.
+- File Echo statis di `public/assets/vendor/libs/echo` (versi di `VERSION.txt`), update manual.
+- Alamat untuk browser bisa dibedakan dengan `REVERB_CLIENT_HOST/PORT/SCHEME` (reverse proxy/TLS).
+- Production: jalankan `php artisan reverb:start` sebagai service (supervisor/systemd).
+
+### Umum
 
 - Authorization server-side.
 - Validation server-side.

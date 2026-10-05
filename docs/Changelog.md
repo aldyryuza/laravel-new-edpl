@@ -23,8 +23,13 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 - Seeder `AccessControlSeeder`: menu bawaan, role Administrator dengan akses penuh, user `admin` (password awal `password`, wajib diganti).
 - Helper JS `App.escape()` dan `App.confirm()`.
 - Pencarian menu di sidebar (filter di browser, shortcut `/`, `Enter` membuka hasil pertama).
+- Real-time dengan Laravel Reverb (`laravel/reverb`) + Echo statis: presence channel `online`, halaman **User Online** (role aktif + halaman yang dibuka) dan jumlah online di navbar (`online-users.read`). `composer dev` ikut menjalankan `reverb:start`.
+- Audit log dengan `spatie/laravel-activitylog` v5: login/login gagal/logout, ganti role, ganti/reset password, perubahan User/Role/Menu/hak akses/role user, dan pelanggaran rate limit. Halaman **Audit Log** dengan filter kategori, pencarian, dan rentang tanggal (`audit-log.read`, `GET api/activity-logs`).
+- Menu seeder `online-users` dan `audit-log` di grup Pengaturan.
 
 ### Changed
+
+- Rate limit bernama: `login` (5/menit per NIK+IP, 20/menit per IP), `api` (60/menit per user), `password` (5/menit per user). Request yang kena limit dicatat sekali per window ke audit log kategori `security`.
 
 - Route `/` diarahkan ke `/dashboard`.
 - Sidebar hanya menampilkan logo (tanpa teks brand), dengan ukuran berbeda saat sidebar terbuka dan menciut. `THEME_BRAND` kini hanya dipakai sebagai `alt`/`title`.

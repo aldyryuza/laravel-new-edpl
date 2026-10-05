@@ -34,6 +34,7 @@ erDiagram
 | `roles` | master role (Administrator, dst.) | `Role` | No |
 | `user_has_roles` | pivot user <-> role (many-to-many) | - | No |
 | `role_menu_accesses` | hak action per role per menu | `RoleMenuAccess` | No |
+| `activity_log` | audit log (spatie/laravel-activitylog v5), read-only dari aplikasi | `Spatie\Activitylog\Models\Activity` | No |
 
 ## 4. Table definition
 
@@ -103,6 +104,23 @@ Tidak ada baris untuk pasangan role-menu = semua action `false`.
 Hak akses user = hak akses **role aktif** saja. Role aktif disimpan di session
 (`active_role_id`), dipilih saat login jika user punya lebih dari 1 role, dan bisa
 diganti dari navbar tanpa login ulang (lihat middleware `ResolveActiveRole`).
+
+### `activity_log`
+
+| Column | PostgreSQL type | Nullable | Default | Constraint/Note |
+|---|---|---:|---|---|
+| `id` | bigint | No | identity | PK |
+| `log_name` | varchar(255) | Yes | - | INDEX; `auth` / `data` / `security` |
+| `description` | text | No | - | |
+| `subject_type`, `subject_id` | varchar, bigint | Yes | - | morph ke objek yang terdampak |
+| `event` | varchar(255) | Yes | - | `created`, `updated`, `login_failed`, `role_switched`, ... |
+| `causer_type`, `causer_id` | varchar, bigint | Yes | - | morph ke pelaku (user); null = sistem/tamu |
+| `attribute_changes` | json | Yes | - | `{ old: {...}, attributes: {...} }` |
+| `properties` | json | Yes | - | ip, user_agent, nik (login gagal), dsb. |
+| `created_at` | timestamp | Yes | - | INDEX (filter tanggal) |
+| `updated_at` | timestamp | Yes | - | |
+
+Tidak ada FK ke `users` agar jejak tetap ada meski user dihapus. Password/token tidak pernah disimpan.
 
 ## 5. Relationship
 

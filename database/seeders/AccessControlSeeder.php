@@ -53,6 +53,8 @@ class AccessControlSeeder extends Seeder
                 ['code' => 'users', 'title' => 'User', 'icon' => 'bx bx-user', 'route' => 'users.index', 'sort_order' => 1],
                 ['code' => 'roles', 'title' => 'Role & Hak Akses', 'icon' => 'bx bx-shield-quarter', 'route' => 'roles.index', 'sort_order' => 2],
                 ['code' => 'menus', 'title' => 'Menu', 'icon' => 'bx bx-menu', 'route' => 'menus.index', 'sort_order' => 3],
+                ['code' => 'online-users', 'title' => 'User Online', 'icon' => 'bx bx-wifi', 'route' => 'online-users.index', 'sort_order' => 4],
+                ['code' => 'audit-log', 'title' => 'Audit Log', 'icon' => 'bx bx-history', 'route' => 'audit-log.index', 'sort_order' => 5],
             ]],
         ];
 

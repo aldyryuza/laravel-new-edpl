@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Support\AuditLog;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -28,6 +29,12 @@ class ProfileController extends Controller
     public function updatePassword(UpdatePasswordRequest $request): JsonResponse
     {
         $request->user()->update(['password' => $request->validated('password')]);
+
+        activity(AuditLog::AUTH)
+            ->event('password_changed')
+            ->performedOn($request->user())
+            ->withProperties(AuditLog::requestContext())
+            ->log('Ganti password');
 
         return response()->json([
             'success' => true,
