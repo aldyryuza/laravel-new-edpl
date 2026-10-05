@@ -35,6 +35,7 @@ erDiagram
 | `user_has_roles` | pivot user <-> role (many-to-many) | - | No |
 | `role_menu_accesses` | hak action per role per menu | `RoleMenuAccess` | No |
 | `activity_log` | audit log (spatie/laravel-activitylog v5), read-only dari aplikasi | `Spatie\Activitylog\Models\Activity` | No |
+| `pulse_values`, `pulse_entries`, `pulse_aggregates` | data monitoring Laravel Pulse (dikelola package, retensi diatur `config/pulse.php`) | - | No |
 
 ## 4. Table definition
 

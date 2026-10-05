@@ -97,24 +97,45 @@ class AuditLogTest extends TestCase
 
     public function test_audit_log_api_requires_access_and_filters(): void
     {
-        $this->actingAs($this->userWithAccess([]))->getJson('/api/activity-logs')->assertForbidden();
+        $this->actingAs($this->userWithAccess([]))->getJson('/api/activity-logs/datatable')->assertForbidden();
 
         $budi = User::factory()->create(['nik' => '777', 'name' => 'Budi']);
         activity(AuditLog::AUTH)->causedBy($budi)->log('Login');
         activity(AuditLog::SECURITY)->log('Rate limit terlampaui');
 
         $reader = $this->userWithAccess(['audit-log' => ['read']]);
+        $columns = ['created_at', 'log_name', 'description'];
 
         $this->actingAs($reader)
-            ->getJson('/api/activity-logs?category=security')
+            ->getJson('/api/activity-logs/datatable?'.$this->dataTableQuery($columns, ['category' => 'security']))
             ->assertOk()
-            ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.description', 'Rate limit terlampaui');
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.description', 'Rate limit terlampaui')
+            ->assertJsonPath('data.0.category_label', 'Keamanan');
 
         $this->actingAs($reader)
-            ->getJson('/api/activity-logs?category=auth&search=777')
-            ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.causer.name', 'Budi');
+            ->getJson('/api/activity-logs/datatable?'.$this->dataTableQuery($columns, ['category' => 'auth', 'keyword' => '777']))
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.causer.name', 'Budi')
+            ->assertJsonMissingPath('data.0.causer.email');
+
+        // Default terbaru di atas.
+        $ids = array_column($this->actingAs($reader)
+            ->getJson('/api/activity-logs/datatable?'.$this->dataTableQuery($columns))
+            ->json('data'), 'id');
+        $descending = $ids;
+        rsort($descending);
+        $this->assertSame($descending, $ids);
+        $this->assertSame(Activity::query()->max('id'), $ids[0]);
+
+        // Detail perubahan & properties dikirim sebagai objek, bukan string.
+        $this->actingAs($reader)
+            ->getJson('/api/activity-logs/datatable?'.$this->dataTableQuery($columns, ['category' => 'data']))
+            ->assertJsonPath('data.0.changes.attributes.nik', fn ($nik) => is_string($nik));
+
+        $this->actingAs($reader)
+            ->getJson('/api/activity-logs/datatable?'.$this->dataTableQuery($columns, ['category' => 'tidak-ada']))
+            ->assertUnprocessable();
 
         $this->actingAs($reader)->get('/audit-log')->assertOk()->assertSee('audit-log.js');
     }

@@ -55,6 +55,7 @@ class AccessControlSeeder extends Seeder
                 ['code' => 'menus', 'title' => 'Menu', 'icon' => 'bx bx-menu', 'route' => 'menus.index', 'sort_order' => 3],
                 ['code' => 'online-users', 'title' => 'User Online', 'icon' => 'bx bx-wifi', 'route' => 'online-users.index', 'sort_order' => 4],
                 ['code' => 'audit-log', 'title' => 'Audit Log', 'icon' => 'bx bx-history', 'route' => 'audit-log.index', 'sort_order' => 5],
+                ['code' => 'pulse', 'title' => 'Monitoring Server', 'icon' => 'bx bx-pulse', 'route' => 'pulse', 'sort_order' => 6],
             ]],
         ];
 

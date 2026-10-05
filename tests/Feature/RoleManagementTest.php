@@ -24,6 +24,19 @@ class RoleManagementTest extends TestCase
             ->assertJsonValidationErrors('name');
     }
 
+    public function test_role_datatable_lists_roles_with_user_count(): void
+    {
+        $role = Role::factory()->create(['name' => 'Approver Gudang']);
+        User::factory()->count(2)->create()->each(fn (User $user) => $user->roles()->attach($role));
+
+        $this->actingAs($this->userWithAccess(['roles' => ['read']]))
+            ->getJson('/api/roles/datatable?'.$this->dataTableQuery(['name', 'description'], ['search' => 'gudang']))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.name', 'Approver Gudang')
+            ->assertJsonPath('data.0.users_count', 2);
+    }
+
     public function test_role_used_by_user_cannot_be_deleted(): void
     {
         $actor = $this->userWithAccess(['roles' => ['delete']]);

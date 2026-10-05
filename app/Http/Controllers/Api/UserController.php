@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Yajra\DataTables\Facades\DataTables;
 
 class UserController extends Controller implements HasMiddleware
 {
@@ -21,36 +22,29 @@ class UserController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:users.read', only: ['index', 'show']),
+            new Middleware('can:users.read', only: ['datatable', 'show']),
             new Middleware('can:users.create', only: ['store']),
             new Middleware('can:users.update', only: ['update']),
             new Middleware('can:users.delete', only: ['destroy']),
         ];
     }
 
-    public function index(Request $request): JsonResponse
+    /**
+     * Data tabel (Yajra, protokol DataTables server-side).
+     * Pencarian memakai scope `search` yang sama dengan ekspor Excel.
+     */
+    public function datatable(Request $request): JsonResponse
     {
-        $search = trim((string) $request->query('search', ''));
+        $query = User::query()
+            ->select(['users.id', 'users.nik', 'users.name', 'users.email', 'users.created_at'])
+            ->with('roles:id,name');
 
-        $users = User::query()
-            ->with('roles:id,name')
-            ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
-                ->whereLike('nik', "%{$search}%")
-                ->orWhereLike('name', "%{$search}%")
-                ->orWhereLike('email', "%{$search}%")))
-            ->orderBy('name')
-            ->paginate(min(max((int) $request->query('per_page', 10), 1), 100));
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Data berhasil diambil',
-            'data' => $users->items(),
-            'meta' => [
-                'current_page' => $users->currentPage(),
-                'per_page' => $users->perPage(),
-                'total' => $users->total(),
-            ],
-        ]);
+        return DataTables::eloquent($query)
+            ->whitelist(['nik', 'name', 'email', 'created_at'])
+            ->filter(fn ($query) => $query->search($request->input('search.value')))
+            // Kembalikan array (bukan Collection): Yajra mengubah objek menjadi string.
+            ->editColumn('roles', fn (User $user) => $user->roles->map->only(['id', 'name'])->values()->all())
+            ->toJson();
     }
 
     public function store(StoreUserRequest $request): JsonResponse

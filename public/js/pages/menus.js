@@ -1,5 +1,8 @@
 /**
- * Management menu. Data ditampilkan sebagai pohon (urut parent -> anak) dari api/menus.
+ * Management menu.
+ *
+ * Tabel: Yajra server-side (GET api/menus/datatable), urutan pohon parent -> sub menu.
+ * Pilihan parent di form: GET api/menus (semua menu), dimuat saat form dibuka.
  */
 'use strict';
 
@@ -7,12 +10,10 @@ $(function () {
     const $page = $('#menus-page');
     const can = { update: $page.data('can-update') === 1, delete: $page.data('can-delete') === 1 };
 
-    const $tbody = $('#menus-table tbody');
     const $form = $('#menu-form');
     const $submit = $form.find('[type="submit"]');
     const $parent = $('#menu-parent');
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('menu-modal'));
-    let menus = [];
     let editingId = null;
 
     const indent = depth => '&mdash; '.repeat(depth);
@@ -33,44 +34,52 @@ $(function () {
         return html;
     }
 
-    function render() {
-        if (menus.length === 0) {
-            $tbody.html('<tr><td colspan="6" class="text-center text-body-secondary py-6">Belum ada menu</td></tr>');
-            return;
-        }
+    const table = $('#menus-table').DataTable({
+        serverSide: true,
+        processing: true,
+        searchDelay: 400,
+        // Urutan pohon ditentukan server, jadi sorting per kolom dimatikan.
+        ordering: false,
+        pageLength: 50,
+        ajax: App.dataTableSource('api/menus/datatable'),
+        createdRow: (row, menu) => {
+            $('td', row).eq(0).css('padding-left', `${1.25 + menu.depth * 1.5}rem`);
+        },
+        columns: [
+            {
+                data: 'title',
+                name: 'title',
+                render: (title, type, menu) => `${menu.icon ? `<i class="icon-base ${App.escape(menu.icon)} me-2"></i>` : ''}${App.escape(title)}`
+            },
+            { data: 'code', name: 'code', render: code => `<code>${App.escape(code)}</code>` },
+            {
+                data: 'route',
+                name: 'route',
+                render: route => route ? App.escape(route) : '<span class="text-body-secondary">grup</span>'
+            },
+            { data: 'sort_order', searchable: false, className: 'text-center' },
+            {
+                data: 'is_active',
+                searchable: false,
+                className: 'text-center',
+                render: active => active
+                    ? '<span class="badge bg-label-success">Aktif</span>'
+                    : '<span class="badge bg-label-secondary">Nonaktif</span>'
+            },
+            { data: null, searchable: false, className: 'text-end text-nowrap', render: renderActions }
+        ],
+        language: { emptyTable: 'Belum ada menu', zeroRecords: 'Menu tidak ditemukan', search: 'Cari:' }
+    });
 
-        $tbody.html(menus.map(menu => `
-            <tr>
-                <td style="padding-left: ${1.25 + menu.depth * 1.5}rem">
-                    ${menu.icon ? `<i class="icon-base ${App.escape(menu.icon)} me-2"></i>` : ''}${App.escape(menu.title)}
-                </td>
-                <td><code>${App.escape(menu.code)}</code></td>
-                <td>${menu.route ? App.escape(menu.route) : '<span class="text-body-secondary">grup</span>'}</td>
-                <td class="text-center">${menu.sort_order}</td>
-                <td class="text-center">
-                    ${menu.is_active
-                        ? '<span class="badge bg-label-success">Aktif</span>'
-                        : '<span class="badge bg-label-secondary">Nonaktif</span>'}
-                </td>
-                <td class="text-end text-nowrap">${renderActions(menu)}</td>
-            </tr>`).join(''));
-    }
-
-    function load() {
-        $.get(App.url('api/menus'))
-            .done(res => {
-                menus = res.data;
-                render();
-            })
-            .fail(xhr => App.handleError(xhr));
-    }
+    const findRow = id => table.rows().data().toArray().find(menu => menu.id === id);
 
     /** Opsi parent: semua menu kecuali menu yang sedang diedit beserta turunannya. */
-    function fillParentOptions(excludeId = null) {
+    function fillParentOptions(menus, excludeId = null) {
         const excluded = new Set();
 
         if (excludeId) {
             excluded.add(excludeId);
+            // Data urut pohon (parent sebelum anak), jadi satu kali lewat sudah cukup.
             menus.forEach(menu => {
                 if (excluded.has(menu.parent_id)) {
                     excluded.add(menu.id);
@@ -87,30 +96,34 @@ $(function () {
     function openForm(menu = null) {
         editingId = menu ? menu.id : null;
 
-        $form[0].reset();
-        App.clearErrors($form);
-        fillParentOptions(editingId);
-        $('#menu-modal-title').text(menu ? 'Edit Menu' : 'Tambah Menu');
+        $.get(App.url('api/menus'))
+            .done(res => {
+                $form[0].reset();
+                App.clearErrors($form);
+                fillParentOptions(res.data, editingId);
+                $('#menu-modal-title').text(menu ? 'Edit Menu' : 'Tambah Menu');
 
-        if (menu) {
-            ['title', 'code', 'route', 'icon', 'sort_order'].forEach(field => {
-                $form.find(`[name="${field}"]`).val(menu[field] ?? '');
-            });
-            $parent.val(menu.parent_id ?? '');
-            $('#menu-active').prop('checked', menu.is_active);
-        }
+                if (menu) {
+                    ['title', 'code', 'route', 'icon', 'sort_order'].forEach(field => {
+                        $form.find(`[name="${field}"]`).val(menu[field] ?? '');
+                    });
+                    $parent.val(menu.parent_id ?? '');
+                    $('#menu-active').prop('checked', menu.is_active);
+                }
 
-        modal.show();
+                modal.show();
+            })
+            .fail(xhr => App.handleError(xhr));
     }
 
     $('#btn-add-menu').on('click', () => openForm());
 
-    $tbody.on('click', '.btn-edit', function () {
-        openForm(menus.find(menu => menu.id === $(this).data('id')));
+    $('#menus-table').on('click', '.btn-edit', function () {
+        openForm(findRow($(this).data('id')));
     });
 
-    $tbody.on('click', '.btn-delete', function () {
-        const menu = menus.find(item => item.id === $(this).data('id'));
+    $('#menus-table').on('click', '.btn-delete', function () {
+        const menu = findRow($(this).data('id'));
 
         App.confirm(`Hapus menu ${menu.title}? Hak akses role untuk menu ini ikut terhapus.`, 'Ya, hapus').then(confirmed => {
             if (!confirmed) {
@@ -120,7 +133,7 @@ $(function () {
             $.ajax({ url: App.url(`api/menus/${menu.id}`), type: 'DELETE' })
                 .done(res => {
                     App.notify('success', res.message);
-                    load();
+                    table.ajax.reload(null, false);
                 })
                 .fail(xhr => App.handleError(xhr));
         });
@@ -138,11 +151,9 @@ $(function () {
             .done(res => {
                 modal.hide();
                 App.notify('success', res.message);
-                load();
+                table.ajax.reload(null, false);
             })
             .fail(xhr => App.handleError(xhr, $form))
             .always(() => $submit.prop('disabled', false));
     });
-
-    load();
 });

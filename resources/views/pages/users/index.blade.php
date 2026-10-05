@@ -5,6 +5,12 @@
 @section('content')
     <x-page-header title="User" :breadcrumbs="[['label' => 'Pengaturan']]">
         <x-slot:actions>
+            @can('users.print')
+                <a href="{{ route('users.export') }}" class="btn btn-label-success" id="btn-export-users"
+                    data-url="{{ route('users.export') }}">
+                    <i class="icon-base bx bx-spreadsheet me-1"></i> Ekspor Excel
+                </a>
+            @endcan
             @can('users.create')
                 <button type="button" class="btn btn-primary" id="btn-add-user">
                     <i class="icon-base bx bx-plus me-1"></i> Tambah User

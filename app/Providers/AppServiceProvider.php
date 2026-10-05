@@ -4,12 +4,14 @@ namespace App\Providers;
 
 use App\Models\RoleMenuAccess;
 use App\Models\User;
+use App\Support\Theme;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Laravel\Pulse\Facades\Pulse;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +30,22 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerMenuAccessGate();
         $this->registerRateLimiters();
+        $this->configurePulse();
+    }
+
+    /**
+     * Dashboard Pulse (/pulse) mengikuti hak akses menu `pulse.read`.
+     * Avatar tidak diambil dari Gravatar (layanan eksternal) demi privasi data user.
+     */
+    private function configurePulse(): void
+    {
+        Gate::define('viewPulse', fn (User $user) => $user->can('pulse.read'));
+
+        Pulse::user(fn (User $user) => [
+            'name' => $user->name,
+            'extra' => $user->nik,
+            'avatar' => Theme::asset('img/avatars/1.png'),
+        ]);
     }
 
     /**
@@ -35,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
      * - login    : 5x/menit per NIK + IP, dan 20x/menit per IP (mencegah tebak banyak NIK)
      * - api      : 60x/menit per user
      * - password : 5x/menit per user (ganti password di profil)
+     * - export   : 10x/menit per user (ekspor Excel)
      *
      * Request yang kena limit dicatat ke audit log (lihat bootstrap/app.php).
      */
@@ -49,6 +68,10 @@ class AppServiceProvider extends ServiceProvider
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
 
         RateLimiter::for('password', fn (Request $request) => Limit::perMinute(5)
+            ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
+
+        // Ekspor membuat file di server: dibatasi agar tidak dipakai membebani server.
+        RateLimiter::for('export', fn (Request $request) => Limit::perMinute(10)
             ->by($request->user()?->getAuthIdentifier() ?? $request->ip()));
     }
 

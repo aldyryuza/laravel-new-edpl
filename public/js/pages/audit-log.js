@@ -1,5 +1,5 @@
 /**
- * Audit log (read-only). Pagination + filter di server: GET api/activity-logs.
+ * Audit log (read-only). Yajra server-side: GET api/activity-logs/datatable + filter form.
  */
 'use strict';
 
@@ -20,41 +20,29 @@ $(function () {
     const table = $('#audit-table').DataTable({
         serverSide: true,
         processing: true,
-        ordering: false,
+        // Pencarian lewat form filter di atas (parameter `keyword`), bukan kotak search DataTables.
         searching: false,
-        ajax: function (params, callback) {
-            $.get(App.url('api/activity-logs'), {
-                ...filters(),
-                page: Math.floor(params.start / params.length) + 1,
-                per_page: params.length
-            })
-                .done(res => callback({
-                    draw: params.draw,
-                    data: res.data,
-                    recordsTotal: res.meta.total,
-                    recordsFiltered: res.meta.total
-                }))
-                .fail(xhr => {
-                    App.handleError(xhr);
-                    callback({ draw: params.draw, data: [], recordsTotal: 0, recordsFiltered: 0 });
-                });
-        },
+        order: [[0, 'desc']],
+        ajax: App.dataTableSource('api/activity-logs/datatable', filters),
         columns: [
-            { data: 'created_at', className: 'text-nowrap', render: formatDate },
+            { data: 'created_at', name: 'created_at', className: 'text-nowrap', render: formatDate },
             {
                 data: 'category_label',
+                name: 'log_name',
                 render: (label, type, row) => `<span class="badge ${BADGE[row.category] || 'bg-label-secondary'}">${App.escape(label)}</span>`
             },
-            { data: 'description', render: App.escape },
+            { data: 'description', name: 'description', render: App.escape },
             {
                 data: 'causer',
+                orderable: false,
                 render: causer => causer
                     ? `${App.escape(causer.name)}<div class="small text-body-secondary">${App.escape(causer.nik)}</div>`
                     : '<span class="text-body-secondary">Sistem / tamu</span>'
             },
-            { data: 'properties', className: 'text-nowrap', render: props => App.escape(props?.ip || '-') },
+            { data: 'properties', orderable: false, className: 'text-nowrap', render: props => App.escape(props?.ip || '-') },
             {
                 data: null,
+                orderable: false,
                 className: 'text-end',
                 render: row => `<button type="button" class="btn btn-sm btn-icon btn-text-secondary btn-detail" data-id="${row.id}" title="Detail">
                                     <i class="icon-base bx bx-show"></i></button>`

@@ -330,7 +330,21 @@ Route web/API wajib tetap memakai middleware `can:{kode_menu}.{action}`.
 
 Contoh lengkap: `pages/users`, `pages/roles`, `pages/menus` + `public/js/pages/*.js`.
 
-- Tabel besar: DataTables `serverSide` yang memetakan ke `GET api/{resource}?page&per_page&search`.
+- **Semua tabel data memakai Yajra DataTables** (server-side) lewat endpoint `GET api/{resource}/datatable`:
+
+  ```javascript
+  $('#users-table').DataTable({
+      serverSide: true,
+      processing: true,
+      ajax: App.dataTableSource('api/users/datatable'),          // + fungsi filter tambahan bila perlu
+      columns: [{ data: 'name', name: 'name', render: App.escape }, ...]
+  });
+  ```
+
+  - `name` kolom harus sama dengan kolom yang di-whitelist di controller (sort/search).
+  - Kolom hasil hitung/relasi: `orderable: false, searchable: false`.
+  - Filter custom (mis. form Audit Log) dikirim lewat argumen kedua `App.dataTableSource(path, () => ({...}))`.
+  - Data dari Yajra **tidak di-escape di server**; selalu render dengan `App.escape()`.
 - Form tambah/edit di modal, submit AJAX, error 422 ditampilkan per field via `App.handleError(xhr, $form)`.
 - Konfirmasi hapus: `App.confirm(message)`; teks dari data: `App.escape(value)`.
 

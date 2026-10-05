@@ -29,6 +29,40 @@ class MenuManagementTest extends TestCase
         $this->assertDatabaseHas('menus', ['code' => 'purchase-request', 'parent_id' => null]);
     }
 
+    public function test_menu_datatable_keeps_tree_order_and_is_searchable(): void
+    {
+        $actor = $this->userWithAccess(['menus' => ['read']]);
+        $group = Menu::factory()->create(['code' => 'grp', 'title' => 'Grup', 'sort_order' => 90]);
+        Menu::factory()->create(['code' => 'child', 'title' => 'Anak', 'parent_id' => $group->id, 'sort_order' => 1]);
+        Menu::factory()->create(['code' => 'first', 'title' => 'Pertama', 'sort_order' => 0]);
+
+        $columns = ['title', 'code', 'route'];
+
+        $rows = $this->actingAs($actor)
+            ->getJson('/api/menus/datatable?'.$this->dataTableQuery($columns, ['length' => 50]))
+            ->assertOk()
+            ->json('data');
+
+        $codes = array_column($rows, 'code');
+        $this->assertLessThan(array_search('grp', $codes), array_search('first', $codes));
+        $this->assertSame(array_search('grp', $codes) + 1, array_search('child', $codes));
+        $this->assertSame(1, $rows[array_search('child', $codes)]['depth']);
+
+        $this->actingAs($actor)
+            ->getJson('/api/menus/datatable?'.$this->dataTableQuery($columns, ['search' => 'anak']))
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.code', 'child');
+    }
+
+    public function test_pulse_dashboard_follows_menu_access(): void
+    {
+        $this->get('/pulse')->assertRedirect(route('login'));
+
+        $this->actingAs($this->userWithAccess([]))->get('/pulse')->assertForbidden();
+
+        $this->actingAs($this->userWithAccess(['pulse' => ['read']]))->get('/pulse')->assertOk();
+    }
+
     public function test_menu_code_cannot_contain_dot(): void
     {
         $this->actingAs($this->userWithAccess(['menus' => ['create']]))

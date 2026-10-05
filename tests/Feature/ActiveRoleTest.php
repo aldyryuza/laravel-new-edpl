@@ -54,7 +54,7 @@ class ActiveRoleTest extends TestCase
 
         // Belum memilih role: halaman lain diarahkan ke pilih role, API ditolak.
         $this->get('/dashboard')->assertRedirect(route('active-role.create'));
-        $this->getJson('/api/users')->assertStatus(409);
+        $this->getJson('/api/users/datatable')->assertStatus(409);
 
         $this->post('/active-role', ['role_id' => $this->reader->id])->assertRedirect(route('dashboard'));
         $this->get('/users')->assertOk();

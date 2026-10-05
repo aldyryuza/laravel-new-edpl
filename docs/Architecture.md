@@ -166,6 +166,36 @@ Gunakan API Resource jika response transformation cukup kompleks atau membutuhka
 
 ## 6. Standard API response
 
+### Data tabel: Yajra DataTables
+
+Semua data yang ditampilkan sebagai tabel diambil dari `GET api/{resource}/datatable`
+(`yajra/laravel-datatables-oracle`), response mengikuti protokol DataTables
+(`draw`, `recordsTotal`, `recordsFiltered`, `data`), bukan envelope di bawah.
+
+```php
+public function datatable(Request $request): JsonResponse
+{
+    $query = User::query()->select([...])->with('roles:id,name');
+
+    return DataTables::eloquent($query)
+        ->whitelist(['nik', 'name', 'email'])   // WAJIB: kolom yang boleh di-sort/search
+        ->toJson();
+}
+```
+
+Aturan:
+
+- Selalu `whitelist()` kolom; nama kolom dari request tidak boleh dipakai bebas.
+- `select()` kolom yang dibutuhkan saja; jangan kirim atribut sensitif.
+- Kolom relasi/hasil hitung: kembalikan **array**, bukan Collection (Yajra mengubah objek jadi string).
+- Escape HTML di server dimatikan (`config/datatables.php`); HTML dirender di JS dengan `App.escape()`.
+- Error Yajra diteruskan ke exception handler (`DATATABLES_ERROR=throw`) agar SQL tidak bocor.
+- Filter yang dipakai juga oleh ekspor (mis. `User::search()`) ditaruh di scope model supaya hasil tabel = hasil ekspor.
+
+Endpoint JSON biasa (envelope di bawah) dipakai untuk kebutuhan non-tabel, misalnya dropdown.
+
+### Envelope JSON
+
 Default project:
 
 ```json
@@ -283,6 +313,7 @@ Didefinisikan di `AppServiceProvider::registerRateLimiters()`:
 | `login` | 5/menit per NIK + IP, dan 20/menit per IP | `POST /login` |
 | `api` | 60/menit per user | semua `routes/api.php` |
 | `password` | 5/menit per user | `PUT api/profile/password` |
+| `export` | 10/menit per user | ekspor Excel (`/users/export`) |
 
 Request yang ditolak tidak sampai ke controller/listener, sehingga tidak membanjiri audit log.
 
@@ -304,6 +335,27 @@ Browser (public/js/realtime.js, Echo + pusher-js statis)
 - File Echo statis di `public/assets/vendor/libs/echo` (versi di `VERSION.txt`), update manual.
 - Alamat untuk browser bisa dibedakan dengan `REVERB_CLIENT_HOST/PORT/SCHEME` (reverse proxy/TLS).
 - Production: jalankan `php artisan reverb:start` sebagai service (supervisor/systemd).
+
+### Ekspor Excel (Laravel Excel v4)
+
+- Kelas ekspor di `app/Exports` (`php artisan make:export`). Contoh: `UsersExport`.
+- Hak akses ekspor = action `print` menu terkait (mis. `can:users.print`), plus `throttle:export`.
+- Filter ekspor memakai scope model yang sama dengan tabel Yajra (hasil tabel = isi file).
+- **Wajib** `extends StringValueBinder implements WithCustomValueBinder`: semua sel jadi teks, mencegah
+  formula injection (`=HYPERLINK(...)`) dan menjaga nol di depan NIK.
+- Ekspor data pribadi dicatat ke audit log (`event: exported`).
+- Dataset sangat besar: pertimbangkan `ShouldQueue` + notifikasi, jangan download sinkron.
+- Butuh extension PHP `zip`.
+
+### Monitoring server (Laravel Pulse)
+
+- Dashboard `/pulse` (menu **Monitoring Server**), akses via gate `viewPulse` -> hak akses menu `pulse.read`.
+- Data disimpan di tabel `pulse_*` (database yang sama). Avatar user tidak diambil dari Gravatar.
+- Pulse meng-cache hasil query dashboard sebagai object. Laravel 13 menolak unserialize object dari
+  cache secara default, jadi `config/cache.php` `serializable_classes` meng-allowlist **hanya**
+  `Collection`, `stdClass`, `CarbonImmutable`. Jangan ganti dengan `true` (membuka risiko gadget chain).
+- Kartu "Servers" butuh proses `php artisan pulse:check` berjalan terus (sudah ada di `composer dev`;
+  di production jalankan sebagai service). Di test, Pulse dimatikan (`PULSE_ENABLED=false`).
 
 ### Umum
 

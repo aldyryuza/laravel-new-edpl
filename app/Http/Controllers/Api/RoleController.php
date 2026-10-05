@@ -8,6 +8,7 @@ use App\Models\Role;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Yajra\DataTables\Facades\DataTables;
 
 class RoleController extends Controller implements HasMiddleware
 {
@@ -17,7 +18,7 @@ class RoleController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:roles.read', only: ['index', 'show']),
+            new Middleware('can:roles.read', only: ['datatable', 'show']),
             new Middleware('can:roles.create', only: ['store']),
             new Middleware('can:roles.update', only: ['update']),
             new Middleware('can:roles.delete', only: ['destroy']),
@@ -25,15 +26,17 @@ class RoleController extends Controller implements HasMiddleware
     }
 
     /**
-     * Jumlah role kecil, jadi dikembalikan semua tanpa pagination.
+     * Data tabel (Yajra, protokol DataTables server-side).
      */
-    public function index(): JsonResponse
+    public function datatable(): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'message' => 'Data berhasil diambil',
-            'data' => Role::query()->withCount('users')->orderBy('name')->get(),
-        ]);
+        $query = Role::query()
+            ->select(['roles.id', 'roles.name', 'roles.description'])
+            ->withCount('users');
+
+        return DataTables::eloquent($query)
+            ->whitelist(['name', 'description'])
+            ->toJson();
     }
 
     public function store(RoleRequest $request): JsonResponse

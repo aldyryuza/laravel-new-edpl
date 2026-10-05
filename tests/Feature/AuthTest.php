@@ -42,7 +42,7 @@ class AuthTest extends TestCase
 
     public function test_guest_api_request_returns_401(): void
     {
-        $this->getJson('/api/users')->assertUnauthorized();
+        $this->getJson('/api/users/datatable')->assertUnauthorized();
     }
 
     public function test_user_can_logout(): void

@@ -9,6 +9,7 @@ use App\Services\MenuService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Yajra\DataTables\Facades\DataTables;
 
 class MenuController extends Controller implements HasMiddleware
 {
@@ -18,7 +19,7 @@ class MenuController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:menus.read', only: ['index', 'show']),
+            new Middleware('can:menus.read', only: ['index', 'datatable', 'show']),
             new Middleware('can:menus.create', only: ['store']),
             new Middleware('can:menus.update', only: ['update']),
             new Middleware('can:menus.delete', only: ['destroy']),
@@ -26,7 +27,20 @@ class MenuController extends Controller implements HasMiddleware
     }
 
     /**
+     * Data tabel (Yajra). Urutan pohon (parent lalu sub menu) dipertahankan,
+     * jadi sorting per kolom tidak diaktifkan; pencarian di judul/kode/route.
+     */
+    public function datatable(MenuService $menuService): JsonResponse
+    {
+        return DataTables::collection($menuService->flatTree()->map->toArray())
+            ->whitelist(['title', 'code', 'route'])
+            ->order(fn () => null)
+            ->toJson();
+    }
+
+    /**
      * Semua menu, urut pohon dengan atribut `depth`.
+     * Dipakai untuk kebutuhan non-tabel, misalnya pilihan parent di form menu.
      */
     public function index(MenuService $menuService): JsonResponse
     {

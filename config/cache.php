@@ -1,5 +1,7 @@
 <?php
 
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 return [
@@ -131,6 +133,13 @@ return [
     |
     */
 
-    'serializable_classes' => false,
+    // Hanya class yang dibutuhkan Laravel Pulse (hasil query dashboard di-cache
+    // sebagai Collection berisi stdClass/CarbonImmutable). Tambahkan class lain
+    // secara eksplisit bila memang perlu; jangan ganti dengan `true`.
+    'serializable_classes' => [
+        Collection::class,
+        stdClass::class,
+        CarbonImmutable::class,
+    ],
 
 ];

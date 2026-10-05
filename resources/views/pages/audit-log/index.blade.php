@@ -20,7 +20,7 @@
                 </div>
                 <div class="col-md-3">
                     <label for="filter-search" class="form-label">Cari</label>
-                    <input type="search" class="form-control" id="filter-search" name="search" maxlength="100"
+                    <input type="search" class="form-control" id="filter-search" name="keyword" maxlength="100"
                         placeholder="Deskripsi, nama, atau NIK pelaku" />
                 </div>
                 <div class="col-md-2">

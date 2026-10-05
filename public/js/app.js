@@ -66,6 +66,22 @@ window.App = (function () {
         }).then(result => result.isConfirmed);
     }
 
+    /**
+     * Opsi `ajax` DataTables untuk endpoint Yajra (`GET api/{resource}/datatable`).
+     *
+     *   $('#table').DataTable({ serverSide: true, ajax: App.dataTableSource('api/users/datatable'), ... });
+     *
+     * @param {string} path
+     * @param {Function} [extraParams] mengembalikan objek parameter tambahan (mis. filter form)
+     */
+    function dataTableSource(path, extraParams = null) {
+        return {
+            url: url(path),
+            data: params => (extraParams ? Object.assign(params, extraParams()) : params),
+            error: xhr => handleError(xhr)
+        };
+    }
+
     /** Hapus tampilan error validasi pada sebuah form. */
     function clearErrors(form) {
         const $form = jQuery(form);
@@ -301,5 +317,5 @@ window.App = (function () {
         init();
     }
 
-    return { baseUrl, csrfToken, url, notify, escape, confirm, clearErrors, showErrors, handleError };
+    return { baseUrl, csrfToken, url, notify, escape, confirm, dataTableSource, clearErrors, showErrors, handleError };
 })();

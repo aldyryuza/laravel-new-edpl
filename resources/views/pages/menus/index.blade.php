@@ -1,4 +1,4 @@
-@extends('layouts.app', ['vendors' => ['sweetalert2']])
+@extends('layouts.app', ['vendors' => ['datatables', 'sweetalert2']])
 
 @section('title', 'Menu')
 
@@ -17,8 +17,8 @@
     {{-- Flag permission hanya untuk UX (tampil/sembunyi tombol); server tetap mengecek ulang. --}}
     <div class="card" id="menus-page" data-can-update="{{ (int) auth()->user()->can('menus.update') }}"
         data-can-delete="{{ (int) auth()->user()->can('menus.delete') }}">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0" id="menus-table">
+        <div class="card-datatable table-responsive">
+            <table class="table table-hover" id="menus-table">
                 <thead>
                     <tr>
                         <th>Judul</th>
@@ -29,11 +29,7 @@
                         <th class="text-end">Aksi</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr>
-                        <td colspan="6" class="text-center text-body-secondary py-6">Memuat...</td>
-                    </tr>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>

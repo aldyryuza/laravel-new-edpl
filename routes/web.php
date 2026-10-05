@@ -32,6 +32,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/example', [ExampleController::class, 'index'])->middleware('can:example.read')->name('example.index');
 
     Route::get('/users', [UserController::class, 'index'])->middleware('can:users.read')->name('users.index');
+    Route::get('/users/export', [UserController::class, 'export'])->middleware(['can:users.print', 'throttle:export'])->name('users.export');
 
     Route::get('/roles', [RoleController::class, 'index'])->middleware('can:roles.read')->name('roles.index');
     Route::get('/roles/{role}/access', [RoleController::class, 'access'])->middleware('can:roles.read')->name('roles.access');

@@ -27,8 +27,14 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 - Audit log dengan `spatie/laravel-activitylog` v5: login/login gagal/logout, ganti role, ganti/reset password, perubahan User/Role/Menu/hak akses/role user, dan pelanggaran rate limit. Halaman **Audit Log** dengan filter kategori, pencarian, dan rentang tanggal (`audit-log.read`, `GET api/activity-logs`).
 - Menu seeder `online-users` dan `audit-log` di grup Pengaturan.
 
+- Laravel Pulse: dashboard `/pulse` (menu **Monitoring Server**, hak akses `pulse.read`); `composer dev` ikut menjalankan `pulse:check`.
+- Laravel Excel (`maatwebsite/excel` v4): ekspor Daftar User (`GET /users/export`, hak akses `users.print`, rate limit `export` 10/menit per user), mengikuti pencarian tabel, dicatat ke audit log. Semua sel disimpan sebagai teks untuk mencegah formula injection.
+- Yajra DataTables sebagai standar data tabel: endpoint `GET api/users|roles|menus|activity-logs/datatable`, helper JS `App.dataTableSource()`, sorting per kolom (whitelist).
+
 ### Changed
 
+- **Breaking (API):** `GET api/users`, `GET api/roles`, dan `GET api/activity-logs` dihapus, diganti endpoint `.../datatable` (protokol DataTables). `GET api/menus` tetap untuk pilihan parent. Filter kata kunci Audit Log kini bernama `keyword`.
+- Tabel Menu memakai DataTables (sebelumnya render manual).
 - Rate limit bernama: `login` (5/menit per NIK+IP, 20/menit per IP), `api` (60/menit per user), `password` (5/menit per user). Request yang kena limit dicatat sekali per window ke audit log kategori `security`.
 
 - Route `/` diarahkan ke `/dashboard`.
@@ -40,6 +46,7 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 
 ### Fixed
 
+- Dashboard Pulse error "incomplete object Illuminate\Support\Collection": `cache.serializable_classes` kini meng-allowlist class yang dibutuhkan Pulse saja.
 - Theme switcher light/dark/system di navbar: klik-nya diikat sendiri di `public/js/app.js` memakai API `window.Helpers`, karena binding bawaan Sneat berada di `template-customizer.js` yang dimatikan. Pilihan disimpan di localStorage dengan key yang sama seperti Sneat dan diterapkan sebelum render untuk mencegah kedip.
 - `template-customizer.js` kini ikut memuat Pickr saat `THEME_CUSTOMIZER=true`, supaya customizer tidak error ketika dinyalakan. Saat customizer aktif, tombol theme di navbar disembunyikan karena panel customizer sudah menyediakannya.
 

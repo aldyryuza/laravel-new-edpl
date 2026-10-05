@@ -14,12 +14,19 @@ $(function () {
     let editingId = null;
 
     const table = $('#roles-table').DataTable({
-        ajax: { url: App.url('api/roles'), dataSrc: 'data', error: xhr => App.handleError(xhr) },
+        serverSide: true,
+        processing: true,
+        searchDelay: 400,
+        ajax: App.dataTableSource('api/roles/datatable'),
         order: [[0, 'asc']],
         columns: [
-            { data: 'name', render: App.escape },
-            { data: 'description', render: value => value ? App.escape(value) : '<span class="text-body-secondary">-</span>' },
-            { data: 'users_count' },
+            { data: 'name', name: 'name', render: App.escape },
+            {
+                data: 'description',
+                name: 'description',
+                render: value => value ? App.escape(value) : '<span class="text-body-secondary">-</span>'
+            },
+            { data: 'users_count', orderable: false, searchable: false },
             { data: null, orderable: false, searchable: false, className: 'text-end text-nowrap', render: renderActions }
         ],
         language: { emptyTable: 'Belum ada role', zeroRecords: 'Role tidak ditemukan', search: 'Cari:' }

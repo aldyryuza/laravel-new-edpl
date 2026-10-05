@@ -7,6 +7,8 @@ use App\Support\AuditLog;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -85,6 +87,27 @@ class User extends Authenticatable
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'user_has_roles');
+    }
+
+    /**
+     * Cari berdasarkan NIK, nama, atau email (case-insensitive).
+     * Dipakai tabel user dan ekspor Excel agar hasilnya selalu sama.
+     *
+     * @param  Builder<User>  $query
+     */
+    #[Scope]
+    protected function search(Builder $query, ?string $term): void
+    {
+        $term = trim((string) $term);
+
+        if ($term === '') {
+            return;
+        }
+
+        $query->where(fn (Builder $query) => $query
+            ->whereLike('nik', "%{$term}%")
+            ->orWhereLike('name', "%{$term}%")
+            ->orWhereLike('email', "%{$term}%"));
     }
 
     public function activeRole(): ?Role

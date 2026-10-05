@@ -19,23 +19,36 @@ class UserManagementTest extends TestCase
         $this->actingAs($this->userWithAccess(['users' => ['read']]))->get('/users')->assertOk();
     }
 
-    public function test_index_is_paginated_and_searchable(): void
+    public function test_datatable_is_paginated_searchable_and_sortable(): void
     {
         $actor = $this->userWithAccess(['users' => ['read']]);
-        User::factory()->create(['nik' => '9988776655', 'name' => 'Budi Santoso']);
-        User::factory()->count(3)->create();
+        $budi = User::factory()->create(['nik' => '9988776655', 'name' => 'Budi Santoso']);
+        $budi->roles()->attach(Role::factory()->create(['name' => 'Sales']));
+        User::factory()->create(['name' => 'Zaki']);
+        User::factory()->create(['name' => 'Ani']);
+
+        $columns = ['nik', 'name', 'email', 'roles'];
 
         $this->actingAs($actor)
-            ->getJson('/api/users?search=budi')
+            ->getJson('/api/users/datatable?'.$this->dataTableQuery($columns, ['search' => 'BUDI']))
             ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.nik', '9988776655');
+            ->assertJsonPath('recordsTotal', 4)
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.nik', '9988776655')
+            ->assertJsonPath('data.0.roles.0.name', 'Sales')
+            ->assertJsonMissingPath('data.0.password');
 
         $this->actingAs($actor)
-            ->getJson('/api/users?per_page=2')
+            ->getJson('/api/users/datatable?'.$this->dataTableQuery($columns, ['length' => 2, 'order' => ['name', 'desc']]))
             ->assertJsonCount(2, 'data')
-            ->assertJsonPath('meta.total', 5);
+            ->assertJsonPath('data.0.name', 'Zaki');
+    }
+
+    public function test_datatable_ignores_sorting_by_non_whitelisted_column(): void
+    {
+        $this->actingAs($this->userWithAccess(['users' => ['read']]))
+            ->getJson('/api/users/datatable?'.$this->dataTableQuery(['password'], ['order' => ['password', 'asc']]))
+            ->assertOk();
     }
 
     public function test_store_creates_user_with_roles(): void

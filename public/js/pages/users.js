@@ -1,8 +1,7 @@
 /**
  * Management user.
  *
- * Tabel memakai pagination server (GET api/users?page&per_page&search),
- * form tambah/edit di modal.
+ * Tabel: Yajra server-side (GET api/users/datatable), form tambah/edit di modal.
  */
 'use strict';
 
@@ -18,36 +17,22 @@ $(function () {
     const table = $('#users-table').DataTable({
         serverSide: true,
         processing: true,
-        ordering: false,
         searchDelay: 400,
-        ajax: function (params, callback) {
-            $.get(App.url('api/users'), {
-                page: Math.floor(params.start / params.length) + 1,
-                per_page: params.length,
-                search: params.search.value
-            })
-                .done(res => callback({
-                    draw: params.draw,
-                    data: res.data,
-                    recordsTotal: res.meta.total,
-                    recordsFiltered: res.meta.total
-                }))
-                .fail(xhr => {
-                    App.handleError(xhr);
-                    callback({ draw: params.draw, data: [], recordsTotal: 0, recordsFiltered: 0 });
-                });
-        },
+        order: [[1, 'asc']],
+        ajax: App.dataTableSource('api/users/datatable'),
         columns: [
-            { data: 'nik', render: App.escape },
-            { data: 'name', render: App.escape },
-            { data: 'email', render: App.escape },
+            { data: 'nik', name: 'nik', render: App.escape },
+            { data: 'name', name: 'name', render: App.escape },
+            { data: 'email', name: 'email', render: App.escape },
             {
                 data: 'roles',
+                orderable: false,
+                searchable: false,
                 render: roles => roles.length
                     ? roles.map(role => `<span class="badge bg-label-primary me-1">${App.escape(role.name)}</span>`).join('')
                     : '<span class="text-body-secondary">-</span>'
             },
-            { data: null, className: 'text-end text-nowrap', render: renderActions }
+            { data: null, orderable: false, searchable: false, className: 'text-end text-nowrap', render: renderActions }
         ],
         language: { emptyTable: 'Belum ada user', zeroRecords: 'User tidak ditemukan', search: 'Cari:' }
     });
@@ -89,6 +74,16 @@ $(function () {
     }
 
     $('#btn-add-user').on('click', () => openForm());
+
+    // Ekspor mengikuti kata kunci pencarian yang sedang dipakai di tabel.
+    $('#btn-export-users').on('click', function (event) {
+        event.preventDefault();
+
+        const search = table.search();
+        const url = $(this).data('url') + (search ? `?search=${encodeURIComponent(search)}` : '');
+
+        window.location.href = url;
+    });
 
     $('#users-table').on('click', '.btn-edit', function () {
         openForm(table.rows().data().toArray().find(user => user.id === $(this).data('id')));

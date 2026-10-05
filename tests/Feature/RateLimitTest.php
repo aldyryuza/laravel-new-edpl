@@ -37,13 +37,13 @@ class RateLimitTest extends TestCase
         $user = $this->userWithAccess(['users' => ['read']]);
 
         foreach (range(1, 60) as $request) {
-            $this->actingAs($user)->getJson('/api/users')->assertOk();
+            $this->actingAs($user)->getJson('/api/users/datatable')->assertOk();
         }
 
-        $this->actingAs($user)->getJson('/api/users')->assertTooManyRequests();
+        $this->actingAs($user)->getJson('/api/users/datatable')->assertTooManyRequests();
 
         // User lain tidak ikut terkena limit.
-        $this->actingAs($this->userWithAccess(['users' => ['read']]))->getJson('/api/users')->assertOk();
+        $this->actingAs($this->userWithAccess(['users' => ['read']]))->getJson('/api/users/datatable')->assertOk();
     }
 
     public function test_password_change_is_limited(): void
