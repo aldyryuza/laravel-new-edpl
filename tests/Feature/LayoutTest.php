@@ -2,10 +2,24 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
+use Database\Seeders\AccessControlSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class LayoutTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Menu sidebar berasal dari database; admin hasil seeder punya akses ke semua menu.
+        $this->seed(AccessControlSeeder::class);
+        $this->actingAs(User::query()->firstWhere('nik', 'admin'));
+    }
+
     public function test_dashboard_renders_with_core_assets_only(): void
     {
         config()->set('sneat.customizer', false);
@@ -44,6 +58,11 @@ class LayoutTest extends TestCase
 
         // Nama brand tidak ditampilkan sebagai teks.
         $response->assertDontSee('app-brand-text', escape: false);
+    }
+
+    public function test_sidebar_has_menu_search(): void
+    {
+        $this->get('/dashboard')->assertSee('id="sidebar-menu-search"', escape: false);
     }
 
     public function test_active_menu_is_marked(): void

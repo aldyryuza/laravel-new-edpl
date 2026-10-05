@@ -19,10 +19,21 @@
         </a>
     </div>
 
+    {{-- Pencarian menu: filter di sisi browser, logic di public/js/app.js (initSidebarSearch). --}}
+    <div class="sidebar-search px-4 pb-2">
+        <div class="input-group input-group-merge input-group-sm">
+            <span class="input-group-text"><i class="icon-base bx bx-search"></i></span>
+            <input type="search" class="form-control" id="sidebar-menu-search" placeholder="Cari menu... ( / )"
+                aria-label="Cari menu" autocomplete="off" />
+        </div>
+    </div>
+
     <div class="menu-inner-shadow"></div>
 
     <ul class="menu-inner py-1">
-        @include('layouts.partials.menu-items', ['items' => config('menu', [])])
+        @include('layouts.partials.menu-items', [
+            'items' => app(\App\Services\MenuService::class)->sidebarFor(auth()->user()),
+        ])
     </ul>
 </aside>
 

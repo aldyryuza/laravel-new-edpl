@@ -7,15 +7,29 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['nik', 'name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /**
+     * Hak akses role aktif, di-cache per instance (per request).
+     *
+     * @var array<string, array<int, string>>|null
+     */
+    protected ?array $menuAccessCache = null;
+
+    /**
+     * Role yang sedang dipakai. Diisi tiap request oleh middleware ResolveActiveRole
+     * dari session; null = belum memilih / tidak punya role = tanpa hak akses.
+     */
+    protected ?Role $activeRole = null;
 
     /**
      * Get the attributes that should be cast.
@@ -28,5 +42,70 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * @return BelongsToMany<Role, $this>
+     */
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'user_has_roles');
+    }
+
+    public function activeRole(): ?Role
+    {
+        return $this->activeRole;
+    }
+
+    public function setActiveRole(?Role $role): void
+    {
+        $this->activeRole = $role;
+        $this->flushMenuAccess();
+    }
+
+    /**
+     * Action yang diizinkan per kode menu untuk role aktif.
+     *
+     * @return array<string, array<int, string>> contoh: ['users' => ['read', 'update']]
+     */
+    public function menuAccess(): array
+    {
+        if ($this->menuAccessCache !== null) {
+            return $this->menuAccessCache;
+        }
+
+        if ($this->activeRole === null) {
+            return $this->menuAccessCache = [];
+        }
+
+        $rows = RoleMenuAccess::query()
+            ->join('menus', 'menus.id', '=', 'role_menu_accesses.menu_id')
+            ->where('role_menu_accesses.role_id', $this->activeRole->id)
+            ->get(['menus.code', ...array_map(fn (string $action) => "role_menu_accesses.can_{$action}", RoleMenuAccess::ACTIONS)]);
+
+        $access = [];
+
+        foreach ($rows as $row) {
+            foreach (RoleMenuAccess::ACTIONS as $action) {
+                if ($row->{"can_{$action}"}) {
+                    $access[$row->code][$action] = $action;
+                }
+            }
+        }
+
+        return $this->menuAccessCache = array_map('array_values', $access);
+    }
+
+    public function hasMenuAccess(string $menuCode, string $action): bool
+    {
+        return in_array($action, $this->menuAccess()[$menuCode] ?? [], true);
+    }
+
+    /**
+     * Kosongkan cache hak akses, misalnya setelah hak akses role diubah.
+     */
+    public function flushMenuAccess(): void
+    {
+        $this->menuAccessCache = null;
     }
 }

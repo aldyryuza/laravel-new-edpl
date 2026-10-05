@@ -28,3 +28,14 @@
 .app-brand .app-brand-img-collapsed {
     block-size: 44px;
 }
+
+/* ---------------------------------------------------------------------------
+ * Pencarian menu sidebar
+ *
+ * Disembunyikan saat sidebar menciut (selector sama dengan logo Sneat),
+ * tampil lagi saat sidebar di-hover/terbuka.
+ * ------------------------------------------------------------------------ */
+.layout-menu-collapsed:not(.layout-menu-hover) .layout-menu .sidebar-search,
+.menu-collapsed:not(:hover) .sidebar-search {
+    display: none;
+}

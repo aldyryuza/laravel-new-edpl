@@ -13,12 +13,24 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 - Komponen Blade `<x-page-header>` dan `<x-alert>`.
 - `public/js/app.js`: setup CSRF, `App.url()`, notifikasi, dan penanganan error AJAX sesuai envelope API project.
 - Halaman contoh `dashboard` dan `example` beserta Web Controller-nya.
+- Tabel master akses: `menus`, `roles`, `user_has_roles`, `role_menu_accesses` (flag create/read/update/delete/print/approve per role per menu), dan kolom `users.nik` (unique).
+- Login session dengan NIK + password (`/login`, `/logout`, throttle 5x/menit).
+- Permission `{kode_menu}.{action}` lewat `Gate::before`, dihitung dari role aktif user.
+- Pilih role setelah login untuk user dengan lebih dari 1 role (`/active-role`), dan ganti role dari dropdown navbar tanpa login ulang. Middleware `ResolveActiveRole` (grup `web`) menentukan role aktif dari session; role tunggal dipakai otomatis, role yang dicabut admin otomatis dilepas.
+- Halaman Profil Saya (`/profile`): ubah nama/email (`PUT api/profile`) dan ganti password dengan verifikasi password lama (`PUT api/profile/password`). NIK dan role hanya bisa diubah admin.
+- Management User, Role (termasuk halaman pengaturan hak akses per menu), dan Menu: halaman Blade + API `api/users`, `api/roles`, `api/roles/{role}/access`, `api/menus`.
+- `routes/api.php` (prefix `/api`, middleware `web` + `auth`, berbasis session untuk AJAX).
+- Seeder `AccessControlSeeder`: menu bawaan, role Administrator dengan akses penuh, user `admin` (password awal `password`, wajib diganti).
+- Helper JS `App.escape()` dan `App.confirm()`.
+- Pencarian menu di sidebar (filter di browser, shortcut `/`, `Enter` membuka hasil pertama).
 
 ### Changed
 
 - Route `/` diarahkan ke `/dashboard`.
 - Sidebar hanya menampilkan logo (tanpa teks brand), dengan ukuran berbeda saat sidebar terbuka dan menciut. `THEME_BRAND` kini hanya dipakai sebagai `alt`/`title`.
 - Template customizer dan navbar search Sneat dimatikan secara default (`THEME_CUSTOMIZER`, `THEME_SEARCH`) karena tidak dibutuhkan di aplikasi dan menambah beban load.
+- Sidebar dibaca dari tabel `menus` dan disaring sesuai akses `read` user; `config/menu.php` dihapus.
+- Semua halaman (kecuali login) wajib login; halaman contoh butuh akses `example.read`.
 - `docs/Design.md`: struktur view disesuaikan dengan layout yang dibuat; JS halaman ditempatkan di `public/js/pages/` karena asset Sneat di-serve statis tanpa bundler.
 
 ### Fixed

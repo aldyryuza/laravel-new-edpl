@@ -292,19 +292,44 @@ dari view composer; Blade tidak perlu diubah.
 
 ## 16. Menu sidebar
 
-Menu didefinisikan di `config/menu.php`, bukan di Blade:
+Menu disimpan di tabel `menus` dan dikelola lewat halaman **Pengaturan > Menu**.
+`App\Services\MenuService::sidebarFor($user)` menyusunnya menjadi item untuk
+`layouts.partials.menu-items`.
 
-```php
-[
-    'title'  => 'Users',
-    'icon'   => 'bx bx-user',
-    'route'  => 'users.index',
-    'active' => ['users.*'],   // opsional
-    'can'    => 'users.view',  // opsional, UX saja
-    'children' => [ ... ],
-]
+- Menu dengan route tampil jika user punya akses `read` ke kode menu tersebut.
+- Menu grup (route kosong) tampil jika minimal satu sub menunya tampil.
+- Menu `is_active = false` tidak tampil.
+- State aktif dihitung dari prefix route: `users.index` -> `users.*`.
+- Route yang belum terdaftar otomatis jatuh ke `javascript:void(0);`, tidak error.
+- Kolom **Cari menu** di atas sidebar memfilter item di browser (`initSidebarSearch` di
+  `public/js/app.js`). Parent dari hasil yang cocok ikut dibuka; `Enter` membuka hasil
+  pertama, `Esc` mengosongkan, `/` memfokuskan kolom. Disembunyikan saat sidebar menciut.
+
+## 17. Hak akses di UI
+
+Ability berformat `{kode_menu}.{action}`, action: `create`, `read`, `update`,
+`delete`, `print`, `approve`. Dicek via `Gate::before` ke tabel `role_menu_accesses`
+untuk **role aktif** user (`auth()->user()->activeRole()`). Role aktif tampil sebagai
+badge di dropdown user navbar; user dengan lebih dari 1 role bisa menggantinya dari sana.
+
+```blade
+@can('users.create')
+    <button class="btn btn-primary">Tambah</button>
+@endcan
 ```
 
-- State aktif/terbuka dihitung otomatis dari route yang sedang diakses.
-- `can` hanya menyembunyikan menu; authorization tetap wajib di server.
-- Route yang belum terdaftar otomatis jatuh ke `javascript:void(0);`, tidak error.
+Untuk tombol yang dirender JS, kirim flag lewat data attribute:
+
+```blade
+<div id="users-page" data-can-update="{{ (int) auth()->user()->can('users.update') }}">
+```
+
+Route web/API wajib tetap memakai middleware `can:{kode_menu}.{action}`.
+
+## 18. Pola management CRUD
+
+Contoh lengkap: `pages/users`, `pages/roles`, `pages/menus` + `public/js/pages/*.js`.
+
+- Tabel besar: DataTables `serverSide` yang memetakan ke `GET api/{resource}?page&per_page&search`.
+- Form tambah/edit di modal, submit AJAX, error 422 ditampilkan per field via `App.handleError(xhr, $form)`.
+- Konfirmasi hapus: `App.confirm(message)`; teks dari data: `App.escape(value)`.

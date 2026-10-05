@@ -39,6 +39,33 @@ window.App = (function () {
         console[type === 'error' ? 'error' : 'log'](message);
     }
 
+    /** Escape teks sebelum disisipkan ke HTML (render kolom tabel, dsb). */
+    function escape(value) {
+        return String(value ?? '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[char]);
+    }
+
+    /**
+     * Dialog konfirmasi. Resolve true jika user menyetujui.
+     * Memakai SweetAlert2 bila vendor-nya dimuat, selain itu window.confirm.
+     */
+    function confirm(message, confirmText = 'Ya, lanjutkan') {
+        if (!window.Swal) {
+            return Promise.resolve(window.confirm(message));
+        }
+
+        return Swal.fire({
+            text: message,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: confirmText,
+            cancelButtonText: 'Batal',
+            buttonsStyling: false,
+            customClass: { confirmButton: 'btn btn-danger me-2', cancelButton: 'btn btn-label-secondary' }
+        }).then(result => result.isConfirmed);
+    }
+
     /** Hapus tampilan error validasi pada sebuah form. */
     function clearErrors(form) {
         const $form = jQuery(form);
@@ -144,11 +171,135 @@ window.App = (function () {
         });
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initThemeSwitcher);
-    } else {
-        initThemeSwitcher();
+    /**
+     * Pencarian menu sidebar.
+     *
+     * Hanya memfilter item yang sudah dirender server (sudah tersaring hak akses).
+     * Item cocok jika judulnya atau judul parent-nya mengandung kata kunci; parent
+     * dari item yang cocok ikut tampil dan dibuka. Enter membuka hasil pertama,
+     * Esc mengosongkan, "/" memfokuskan kolom pencarian.
+     */
+    function initSidebarSearch() {
+        const input = document.getElementById('sidebar-menu-search');
+        const root = document.querySelector('#layout-menu .menu-inner');
+
+        if (!input || !root) {
+            return;
+        }
+
+        const items = () => root.querySelectorAll('li.menu-item, li.menu-header');
+        const children = li => Array.from(li.querySelector(':scope > .menu-sub')?.children || []);
+        const title = li => (li.querySelector(':scope > .menu-link > div')?.textContent || '').trim().toLowerCase();
+
+        const empty = document.createElement('li');
+        empty.className = 'menu-item d-none';
+        empty.innerHTML = '<div class="menu-link text-body-secondary">Menu tidak ditemukan</div>';
+        root.appendChild(empty);
+
+        let searching = false;
+
+        /** @returns {boolean} apakah ada item yang tampil */
+        function filter(list, query, parentMatched) {
+            let anyVisible = false;
+
+            list.forEach(li => {
+                if (li === empty) {
+                    return;
+                }
+
+                if (li.classList.contains('menu-header')) {
+                    li.classList.add('d-none');
+                    return;
+                }
+
+                const selfMatched = parentMatched || title(li).includes(query);
+                const subs = children(li);
+                const childVisible = subs.length > 0 && filter(subs, query, selfMatched);
+                const visible = selfMatched || childVisible;
+
+                li.classList.toggle('d-none', !visible);
+
+                if (subs.length > 0) {
+                    li.classList.toggle('open', childVisible);
+                }
+
+                anyVisible = anyVisible || visible;
+            });
+
+            return anyVisible;
+        }
+
+        function apply() {
+            const query = input.value.trim().toLowerCase();
+
+            if (query === '') {
+                if (searching) {
+                    // Kembalikan state buka/tutup seperti sebelum mencari.
+                    items().forEach(li => {
+                        li.classList.remove('d-none');
+                        if (li.dataset.wasOpen !== undefined) {
+                            li.classList.toggle('open', li.dataset.wasOpen === '1');
+                            delete li.dataset.wasOpen;
+                        }
+                    });
+                    empty.classList.add('d-none');
+                    searching = false;
+                }
+                return;
+            }
+
+            if (!searching) {
+                items().forEach(li => {
+                    li.dataset.wasOpen = li.classList.contains('open') ? '1' : '0';
+                });
+                searching = true;
+            }
+
+            const found = filter(Array.from(root.children), query, false);
+            empty.classList.toggle('d-none', found);
+        }
+
+        input.addEventListener('input', apply);
+
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                input.value = '';
+                apply();
+                input.blur();
+            }
+
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const first = Array.from(root.querySelectorAll('li.menu-item:not(.d-none) > a.menu-link:not(.menu-toggle)'))
+                    .find(link => link.offsetParent !== null && !link.getAttribute('href')?.startsWith('javascript:'));
+
+                if (first) {
+                    window.location.href = first.href;
+                }
+            }
+        });
+
+        document.addEventListener('keydown', event => {
+            const target = event.target;
+            const typing = target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+
+            if (event.key === '/' && !typing) {
+                event.preventDefault();
+                input.focus();
+            }
+        });
     }
 
-    return { baseUrl, csrfToken, url, notify, clearErrors, showErrors, handleError };
+    function init() {
+        initThemeSwitcher();
+        initSidebarSearch();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    return { baseUrl, csrfToken, url, notify, escape, confirm, clearErrors, showErrors, handleError };
 })();

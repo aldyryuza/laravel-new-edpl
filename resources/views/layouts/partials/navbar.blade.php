@@ -69,8 +69,11 @@
                                     </div>
                                 </div>
                                 <div class="flex-grow-1">
-                                    <h6 class="mb-0">{{ auth()->user()?->name ?? 'Guest' }}</h6>
-                                    <small class="text-body-secondary">{{ auth()->user()?->email ?? '-' }}</small>
+                                    <h6 class="mb-0" data-auth-name>{{ auth()->user()?->name ?? 'Guest' }}</h6>
+                                    <small class="text-body-secondary d-block" data-auth-email>{{ auth()->user()?->email ?? '-' }}</small>
+                                    @if ($activeRole = auth()->user()?->activeRole())
+                                        <span class="badge bg-label-primary mt-1">{{ $activeRole->name }}</span>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -78,6 +81,43 @@
                     <li>
                         <div class="dropdown-divider my-1"></div>
                     </li>
+                    @auth
+                        @if (Route::has('profile.edit'))
+                            <li>
+                                <a class="dropdown-item" href="{{ route('profile.edit') }}">
+                                    <i class="icon-base bx bx-user icon-md me-3"></i><span>Profil Saya</span>
+                                </a>
+                            </li>
+                        @endif
+
+                        {{-- Ganti role tanpa login ulang: hanya untuk user dengan lebih dari 1 role. --}}
+                        @if (auth()->user()->roles->count() > 1)
+                            <li>
+                                <div class="dropdown-divider my-1"></div>
+                            </li>
+                            <li>
+                                <h6 class="dropdown-header text-uppercase small">Ganti role</h6>
+                            </li>
+                            @foreach (auth()->user()->roles as $role)
+                                @php($isActive = auth()->user()->activeRole()?->is($role))
+                                <li>
+                                    <form method="POST" action="{{ route('active-role.store') }}">
+                                        @csrf
+                                        <input type="hidden" name="role_id" value="{{ $role->id }}" />
+                                        <button type="submit" class="dropdown-item d-flex align-items-center {{ $isActive ? 'active' : '' }}"
+                                            @disabled($isActive) @if ($isActive) aria-current="true" @endif>
+                                            <i class="icon-base bx {{ $isActive ? 'bx-check-circle' : 'bx-shield-quarter' }} icon-md me-3"></i>
+                                            <span>{{ $role->name }}</span>
+                                        </button>
+                                    </form>
+                                </li>
+                            @endforeach
+                        @endif
+
+                        <li>
+                            <div class="dropdown-divider my-1"></div>
+                        </li>
+                    @endauth
                     @auth
                         @if (Route::has('logout'))
                             <li>

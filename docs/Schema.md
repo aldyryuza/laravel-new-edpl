@@ -16,21 +16,24 @@
 
 ## 2. ERD
 
-Ganti contoh berikut dengan ERD project.
-
 ```mermaid
 erDiagram
-    USERS ||--o{ TRANSACTIONS : creates
-    TRANSACTIONS ||--o{ TRANSACTION_ITEMS : contains
-    TRANSACTIONS ||--o{ APPROVAL_LOGS : has
+    USERS ||--o{ USER_HAS_ROLES : has
+    ROLES ||--o{ USER_HAS_ROLES : assigned
+    ROLES ||--o{ ROLE_MENU_ACCESSES : grants
+    MENUS ||--o{ ROLE_MENU_ACCESSES : protected_by
+    MENUS ||--o{ MENUS : parent_of
 ```
 
 ## 3. Table catalog
 
 | Table | Purpose | Model | Soft delete |
 |---|---|---|---:|
-| `users` | application users | `User` | `[YES/NO]` |
-| `[table]` | `[purpose]` | `[Model]` | `[YES/NO]` |
+| `users` | user aplikasi, login dengan NIK | `User` | No |
+| `menus` | master menu sidebar + kunci permission | `Menu` | No |
+| `roles` | master role (Administrator, dst.) | `Role` | No |
+| `user_has_roles` | pivot user <-> role (many-to-many) | - | No |
+| `role_menu_accesses` | hak action per role per menu | `RoleMenuAccess` | No |
 
 ## 4. Table definition
 
@@ -39,26 +42,77 @@ erDiagram
 | Column | PostgreSQL type | Nullable | Default | Constraint/Note |
 |---|---|---:|---|---|
 | `id` | bigint | No | identity | PK |
-| `name` | varchar(150) | No | - | |
+| `nik` | varchar(30) | No | - | UNIQUE, dipakai untuk login |
+| `name` | varchar(255) | No | - | |
 | `email` | varchar(255) | No | - | UNIQUE |
 | `password` | varchar(255) | No | - | hashed |
 | `created_at` | timestamp | Yes | - | |
 | `updated_at` | timestamp | Yes | - | |
 
-### `[TABLE_NAME]`
+`nik` ditambahkan langsung NOT NULL karena tabel `users` masih kosong saat migration dibuat.
+
+### `menus`
 
 | Column | PostgreSQL type | Nullable | Default | Constraint/Note |
 |---|---|---:|---|---|
 | `id` | bigint | No | identity | PK |
-| `[column]` | `[type]` | `[Yes/No]` | `[default]` | `[constraint]` |
+| `parent_id` | bigint | Yes | - | FK `menus.id`, RESTRICT |
+| `code` | varchar(50) | No | - | UNIQUE, alpha_dash tanpa titik; kunci permission `{code}.{action}` |
+| `title` | varchar(100) | No | - | |
+| `icon` | varchar(100) | Yes | - | class boxicons |
+| `route` | varchar(150) | Yes | - | nama route; kosong = menu grup |
+| `sort_order` | integer | No | 0 | |
+| `is_active` | boolean | No | true | nonaktif = disembunyikan dari sidebar |
 | `created_at` | timestamp | Yes | - | |
 | `updated_at` | timestamp | Yes | - | |
+
+### `roles`
+
+| Column | PostgreSQL type | Nullable | Default | Constraint/Note |
+|---|---|---:|---|---|
+| `id` | bigint | No | identity | PK |
+| `name` | varchar(100) | No | - | UNIQUE |
+| `description` | varchar(255) | Yes | - | |
+| `created_at` | timestamp | Yes | - | |
+| `updated_at` | timestamp | Yes | - | |
+
+### `user_has_roles`
+
+| Column | PostgreSQL type | Nullable | Default | Constraint/Note |
+|---|---|---:|---|---|
+| `user_id` | bigint | No | - | PK, FK `users.id` CASCADE |
+| `role_id` | bigint | No | - | PK, FK `roles.id` RESTRICT |
+
+### `role_menu_accesses`
+
+| Column | PostgreSQL type | Nullable | Default | Constraint/Note |
+|---|---|---:|---|---|
+| `id` | bigint | No | identity | PK |
+| `role_id` | bigint | No | - | FK `roles.id` CASCADE |
+| `menu_id` | bigint | No | - | FK `menus.id` CASCADE |
+| `can_create` | boolean | No | false | |
+| `can_read` | boolean | No | false | juga menentukan menu tampil di sidebar |
+| `can_update` | boolean | No | false | |
+| `can_delete` | boolean | No | false | |
+| `can_print` | boolean | No | false | |
+| `can_approve` | boolean | No | false | |
+| `created_at` | timestamp | Yes | - | |
+| `updated_at` | timestamp | Yes | - | |
+
+Tidak ada baris untuk pasangan role-menu = semua action `false`.
+Hak akses user = hak akses **role aktif** saja. Role aktif disimpan di session
+(`active_role_id`), dipilih saat login jika user punya lebih dari 1 role, dan bisa
+diganti dari navbar tanpa login ulang (lihat middleware `ResolveActiveRole`).
 
 ## 5. Relationship
 
 | Parent | Child | Type | Foreign key | On delete |
 |---|---|---|---|---|
-| `users` | `[table]` | 1:N | `[table].user_id` | `[RESTRICT/CASCADE/SET NULL]` |
+| `menus` | `menus` | 1:N | `menus.parent_id` | RESTRICT (hapus/pindahkan sub menu dulu) |
+| `users` | `user_has_roles` | 1:N | `user_has_roles.user_id` | CASCADE |
+| `roles` | `user_has_roles` | 1:N | `user_has_roles.role_id` | RESTRICT (role yang dipakai tidak bisa dihapus) |
+| `roles` | `role_menu_accesses` | 1:N | `role_menu_accesses.role_id` | CASCADE |
+| `menus` | `role_menu_accesses` | 1:N | `role_menu_accesses.menu_id` | CASCADE |
 
 Jangan memilih cascade delete tanpa mempertimbangkan history/audit.
 
@@ -66,7 +120,10 @@ Jangan memilih cascade delete tanpa mempertimbangkan history/audit.
 
 | Table | Columns | Type | Query pattern |
 |---|---|---|---|
-| `[table]` | `[column]` | btree | `[query]` |
+| `menus` | `parent_id, sort_order` | btree | susun pohon menu terurut |
+| `user_has_roles` | `role_id` | btree | cek role dipakai user / daftar user per role |
+| `role_menu_accesses` | `role_id, menu_id` | unique | hak akses per role (cek permission) |
+| `role_menu_accesses` | `menu_id` | btree | FK lookup saat menu dihapus |
 
 Index harus punya alasan yang dapat dijelaskan.
 
@@ -74,7 +131,10 @@ Index harus punya alasan yang dapat dijelaskan.
 
 | ID | Table | Constraint | Reason |
 |---|---|---|---|
-| DBR-001 | `[table]` | `[constraint]` | `[invariant]` |
+| DBR-001 | `users` | UNIQUE `nik` | NIK identitas login |
+| DBR-002 | `menus` | UNIQUE `code` | kunci permission harus unik |
+| DBR-003 | `roles` | UNIQUE `name` | |
+| DBR-004 | `role_menu_accesses` | UNIQUE `role_id, menu_id` | satu baris akses per role per menu |
 
 ## 8. Legacy mapping
 
