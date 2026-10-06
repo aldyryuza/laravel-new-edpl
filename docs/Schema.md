@@ -26,6 +26,7 @@
   - `dpl`: transaksi dan aturan milik E-DPL — Commercial, DPL core, Approval, dan Documents (lihat bagian 3).
   - Sistem berikutnya (EBU/CRM) memakai schema sendiri untuk transaksinya.
 - Tabel schema sistem ditulis qualified (`dpl.dpl_proposals`) di migration/model/query; nama tabel tidak berubah saat dipindah schema.
+- **Validasi `unique`/`exists` untuk tabel schema sistem wajib memakai class model**, mis. `Rule::exists(PriceRegion::class, 'id')`. Bentuk string `exists:dpl.price_regions` atau `Rule::exists('dpl.price_regions')` dibaca Laravel sebagai *koneksi database* `dpl`, bukan schema.
 - Struktur kode mengikuti schema: model `public` di `App\Models`, model schema `dpl` di `App\Models\Dpl` (factory di `Database\Factories\Dpl`), migration per domain di `database/migrations/{domain}`. Sistem berikutnya mengikuti pola yang sama (mis. `App\Models\Ebu`).
 - `database.connections.pgsql.search_path` = `public,dpl`; setiap schema sistem baru wajib ditambahkan agar ikut di-wipe oleh `migrate:fresh`/`db:wipe`.
 - Master di `public` tidak bergantung pada schema sistem. Data milik sistem tentang master (mis. region harga outlet untuk DPL) disimpan sebagai mapping di schema sistem tersebut (`dpl.outlet_price_regions`).

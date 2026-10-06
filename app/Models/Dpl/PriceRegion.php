@@ -4,6 +4,7 @@ namespace App\Models\Dpl;
 
 use App\Models\Distributor;
 use App\Models\Outlet;
+use App\Support\AuditLog;
 use Database\Factories\Dpl\PriceRegionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Region harga (legacy dpl_price_region).
@@ -20,7 +23,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class PriceRegion extends Model
 {
     /** @use HasFactory<PriceRegionFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return AuditLog::dataOptions(['code', 'name', 'description', 'is_active'], fn () => "Region harga {$this->name} ({$this->code})");
+    }
 
     /**
      * Get the attributes that should be cast.

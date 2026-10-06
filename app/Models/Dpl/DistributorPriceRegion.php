@@ -3,12 +3,15 @@
 namespace App\Models\Dpl;
 
 use App\Models\Distributor;
+use App\Support\AuditLog;
 use Database\Factories\Dpl\DistributorPriceRegionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Region harga sebuah distributor untuk keperluan DPL (satu per distributor; legacy PRICE_REGION_ID).
@@ -19,7 +22,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DistributorPriceRegion extends Model
 {
     /** @use HasFactory<DistributorPriceRegionFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return AuditLog::dataOptions(['distributor_id', 'price_region_id'], fn () => "Region harga distributor {$this->distributor?->code}");
+    }
 
     /**
      * @return BelongsTo<Distributor, $this>

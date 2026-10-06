@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CityRequest;
 use App\Http\Requests\ExcelImportRequest;
 use App\Models\City;
-use App\Services\OrganizationImportService;
+use App\Services\CodeMasterImportService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,9 +84,9 @@ class CityController extends Controller implements HasMiddleware
     /**
      * Import Excel (upsert berdasarkan kode). Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
      */
-    public function import(ExcelImportRequest $request, OrganizationImportService $importService): JsonResponse
+    public function import(ExcelImportRequest $request, CodeMasterImportService $importService): JsonResponse
     {
-        $result = $importService->import(OrganizationImportService::CITY, $request->file('file'));
+        $result = $importService->import(CodeMasterImportService::CITY, $request->file('file'));
 
         return response()->json([
             'success' => true,

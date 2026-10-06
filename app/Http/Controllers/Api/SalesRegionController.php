@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ExcelImportRequest;
 use App\Http\Requests\SalesRegionRequest;
 use App\Models\SalesRegion;
-use App\Services\OrganizationImportService;
+use App\Services\CodeMasterImportService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -96,9 +96,9 @@ class SalesRegionController extends Controller implements HasMiddleware
     /**
      * Import Excel (upsert berdasarkan kode). Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
      */
-    public function import(ExcelImportRequest $request, OrganizationImportService $importService): JsonResponse
+    public function import(ExcelImportRequest $request, CodeMasterImportService $importService): JsonResponse
     {
-        $result = $importService->import(OrganizationImportService::REGION, $request->file('file'));
+        $result = $importService->import(CodeMasterImportService::REGION, $request->file('file'));
 
         return response()->json([
             'success' => true,

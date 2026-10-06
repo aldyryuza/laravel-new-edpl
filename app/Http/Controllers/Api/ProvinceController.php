@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ExcelImportRequest;
 use App\Http\Requests\ProvinceRequest;
 use App\Models\Province;
-use App\Services\OrganizationImportService;
+use App\Services\CodeMasterImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -66,9 +66,9 @@ class ProvinceController extends Controller implements HasMiddleware
     /**
      * Import Excel (upsert berdasarkan kode). Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
      */
-    public function import(ExcelImportRequest $request, OrganizationImportService $importService): JsonResponse
+    public function import(ExcelImportRequest $request, CodeMasterImportService $importService): JsonResponse
     {
-        $result = $importService->import(OrganizationImportService::PROVINCE, $request->file('file'));
+        $result = $importService->import(CodeMasterImportService::PROVINCE, $request->file('file'));
 
         return response()->json([
             'success' => true,

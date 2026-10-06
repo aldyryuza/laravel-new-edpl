@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Province;
-use App\Services\OrganizationImportService;
+use App\Services\CodeMasterImportService;
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -24,8 +24,8 @@ class CityController extends Controller
     /**
      * Template Excel untuk import (sheet Data + Petunjuk berisi kode provinsi).
      */
-    public function template(OrganizationImportService $importService): BinaryFileResponse
+    public function template(CodeMasterImportService $importService): BinaryFileResponse
     {
-        return Excel::download($importService->template(OrganizationImportService::CITY), 'template-import-kota.xlsx');
+        return Excel::download($importService->template(CodeMasterImportService::CITY), 'template-import-kota.xlsx');
     }
 }
