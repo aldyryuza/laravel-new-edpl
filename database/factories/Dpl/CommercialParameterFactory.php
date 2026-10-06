@@ -19,7 +19,7 @@ class CommercialParameterFactory extends Factory
     {
         return [
             'code' => fake()->unique()->bothify('PARAM_###??'),
-            'value' => ['amount' => fake()->numberBetween(1, 100)],
+            'value' => CommercialParameter::wrapValue(CommercialParameter::TYPE_NUMBER, (string) fake()->numberBetween(1, 100)),
             'description' => null,
             'is_active' => true,
         ];

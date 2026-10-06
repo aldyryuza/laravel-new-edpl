@@ -2,11 +2,15 @@
 
 namespace App\Models\Dpl;
 
+use App\Support\AuditLog;
 use Database\Factories\Dpl\BonusSchemeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Skema bonus (legacy dpl_bonus).
@@ -19,7 +23,12 @@ use Illuminate\Database\Eloquent\Model;
 class BonusScheme extends Model
 {
     /** @use HasFactory<BonusSchemeFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return AuditLog::dataOptions(['code', 'name', 'buy_quantity', 'bonus_quantity', 'discount_invoice', 'discount_bonus', 'effective_discount', 'is_active'], fn () => "Skema bonus {$this->name}");
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -36,5 +45,13 @@ class BonusScheme extends Model
             'effective_discount' => 'decimal:4',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * @return HasMany<DplItem, $this>
+     */
+    public function dplItems(): HasMany
+    {
+        return $this->hasMany(DplItem::class);
     }
 }

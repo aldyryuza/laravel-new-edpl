@@ -3,9 +3,13 @@
 namespace App\Services;
 
 use App\Imports\SheetRowsImport;
+use DateTimeInterface;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use Throwable;
 
 /**
  * Dasar import Excel master data: baca sheet pertama (baris 1 = judul kolom), parsing nilai sel,
@@ -85,6 +89,73 @@ abstract class ExcelImporter
             in_array($value, self::FALSE_VALUES, true) => false,
             default => null,
         };
+    }
+
+    /**
+     * Nilai uang sebagai string desimal (maks. 4 desimal, batas numeric(18,4)) agar tidak melewati float saat disimpan.
+     *
+     * @param  array<int, string>  $rowErrors  pesan error baris ditambahkan di sini
+     */
+    protected function amount(mixed $value, string $column, bool $required, array &$rowErrors): ?string
+    {
+        $text = $this->text($value);
+
+        if ($text === '') {
+            if ($required) {
+                $rowErrors[] = "{$column} wajib diisi";
+            }
+
+            return null;
+        }
+
+        if (is_float($value)) {
+            $text = rtrim(rtrim(number_format($value, 4, '.', ''), '0'), '.');
+        }
+
+        // Maks. 14 digit bulat + 4 desimal = batas numeric(18,4).
+        if (! preg_match('/^\d{1,14}(\.\d{1,4})?$/', $text)) {
+            $rowErrors[] = "{$column} harus angka >= 0 dengan maks. 4 desimal";
+
+            return null;
+        }
+
+        return $text;
+    }
+
+    /**
+     * Tanggal (Y-m-d) dari sel teks YYYY-MM-DD atau sel tanggal Excel (angka seri).
+     *
+     * @param  array<int, string>  $rowErrors  pesan error baris ditambahkan di sini
+     */
+    protected function date(mixed $value, string $column, array &$rowErrors): ?string
+    {
+        if ($value instanceof DateTimeInterface) {
+            return Carbon::instance($value)->toDateString();
+        }
+
+        $text = $this->text($value);
+
+        if ($text === '') {
+            return null;
+        }
+
+        try {
+            if (is_numeric($text)) {
+                return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $text))->toDateString();
+            }
+
+            $date = Carbon::createFromFormat('!Y-m-d', $text);
+
+            if ($date !== false && $date->format('Y-m-d') === $text) {
+                return $text;
+            }
+        } catch (Throwable) {
+            // Ditangani sebagai format tidak valid di bawah.
+        }
+
+        $rowErrors[] = "{$column} harus format YYYY-MM-DD";
+
+        return null;
     }
 
     /**

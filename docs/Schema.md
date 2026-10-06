@@ -450,7 +450,7 @@ Index: `product_id`.
 | `is_active` | boolean | No | default true |
 | timestamps | timestamp | Yes | |
 
-Legacy values must be inspected before forcing buy/bonus quantity parsing.
+Legacy values must be inspected before forcing buy/bonus quantity parsing. Saat ini semua nilai diisi manual lewat UI; `effective_discount` tidak dihitung otomatis karena rumusnya belum dikonfirmasi.
 
 ### `commercial_parameters`
 
@@ -458,7 +458,7 @@ Legacy values must be inspected before forcing buy/bonus quantity parsing.
 |---|---|---:|---|
 | `id` | bigint | No | PK |
 | `code` | varchar(100) | No | UNIQUE |
-| `value` | jsonb | No | flexible typed business configuration |
+| `value` | jsonb | No | `{"type": "number|text|boolean", "value": ...}`; angka disimpan sebagai string desimal (presisi, bukan float) |
 | `description` | text | Yes | |
 | `is_active` | boolean | No | default true |
 | timestamps | timestamp | Yes | |

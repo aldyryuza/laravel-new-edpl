@@ -7,7 +7,10 @@ use App\Http\Controllers\Web\CityController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\DistributorController;
 use App\Http\Controllers\Web\Dpl\ApproverAssignmentController;
+use App\Http\Controllers\Web\Dpl\BonusSchemeController;
+use App\Http\Controllers\Web\Dpl\CommercialParameterController;
 use App\Http\Controllers\Web\Dpl\ProductPriceController;
+use App\Http\Controllers\Web\Dpl\ProductPriceOverrideController;
 use App\Http\Controllers\Web\ExampleController;
 use App\Http\Controllers\Web\MenuController;
 use App\Http\Controllers\Web\OnlineUserController;
@@ -110,5 +113,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/product-prices/import-template', [ProductPriceController::class, 'template'])
             ->middleware(['can:product-prices.create', 'throttle:export'])
             ->name('product-prices.import-template');
+        Route::get('/special-prices', [ProductPriceOverrideController::class, 'index'])->middleware('can:special-prices.read')->name('special-prices.index');
+        Route::get('/special-prices/import-template', [ProductPriceOverrideController::class, 'template'])
+            ->middleware(['can:special-prices.create', 'throttle:export'])
+            ->name('special-prices.import-template');
+        Route::get('/bonus-schemes', [BonusSchemeController::class, 'index'])->middleware('can:bonus-schemes.read')->name('bonus-schemes.index');
+        Route::get('/commercial-parameters', [CommercialParameterController::class, 'index'])
+            ->middleware('can:commercial-parameters.read')
+            ->name('commercial-parameters.index');
     });
 });

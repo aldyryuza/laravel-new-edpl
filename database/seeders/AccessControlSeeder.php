@@ -68,6 +68,9 @@ class AccessControlSeeder extends Seeder
             ]],
             ['code' => 'commercial-dpl', 'title' => 'Komersial DPL', 'icon' => 'bx bx-dollar-circle', 'route' => null, 'sort_order' => 13, 'children' => [
                 ['code' => 'product-prices', 'title' => 'Harga Product', 'icon' => 'bx bx-purchase-tag', 'route' => 'dpl.product-prices.index', 'sort_order' => 1],
+                ['code' => 'special-prices', 'title' => 'Harga Khusus', 'icon' => 'bx bx-badge-check', 'route' => 'dpl.special-prices.index', 'sort_order' => 2],
+                ['code' => 'bonus-schemes', 'title' => 'Skema Bonus', 'icon' => 'bx bx-gift', 'route' => 'dpl.bonus-schemes.index', 'sort_order' => 3],
+                ['code' => 'commercial-parameters', 'title' => 'Parameter Komersial', 'icon' => 'bx bx-slider-alt', 'route' => 'dpl.commercial-parameters.index', 'sort_order' => 4],
             ]],
             ['code' => 'settings', 'title' => 'Pengaturan', 'icon' => 'bx bx-cog', 'route' => null, 'sort_order' => 99, 'children' => [
                 ['code' => 'users', 'title' => 'User', 'icon' => 'bx bx-user', 'route' => 'users.index', 'sort_order' => 1],
