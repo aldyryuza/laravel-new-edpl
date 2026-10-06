@@ -44,6 +44,13 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 - Approver DPL: scope dipilih eksplisit (Region/Zona/Global, tidak bergantung nama role), role dibatasi pada role workflow approval, user harus aktif; beberapa approver per role + scope diizinkan, tetapi user yang sama tidak boleh punya assignment aktif ganda dengan periode bertumpang tindih.
 - Trait `DeletesRestrictedModels`: hapus data yang masih dipakai (FK RESTRICT) membalas 422 dengan saran menonaktifkan; dipakai juga oleh API User.
 - Import Excel untuk Zona, Region, Area: template (`GET /sales-zones|sales-regions|sales-areas/import-template`, sheet Data + Petunjuk berisi kode referensi) dan upload (`POST api/{resource}/import`). Upsert berdasarkan kode, parent dirujuk lewat kode (`kode_zona`, `kode_region`), all-or-nothing dengan daftar error per baris, maks. 5.000 baris/5 MB, butuh hak `create` + `update`, tercatat di audit log (`imported`). Komponen bersama `<x-excel-import-modal>` + `public/js/excel-import.js`, service `OrganizationImportService`.
+- Menu **Master Outlet**: Outlet (`/outlets`, filter region/kategori/kepemilikan/group/status, import Excel), Group RS (`/outlet-groups`), Klasifikasi Outlet (`/outlet-classifications`: kategori GRUP1 + kepemilikan GRUP2). API `api/outlets`, `api/outlet-groups`, `api/outlet-categories`, `api/ownership-types`. Hak akses `outlets.*`, `outlet-groups.*`, `outlet-classifications.*`.
+- Satu group aktif per outlet: partial unique index `outlet_group_members (outlet_id) WHERE valid_until IS NULL` (migration `2026_10_06_000042`); pindah group menutup keanggotaan lama per hari ini (`OutletService`).
+- Base class `ExcelImporter` untuk import Excel master (dipakai import organisasi dan outlet).
+
+### Changed (schema)
+
+- `outlets.price_region_id` dihapus; region harga outlet pindah ke mapping `dpl.outlet_price_regions` (migration `2026_10_06_000041`, data lama ikut dipindah). Model `Dpl\OutletPriceRegion`; relasi `Outlet::priceRegion()` dihapus.
 
 ### Changed (user)
 

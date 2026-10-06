@@ -25,6 +25,7 @@ use App\Models\Dpl\DplRelation;
 use App\Models\Dpl\DplRevision;
 use App\Models\Dpl\DplStatusHistory;
 use App\Models\Dpl\ExitLetter;
+use App\Models\Dpl\OutletPriceRegion;
 use App\Models\Dpl\PriceRegion;
 use App\Models\Dpl\ProductPrice;
 use App\Models\Dpl\ProductPriceOverride;
@@ -74,6 +75,7 @@ class EdplModelFactoryTest extends TestCase
             Product::class => 'products',
             Distributor::class => 'distributors',
             PriceRegion::class => 'dpl.price_regions',
+            OutletPriceRegion::class => 'dpl.outlet_price_regions',
             ProductPrice::class => 'dpl.product_prices',
             ProductPriceOverride::class => 'dpl.product_price_overrides',
             BonusScheme::class => 'dpl.bonus_schemes',

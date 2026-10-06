@@ -28,7 +28,7 @@
 - Tabel schema sistem ditulis qualified (`dpl.dpl_proposals`) di migration/model/query; nama tabel tidak berubah saat dipindah schema.
 - Struktur kode mengikuti schema: model `public` di `App\Models`, model schema `dpl` di `App\Models\Dpl` (factory di `Database\Factories\Dpl`), migration per domain di `database/migrations/{domain}`. Sistem berikutnya mengikuti pola yang sama (mis. `App\Models\Ebu`).
 - `database.connections.pgsql.search_path` = `public,dpl`; setiap schema sistem baru wajib ditambahkan agar ikut di-wipe oleh `migrate:fresh`/`db:wipe`.
-- Master di `public` sebaiknya tidak bergantung pada schema sistem. Pengecualian saat ini: `outlets.price_region_id` -> `dpl.price_regions` (lihat open decision).
+- Master di `public` tidak bergantung pada schema sistem. Data milik sistem tentang master (mis. region harga outlet untuk DPL) disimpan sebagai mapping di schema sistem tersebut (`dpl.outlet_price_regions`).
 - Test memakai PostgreSQL lokal (`edpl_testing`) karena SQLite tidak mendukung schema.
 
 ## 2. Target ERD - high level
@@ -289,14 +289,15 @@ Mapping legacy GRUP3 / group rumah sakit.
 | `outlet_category_id` | bigint | Yes | FK `outlet_categories.id`, RESTRICT |
 | `ownership_type_id` | bigint | Yes | FK `ownership_types.id`, RESTRICT |
 | `bed_count` | integer | Yes | `>= 0` |
-| `price_region_id` | bigint | Yes | FK `price_regions.id`, RESTRICT; migration order must handle dependency |
 | `crm_id` | bigint | Yes | legacy/external CRM reference |
 | `latitude` | numeric(10,7) | Yes | |
 | `longitude` | numeric(10,7) | Yes | |
 | `is_active` | boolean | No | default true |
 | timestamps | timestamp | Yes | |
 
-Indexes: `area_id`, `outlet_category_id`, `ownership_type_id`, `price_region_id`.
+Indexes: `area_id`, `outlet_category_id`, `ownership_type_id`.
+
+Region harga outlet tidak disimpan di sini (decision #9): lihat `dpl.outlet_price_regions`. Kolom `price_region_id` lama dipindah oleh migration `2026_10_06_000041`.
 
 ### `outlet_group_members`
 
@@ -311,7 +312,7 @@ Indexes: `area_id`, `outlet_category_id`, `ownership_type_id`, `price_region_id`
 
 Minimal index: `(outlet_group_id, outlet_id)`.
 
-Active-membership uniqueness perlu difinalkan setelah dipastikan apakah satu outlet boleh berada pada lebih dari satu group aktif.
+Satu outlet maksimal **satu keanggotaan aktif** (decision #3). Aktif = `valid_until IS NULL`, dijaga partial unique index `outlet_group_members_one_open_per_outlet_unique ON (outlet_id) WHERE valid_until IS NULL`. Pindah/lepas group menutup keanggotaan lama (`valid_until` = hari ini) dan membuka yang baru (`valid_from` = hari ini), sehingga histori tetap tersimpan (`OutletService`).
 
 ## 7. Product and distributor master
 
@@ -368,6 +369,19 @@ PK/UNIQUE composite: `(distributor_id, region_id)`.
 | `description` | varchar(255) | Yes | |
 | `is_active` | boolean | No | default true |
 | timestamps | timestamp | Yes | |
+
+### `outlet_price_regions` (schema `dpl`)
+
+Region harga outlet untuk keperluan DPL (decision #9), satu per outlet.
+
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `outlet_id` | bigint | No | FK `public.outlets.id`, RESTRICT, UNIQUE |
+| `price_region_id` | bigint | No | FK `dpl.price_regions.id`, RESTRICT |
+| timestamps | timestamp | Yes | |
+
+Index: `price_region_id`. Pengelolaan (UI/import) dibuat di modul Commercial.
 
 ### `product_prices`
 
@@ -1187,13 +1201,13 @@ Do not let coding agent invent these:
 
 1. Exact distributor margin rule/override columns and precedence.
 2. Exact rejection transition matrix and whether reject taxonomy master is still required.
-3. Whether active outlet group membership must be singular.
+3. ~~Whether active outlet group membership must be singular.~~ **Resolved:** satu keanggotaan aktif per outlet (user confirmation).
 4. Structured clearance batch/expired-date table vs remark/attachment.
 5. Exact document template/signatory redesign.
 6. NetSuite integration ownership/constraints.
 7. Legacy password migration strategy.
 8. Exact reporting table design/load strategy.
-9. `outlets.price_region_id` (master `public`) masih FK ke `dpl.price_regions`: tetap begitu, pindahkan `price_regions` ke `public`, atau ganti dengan mapping outlet -> price region di schema `dpl`.
+9. ~~`outlets.price_region_id` (master `public`) masih FK ke `dpl.price_regions`.~~ **Resolved:** dipindah ke mapping `dpl.outlet_price_regions` (user confirmation).
 
 ## 23. Schema checklist
 

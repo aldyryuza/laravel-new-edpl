@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Support\AuditLog;
 use Database\Factories\OutletGroupFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Group rumah sakit / group beberapa outlet (legacy GRUP3).
@@ -15,7 +18,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class OutletGroup extends Model
 {
     /** @use HasFactory<OutletGroupFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return AuditLog::dataOptions(['code', 'name', 'description', 'is_active'], fn () => "Group outlet {$this->name}");
+    }
 
     /**
      * Get the attributes that should be cast.

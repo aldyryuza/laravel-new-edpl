@@ -55,6 +55,11 @@ class AccessControlSeeder extends Seeder
                 ['code' => 'sales-areas', 'title' => 'Area', 'icon' => 'bx bx-map-pin', 'route' => 'sales-areas.index', 'sort_order' => 3],
                 ['code' => 'approver-assignments', 'title' => 'Approver DPL', 'icon' => 'bx bx-user-check', 'route' => 'dpl.approver-assignments.index', 'sort_order' => 4],
             ]],
+            ['code' => 'master-outlet', 'title' => 'Master Outlet', 'icon' => 'bx bx-buildings', 'route' => null, 'sort_order' => 11, 'children' => [
+                ['code' => 'outlets', 'title' => 'Outlet', 'icon' => 'bx bx-building-house', 'route' => 'outlets.index', 'sort_order' => 1],
+                ['code' => 'outlet-groups', 'title' => 'Group RS', 'icon' => 'bx bx-collection', 'route' => 'outlet-groups.index', 'sort_order' => 2],
+                ['code' => 'outlet-classifications', 'title' => 'Klasifikasi Outlet', 'icon' => 'bx bx-category', 'route' => 'outlet-classifications.index', 'sort_order' => 3],
+            ]],
             ['code' => 'settings', 'title' => 'Pengaturan', 'icon' => 'bx bx-cog', 'route' => null, 'sort_order' => 99, 'children' => [
                 ['code' => 'users', 'title' => 'User', 'icon' => 'bx bx-user', 'route' => 'users.index', 'sort_order' => 1],
                 ['code' => 'roles', 'title' => 'Role & Hak Akses', 'icon' => 'bx bx-shield-quarter', 'route' => 'roles.index', 'sort_order' => 2],

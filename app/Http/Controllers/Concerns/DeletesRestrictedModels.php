@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -15,11 +16,17 @@ trait DeletesRestrictedModels
     /** SQLSTATE PostgreSQL untuk pelanggaran foreign key. */
     private const FOREIGN_KEY_VIOLATION = '23503';
 
-    protected function deleteOrReject(Model $model, string $deletedMessage, string $inUseMessage): JsonResponse
+    /**
+     * @param  (Closure(): void)|null  $beforeDelete  hapus data turunan milik model (mis. histori) dalam transaksi yang sama
+     */
+    protected function deleteOrReject(Model $model, string $deletedMessage, string $inUseMessage, ?Closure $beforeDelete = null): JsonResponse
     {
         // Transaction (savepoint bila bersarang) menjaga koneksi PostgreSQL tetap bisa dipakai setelah gagal.
         try {
-            DB::transaction(fn () => $model->delete());
+            DB::transaction(function () use ($model, $beforeDelete): void {
+                $beforeDelete?->__invoke();
+                $model->delete();
+            });
         } catch (QueryException $exception) {
             if ($exception->getCode() !== self::FOREIGN_KEY_VIOLATION) {
                 throw $exception;

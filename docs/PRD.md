@@ -500,7 +500,7 @@ Jangan implementasikan integration behavior yang masih `TBD` tanpa konfirmasi.
 
 - [ ] Exact transition matrix untuk rejection dari RM/NSM/GM/SMD/DMD dan siapa yang dapat edit pada tiap state harus difinalkan sebelum approval service dibuat.
 - [ ] Field clearance ED dekat yang harus menjadi structured columns vs cukup remark/attachment.
-- [ ] Apakah satu outlet boleh memiliki lebih dari satu active outlet group membership pada waktu yang sama.
+- [x] Apakah satu outlet boleh memiliki lebih dari satu active outlet group membership pada waktu yang sama. **Tidak: satu group aktif per outlet, histori tetap disimpan.**
 - [ ] Exact distributor margin special-case yang masih digunakan di production.
 - [ ] Exact NetSuite integration scope pada E-DPL baru.
 - [ ] Password migration strategy dari legacy user bila hash legacy tidak compatible dengan Laravel hash current.

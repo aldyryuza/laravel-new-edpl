@@ -3,6 +3,10 @@
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Api\MenuController;
+use App\Http\Controllers\Api\OutletCategoryController;
+use App\Http\Controllers\Api\OutletController;
+use App\Http\Controllers\Api\OutletGroupController;
+use App\Http\Controllers\Api\OwnershipTypeController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RoleAccessController;
 use App\Http\Controllers\Api\RoleController;
@@ -49,6 +53,17 @@ Route::apiResource('sales-regions', SalesRegionController::class)->except('index
 Route::get('sales-areas/datatable', [SalesAreaController::class, 'datatable'])->name('sales-areas.datatable');
 Route::post('sales-areas/import', [SalesAreaController::class, 'import'])->name('sales-areas.import');
 Route::apiResource('sales-areas', SalesAreaController::class)->except('index');
+
+// Master outlet (schema public)
+Route::get('outlets/datatable', [OutletController::class, 'datatable'])->name('outlets.datatable');
+Route::post('outlets/import', [OutletController::class, 'import'])->name('outlets.import');
+Route::apiResource('outlets', OutletController::class)->except('index');
+Route::get('outlet-groups/datatable', [OutletGroupController::class, 'datatable'])->name('outlet-groups.datatable');
+Route::apiResource('outlet-groups', OutletGroupController::class)->only(['store', 'update', 'destroy']);
+Route::get('outlet-categories/datatable', [OutletCategoryController::class, 'datatable'])->name('outlet-categories.datatable');
+Route::apiResource('outlet-categories', OutletCategoryController::class)->only(['store', 'update', 'destroy']);
+Route::get('ownership-types/datatable', [OwnershipTypeController::class, 'datatable'])->name('ownership-types.datatable');
+Route::apiResource('ownership-types', OwnershipTypeController::class)->only(['store', 'update', 'destroy']);
 
 // E-DPL (schema dpl)
 Route::prefix('dpl')->name('dpl.')->group(function () {

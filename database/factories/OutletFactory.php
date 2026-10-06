@@ -26,7 +26,6 @@ class OutletFactory extends Factory
             'outlet_category_id' => null,
             'ownership_type_id' => null,
             'bed_count' => fake()->numberBetween(0, 500),
-            'price_region_id' => null,
             'crm_id' => null,
             'latitude' => null,
             'longitude' => null,

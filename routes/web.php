@@ -8,6 +8,9 @@ use App\Http\Controllers\Web\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Web\ExampleController;
 use App\Http\Controllers\Web\MenuController;
 use App\Http\Controllers\Web\OnlineUserController;
+use App\Http\Controllers\Web\OutletClassificationController;
+use App\Http\Controllers\Web\OutletController;
+use App\Http\Controllers\Web\OutletGroupController;
 use App\Http\Controllers\Web\ProfileController;
 use App\Http\Controllers\Web\RoleController;
 use App\Http\Controllers\Web\SalesAreaController;
@@ -60,6 +63,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/sales-areas/import-template', [SalesAreaController::class, 'template'])
         ->middleware(['can:sales-areas.create', 'throttle:export'])
         ->name('sales-areas.import-template');
+
+    // Master outlet (schema public)
+    Route::get('/outlets', [OutletController::class, 'index'])->middleware('can:outlets.read')->name('outlets.index');
+    Route::get('/outlets/import-template', [OutletController::class, 'template'])
+        ->middleware(['can:outlets.create', 'throttle:export'])
+        ->name('outlets.import-template');
+    Route::get('/outlet-groups', [OutletGroupController::class, 'index'])->middleware('can:outlet-groups.read')->name('outlet-groups.index');
+    Route::get('/outlet-classifications', [OutletClassificationController::class, 'index'])
+        ->middleware('can:outlet-classifications.read')
+        ->name('outlet-classifications.index');
 
     // E-DPL (schema dpl)
     Route::prefix('dpl')->name('dpl.')->group(function () {

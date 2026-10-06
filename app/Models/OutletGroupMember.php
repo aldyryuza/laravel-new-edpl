@@ -2,17 +2,25 @@
 
 namespace App\Models;
 
+use App\Support\AuditLog;
 use Database\Factories\OutletGroupMemberFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 #[Fillable(['outlet_group_id', 'outlet_id', 'valid_from', 'valid_until'])]
 class OutletGroupMember extends Model
 {
     /** @use HasFactory<OutletGroupMemberFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return AuditLog::dataOptions(['outlet_group_id', 'outlet_id', 'valid_from', 'valid_until'], fn () => "Keanggotaan group outlet {$this->outlet?->code}");
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -22,8 +30,8 @@ class OutletGroupMember extends Model
     protected function casts(): array
     {
         return [
-            'valid_from' => 'date',
-            'valid_until' => 'date',
+            'valid_from' => 'date:Y-m-d',
+            'valid_until' => 'date:Y-m-d',
         ];
     }
 
