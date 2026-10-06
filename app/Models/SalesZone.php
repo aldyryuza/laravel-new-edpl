@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Support\AuditLog;
 use Database\Factories\SalesZoneFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Zona penjualan. NSM approver di-resolve per zona.
@@ -15,7 +18,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SalesZone extends Model
 {
     /** @use HasFactory<SalesZoneFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return AuditLog::dataOptions(['code', 'name', 'is_active'], fn () => "Zona {$this->name} ({$this->code})");
+    }
 
     /**
      * Get the attributes that should be cast.

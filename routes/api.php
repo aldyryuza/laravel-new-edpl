@@ -1,10 +1,14 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RoleAccessController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\SalesAreaController;
+use App\Http\Controllers\Api\SalesRegionController;
+use App\Http\Controllers\Api\SalesZoneController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,3 +38,17 @@ Route::get('menus/datatable', [MenuController::class, 'datatable'])->name('menus
 Route::apiResource('menus', MenuController::class);
 
 Route::get('activity-logs/datatable', [ActivityLogController::class, 'datatable'])->name('activity-logs.datatable');
+
+// Master organisasi (schema public)
+Route::get('sales-zones/datatable', [SalesZoneController::class, 'datatable'])->name('sales-zones.datatable');
+Route::apiResource('sales-zones', SalesZoneController::class)->except('index');
+Route::get('sales-regions/datatable', [SalesRegionController::class, 'datatable'])->name('sales-regions.datatable');
+Route::apiResource('sales-regions', SalesRegionController::class)->except('index');
+Route::get('sales-areas/datatable', [SalesAreaController::class, 'datatable'])->name('sales-areas.datatable');
+Route::apiResource('sales-areas', SalesAreaController::class)->except('index');
+
+// E-DPL (schema dpl)
+Route::prefix('dpl')->name('dpl.')->group(function () {
+    Route::get('approver-assignments/datatable', [ApproverAssignmentController::class, 'datatable'])->name('approver-assignments.datatable');
+    Route::apiResource('approver-assignments', ApproverAssignmentController::class)->except('index');
+});

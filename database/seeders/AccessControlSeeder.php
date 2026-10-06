@@ -49,6 +49,12 @@ class AccessControlSeeder extends Seeder
         $menus = [
             ['code' => 'dashboard', 'title' => 'Dashboard', 'icon' => 'bx bx-home-smile', 'route' => 'dashboard', 'sort_order' => 1],
             ['code' => 'example', 'title' => 'Contoh Halaman', 'icon' => 'bx bx-data', 'route' => 'example.index', 'sort_order' => 2],
+            ['code' => 'master-organization', 'title' => 'Master Organisasi', 'icon' => 'bx bx-sitemap', 'route' => null, 'sort_order' => 10, 'children' => [
+                ['code' => 'sales-zones', 'title' => 'Zona', 'icon' => 'bx bx-globe', 'route' => 'sales-zones.index', 'sort_order' => 1],
+                ['code' => 'sales-regions', 'title' => 'Region', 'icon' => 'bx bx-map-alt', 'route' => 'sales-regions.index', 'sort_order' => 2],
+                ['code' => 'sales-areas', 'title' => 'Area', 'icon' => 'bx bx-map-pin', 'route' => 'sales-areas.index', 'sort_order' => 3],
+                ['code' => 'approver-assignments', 'title' => 'Approver DPL', 'icon' => 'bx bx-user-check', 'route' => 'dpl.approver-assignments.index', 'sort_order' => 4],
+            ]],
             ['code' => 'settings', 'title' => 'Pengaturan', 'icon' => 'bx bx-cog', 'route' => null, 'sort_order' => 99, 'children' => [
                 ['code' => 'users', 'title' => 'User', 'icon' => 'bx bx-user', 'route' => 'users.index', 'sort_order' => 1],
                 ['code' => 'roles', 'title' => 'Role & Hak Akses', 'icon' => 'bx bx-shield-quarter', 'route' => 'roles.index', 'sort_order' => 2],

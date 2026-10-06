@@ -4,11 +4,15 @@ use App\Http\Controllers\Web\ActiveRoleController;
 use App\Http\Controllers\Web\AuditLogController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\DashboardController;
+use App\Http\Controllers\Web\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Web\ExampleController;
 use App\Http\Controllers\Web\MenuController;
 use App\Http\Controllers\Web\OnlineUserController;
 use App\Http\Controllers\Web\ProfileController;
 use App\Http\Controllers\Web\RoleController;
+use App\Http\Controllers\Web\SalesAreaController;
+use App\Http\Controllers\Web\SalesRegionController;
+use App\Http\Controllers\Web\SalesZoneController;
 use App\Http\Controllers\Web\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,4 +46,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/online-users', [OnlineUserController::class, 'index'])->middleware('can:online-users.read')->name('online-users.index');
 
     Route::get('/audit-log', [AuditLogController::class, 'index'])->middleware('can:audit-log.read')->name('audit-log.index');
+
+    // Master organisasi (schema public)
+    Route::get('/sales-zones', [SalesZoneController::class, 'index'])->middleware('can:sales-zones.read')->name('sales-zones.index');
+    Route::get('/sales-regions', [SalesRegionController::class, 'index'])->middleware('can:sales-regions.read')->name('sales-regions.index');
+    Route::get('/sales-areas', [SalesAreaController::class, 'index'])->middleware('can:sales-areas.read')->name('sales-areas.index');
+
+    // E-DPL (schema dpl)
+    Route::prefix('dpl')->name('dpl.')->group(function () {
+        Route::get('/approver-assignments', [ApproverAssignmentController::class, 'index'])
+            ->middleware('can:approver-assignments.read')
+            ->name('approver-assignments.index');
+    });
 });

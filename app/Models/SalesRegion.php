@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\AuditLog;
 use Database\Factories\SalesRegionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Regional penjualan. RM approver di-resolve per region.
@@ -17,7 +20,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SalesRegion extends Model
 {
     /** @use HasFactory<SalesRegionFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return AuditLog::dataOptions(['code', 'name', 'zone_id', 'is_active'], fn () => "Region {$this->name} ({$this->code})");
+    }
 
     /**
      * Get the attributes that should be cast.

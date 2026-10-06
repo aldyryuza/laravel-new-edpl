@@ -40,6 +40,9 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 - Status akun user: login user nonaktif ditolak ("Akun Anda nonaktif", hanya bila password benar), sesi user yang dinonaktifkan langsung diputus oleh middleware `EnsureUserIsActive` (web: redirect login, API: 401). `last_login_at` diisi saat login berhasil.
 - Management User: switch **Aktif** di form, kolom Status & Login Terakhir di tabel dan ekspor Excel; perubahan status tercatat di audit log. Akun yang sedang login tidak bisa menonaktifkan dirinya sendiri.
 - Approval multi-approver (BR-026): tabel `dpl.approval_step_assignees` menyimpan snapshot semua kandidat approver per step; kolom `approval_step_instances.assigned_user_id` dihapus (migration `2026_10_06_000040`). Model `ApprovalStepAssignee`, relasi `ApprovalStepInstance::assignees()/assigneeUsers()`.
+- Menu **Master Organisasi**: halaman Zona (`/sales-zones`), Region (`/sales-regions`), Area (`/sales-areas`), dan Approver DPL (`/dpl/approver-assignments`) dengan API `api/sales-zones|sales-regions|sales-areas` dan `api/dpl/approver-assignments` (datatable + CRUD). Hak akses: `sales-zones.*`, `sales-regions.*`, `sales-areas.*`, `approver-assignments.*`. Perubahan tercatat di audit log.
+- Approver DPL: scope dipilih eksplisit (Region/Zona/Global, tidak bergantung nama role), role dibatasi pada role workflow approval, user harus aktif; beberapa approver per role + scope diizinkan, tetapi user yang sama tidak boleh punya assignment aktif ganda dengan periode bertumpang tindih.
+- Trait `DeletesRestrictedModels`: hapus data yang masih dipakai (FK RESTRICT) membalas 422 dengan saran menonaktifkan; dipakai juga oleh API User.
 
 ### Changed (user)
 

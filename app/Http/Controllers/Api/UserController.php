@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\DeletesRestrictedModels;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use App\Support\AuditLog;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -17,8 +17,7 @@ use Yajra\DataTables\Facades\DataTables;
 
 class UserController extends Controller implements HasMiddleware
 {
-    /** SQLSTATE PostgreSQL untuk pelanggaran foreign key. */
-    private const FOREIGN_KEY_VIOLATION = '23503';
+    use DeletesRestrictedModels;
 
     /**
      * @return array<int, Middleware>
@@ -139,24 +138,10 @@ class UserController extends Controller implements HasMiddleware
         }
 
         // User yang sudah dipakai data bisnis (DPL, approval, dst.) dijaga FK RESTRICT.
-        // Transaction (savepoint bila bersarang) menjaga koneksi PostgreSQL tetap bisa dipakai setelah gagal.
-        try {
-            DB::transaction(fn () => $user->delete());
-        } catch (QueryException $exception) {
-            if ($exception->getCode() !== self::FOREIGN_KEY_VIOLATION) {
-                throw $exception;
-            }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'User sudah dipakai pada data lain sehingga tidak dapat dihapus. Nonaktifkan user ini sebagai gantinya.',
-            ], 422);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'User berhasil dihapus',
-            'data' => null,
-        ]);
+        return $this->deleteOrReject(
+            $user,
+            'User berhasil dihapus',
+            'User sudah dipakai pada data lain sehingga tidak dapat dihapus. Nonaktifkan user ini sebagai gantinya.',
+        );
     }
 }
