@@ -7,6 +7,7 @@ use App\Models\Dpl\ApprovalAction;
 use App\Models\Dpl\ApprovalInstance;
 use App\Models\Dpl\ApprovalItemState;
 use App\Models\Dpl\ApprovalOverrideRequest;
+use App\Models\Dpl\ApprovalStepAssignee;
 use App\Models\Dpl\ApprovalStepInstance;
 use App\Models\Dpl\ApprovalWorkflow;
 use App\Models\Dpl\ApprovalWorkflowStep;
@@ -36,6 +37,7 @@ use App\Models\Product;
 use App\Models\SalesArea;
 use App\Models\SalesRegion;
 use App\Models\SalesZone;
+use App\Models\User;
 use App\Models\UserAreaScope;
 use App\Models\UserOrgAssignment;
 use App\Models\UserVisibilityEdge;
@@ -89,6 +91,7 @@ class EdplModelFactoryTest extends TestCase
             ApproverAssignment::class => 'dpl.approver_assignments',
             ApprovalInstance::class => 'dpl.approval_instances',
             ApprovalStepInstance::class => 'dpl.approval_step_instances',
+            ApprovalStepAssignee::class => 'dpl.approval_step_assignees',
             ApprovalItemState::class => 'dpl.approval_item_states',
             ApprovalAction::class => 'dpl.approval_actions',
             ApprovalOverrideRequest::class => 'dpl.approval_override_requests',
@@ -116,6 +119,16 @@ class EdplModelFactoryTest extends TestCase
 
         $this->assertSame($table, $model->getTable());
         $this->assertDatabaseHas($table, ['id' => $model->getKey()]);
+    }
+
+    public function test_step_can_snapshot_multiple_candidate_approvers(): void
+    {
+        $step = ApprovalStepInstance::factory()->create();
+        $candidates = User::factory()->count(2)->create();
+
+        $step->assigneeUsers()->attach($candidates);
+
+        $this->assertEqualsCanonicalizing($candidates->pluck('id')->all(), $step->assigneeUsers()->pluck('users.id')->all());
     }
 
     public function test_proposal_relations_resolve_across_public_and_dpl_schema(): void

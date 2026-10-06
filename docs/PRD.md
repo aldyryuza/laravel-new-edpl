@@ -346,6 +346,7 @@ Sistem harus:
 | BR-023 | `dpl_exit_letter_master` legacy merupakan master Kacab untuk surat keluar | User confirmation | Confirmed |
 | BR-024 | NIK adalah unique business identifier user dan mapping key legacy; internal FK menggunakan `users.id` | Rebuild decision | Confirmed |
 | BR-025 | Future JWT menggunakan stable opaque subject (`users.uuid`); NIK boleh menjadi additional claim | Rebuild decision | Planned |
+| BR-026 | Satu role + scope approval boleh memiliki lebih dari satu approver aktif (mis. 2 RM dalam satu region); cukup salah satu yang approve/reject | User confirmation | Confirmed |
 
 ## 9. Workflow
 
@@ -421,6 +422,12 @@ Create Consolidation
 **Given** approval instance sudah dibuat dan RM A telah ter-assign  
 **When** master RM region berubah menjadi RM B  
 **Then** approval instance existing tetap menyimpan RM A, sedangkan workflow baru menggunakan assignment terbaru.
+
+### AC-008 - Multiple approver
+
+**Given** Region Y memiliki dua RM aktif (RM A dan RM B)  
+**When** DPL pada Region Y disubmit  
+**Then** RM A dan RM B sama-sama menjadi kandidat step RM; aksi salah satu dari mereka menyelesaikan item/step tersebut dan pelakunya tercatat di history approval.
 
 ### AC-005 - Partial approval
 

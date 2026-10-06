@@ -74,7 +74,8 @@ erDiagram
     APPROVAL_WORKFLOWS ||--o{ APPROVAL_INSTANCES : template
     APPROVAL_INSTANCES ||--o{ APPROVAL_STEP_INSTANCES : steps
     APPROVAL_WORKFLOW_STEPS ||--o{ APPROVAL_STEP_INSTANCES : snapshot_from
-    USERS ||--o{ APPROVAL_STEP_INSTANCES : assigned
+    APPROVAL_STEP_INSTANCES ||--o{ APPROVAL_STEP_ASSIGNEES : candidates
+    USERS ||--o{ APPROVAL_STEP_ASSIGNEES : assigned
     APPROVAL_STEP_INSTANCES ||--o{ APPROVAL_ITEM_STATES : item_state
     DPL_ITEMS ||--o{ APPROVAL_ITEM_STATES : reviewed
     APPROVAL_STEP_INSTANCES ||--o{ APPROVAL_ACTIONS : events
@@ -111,7 +112,7 @@ erDiagram
 | Product/Distributor master | `products`, `distributors`, `distributor_regions` |
 | Commercial | `price_regions`, `product_prices`, `product_price_overrides`, `bonus_schemes`, `distributor_margin_rules`, `distributor_margin_overrides`, `commercial_parameters` |
 | DPL core | `dpl_proposals`, `dpl_items`, `dpl_item_terms`, `dpl_status_histories`, `dpl_revisions`, `dpl_relations`, `dpl_consolidations`, `dpl_consolidation_outlets` |
-| Approval | `approval_workflows`, `approval_workflow_steps`, `approver_assignments`, `approval_instances`, `approval_step_instances`, `approval_item_states`, `approval_actions`, `approval_override_requests` |
+| Approval | `approval_workflows`, `approval_workflow_steps`, `approver_assignments`, `approval_instances`, `approval_step_instances`, `approval_step_assignees`, `approval_item_states`, `approval_actions`, `approval_override_requests` |
 | Documents | `distributor_branch_heads`, `exit_letters`, `attachments` |
 | Reporting | fase terpisah: selling in/out/target target schema/tables TBD |
 
@@ -699,7 +700,7 @@ NSM: zone_id set, region_id null
 GM/SMD/DMD: region_id null, zone_id null
 ```
 
-Application validation must prevent ambiguous multiple active assignments for the same scope/role. A database-level partial/exclusion solution may be added after validity-overlap semantics are finalized.
+Lebih dari satu assignment aktif untuk role + scope yang sama **diizinkan** (BR-026): semua user tersebut menjadi kandidat approver step terkait dan salah satu cukup bertindak. Aplikasi tetap mencegah duplikasi user yang sama pada role + scope + periode yang sama.
 
 ### `approval_instances`
 
@@ -717,14 +718,13 @@ Index: `(dpl_proposal_id, status)`.
 
 ### `approval_step_instances`
 
-Snapshot actual approver assignment.
+Step approval aktual per instance. Kandidat approver di-snapshot ke `approval_step_assignees`.
 
 | Column | Type | Nullable | Constraint/Note |
 |---|---|---:|---|
 | `id` | bigint | No | PK |
 | `approval_instance_id` | bigint | No | FK, RESTRICT |
 | `workflow_step_id` | bigint | No | FK approval_workflow_steps, RESTRICT |
-| `assigned_user_id` | bigint | No | FK users, RESTRICT |
 | `status` | varchar(30) | No | |
 | `started_at` | timestamp | Yes | |
 | `completed_at` | timestamp | Yes | |
@@ -732,7 +732,20 @@ Snapshot actual approver assignment.
 
 UNIQUE `(approval_instance_id, workflow_step_id)`.
 
-Indexes: `assigned_user_id`, `(assigned_user_id, status)`.
+### `approval_step_assignees`
+
+Snapshot kandidat approver per step saat approval instance dibuat. Satu role + scope boleh memiliki lebih dari satu approver aktif (mis. 2 RM dalam satu region); **cukup salah satu kandidat yang bertindak** (BR-026). Pelaku aksi tercatat di `approval_actions.actor_user_id`. Perubahan `approver_assignments` setelah instance dibuat tidak mengubah snapshot ini.
+
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `step_instance_id` | bigint | No | FK approval_step_instances, RESTRICT |
+| `user_id` | bigint | No | FK users, RESTRICT |
+| `created_at` | timestamp | No | |
+
+UNIQUE `(step_instance_id, user_id)`. Index: `user_id` (antrian approval).
+
+Menggantikan kolom tunggal `approval_step_instances.assigned_user_id` (migration `2026_10_06_000040`).
 
 ### `approval_item_states`
 
@@ -895,8 +908,7 @@ dpl_items.dpl_proposal_id
 ### Approval queue
 
 ```text
-approval_step_instances.assigned_user_id
-(assigned_user_id, status)
+approval_step_assignees.user_id (join ke approval_step_instances.status)
 approval_item_states.step_instance_id
 approval_actions.step_instance_id
 ```
@@ -1082,6 +1094,7 @@ approval_workflow_steps
 approver_assignments
 approval_instances
 approval_step_instances
+approval_step_assignees
 approval_item_states
 approval_actions
 approval_override_requests

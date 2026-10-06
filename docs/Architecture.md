@@ -262,7 +262,9 @@ RM -> NSM -> GM -> SMD -> DMD
 
 `users_level_order` legacy **bukan** sumber approval. Tabel tersebut hanya digunakan sebagai bagian dari visibility KAE terhadap pengajuan SPV/AM/atasannya.
 
-Approver yang sudah di-resolve saat workflow dimulai harus di-snapshot ke `approval_step_instances.assigned_user_id`. Perubahan master approver setelah workflow berjalan tidak boleh mengubah historical assignment.
+Satu role + scope boleh memiliki lebih dari satu approver aktif (mis. 2 RM dalam satu region); semua menjadi kandidat dan **cukup salah satu yang approve/reject**.
+
+Kandidat approver yang sudah di-resolve saat workflow dimulai harus di-snapshot ke `approval_step_assignees` (per step instance). Perubahan master approver setelah workflow berjalan tidak boleh mengubah historical assignment. Pelaku aksi tercatat di `approval_actions.actor_user_id`.
 
 ## 7. KAE visibility
 

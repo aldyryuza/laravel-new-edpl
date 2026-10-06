@@ -9,14 +9,15 @@ use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Step approval aktual. assigned_user_id adalah snapshot approver saat instance dibuat;
- * jangan di-resolve ulang dari ApproverAssignment.
+ * Step approval aktual. Kandidat approver di-snapshot ke approval_step_assignees saat instance
+ * dibuat (boleh lebih dari satu; salah satu cukup). Jangan di-resolve ulang dari ApproverAssignment.
  */
 #[Table('dpl.approval_step_instances')]
-#[Fillable(['approval_instance_id', 'workflow_step_id', 'assigned_user_id', 'status', 'started_at', 'completed_at'])]
+#[Fillable(['approval_instance_id', 'workflow_step_id', 'status', 'started_at', 'completed_at'])]
 class ApprovalStepInstance extends Model
 {
     /** @use HasFactory<ApprovalStepInstanceFactory> */
@@ -52,11 +53,23 @@ class ApprovalStepInstance extends Model
     }
 
     /**
-     * @return BelongsTo<User, $this>
+     * Snapshot kandidat approver step ini.
+     *
+     * @return HasMany<ApprovalStepAssignee, $this>
      */
-    public function assignedUser(): BelongsTo
+    public function assignees(): HasMany
     {
-        return $this->belongsTo(User::class, 'assigned_user_id');
+        return $this->hasMany(ApprovalStepAssignee::class, 'step_instance_id');
+    }
+
+    /**
+     * User kandidat approver (lewat snapshot approval_step_assignees).
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function assigneeUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'dpl.approval_step_assignees', 'step_instance_id', 'user_id');
     }
 
     /**
