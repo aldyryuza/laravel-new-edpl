@@ -19,12 +19,12 @@ class BonusSchemeFactory extends Factory
     {
         return [
             'code' => fake()->unique()->bothify('B-###??'),
-            'name' => 'Beli 10 Bonus 1',
-            'buy_quantity' => '10.0000',
-            'bonus_quantity' => '1.0000',
-            'discount_invoice' => null,
-            'discount_bonus' => null,
-            'effective_discount' => null,
+            'name' => '5+1',
+            'bonus' => '0.0000',
+            'discount_invoice' => '0.0000',
+            'discount_bonus' => '0.0000',
+            'discount_rounded' => '0.0000',
+            'total_discount' => '0.0000',
             'is_active' => true,
         ];
     }

@@ -3,7 +3,7 @@
 @section('title', 'Skema Bonus')
 
 @section('content')
-    <x-page-header title="Skema Bonus" subtitle="Program bonus, mis. beli 5 bonus 1. Semua nilai diisi manual."
+    <x-page-header title="Skema Bonus" subtitle="Program bonus (mis. 5+1) mengikuti tabel legacy dpl_bonus. Semua nilai diisi manual."
         :breadcrumbs="[['label' => 'Komersial DPL']]">
         <x-slot:actions>
             @can('bonus-schemes.create')
@@ -23,11 +23,11 @@
                     <tr>
                         <th>Kode</th>
                         <th>Nama</th>
-                        <th class="text-end">Beli</th>
                         <th class="text-end">Bonus</th>
-                        <th class="text-end">Disc. Invoice (%)</th>
-                        <th class="text-end">Disc. Bonus (%)</th>
-                        <th class="text-end">Disc. Efektif (%)</th>
+                        <th class="text-end">Disc. Invoice</th>
+                        <th class="text-end">Disc. Bonus</th>
+                        <th class="text-end">Disc. Pembulatan</th>
+                        <th class="text-end">Total Disc.</th>
                         <th>Dipakai Item</th>
                         <th>Status</th>
                         <th class="text-end">Aksi</th>
@@ -55,30 +55,30 @@
                         </div>
                         <div class="col-md-8">
                             <label for="bonus-name" class="form-label">Nama <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="bonus-name" name="name" maxlength="255" placeholder="mis. Beli 5 Bonus 1" required />
+                            <input type="text" class="form-control" id="bonus-name" name="name" maxlength="255" placeholder="mis. 5+1" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="bonus-bonus" class="form-label">Bonus <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="bonus-bonus" name="bonus" min="0" step="0.0001" value="0" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="bonus-discount-invoice" class="form-label">Diskon Invoice <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="bonus-discount-invoice" name="discount_invoice" min="0" step="0.0001" value="0" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="bonus-discount-bonus" class="form-label">Diskon Bonus <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="bonus-discount-bonus" name="discount_bonus" min="0" step="0.0001" value="0" required />
                         </div>
                         <div class="col-md-6">
-                            <label for="bonus-buy" class="form-label">Jumlah Beli</label>
-                            <input type="number" class="form-control" id="bonus-buy" name="buy_quantity" min="0" step="0.0001" />
+                            <label for="bonus-discount-rounded" class="form-label">Diskon Pembulatan <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="bonus-discount-rounded" name="discount_rounded" min="0" step="0.0001" value="0" required />
                         </div>
                         <div class="col-md-6">
-                            <label for="bonus-bonus" class="form-label">Jumlah Bonus</label>
-                            <input type="number" class="form-control" id="bonus-bonus" name="bonus_quantity" min="0" step="0.0001" />
-                        </div>
-                        <div class="col-md-4">
-                            <label for="bonus-discount-invoice" class="form-label">Diskon Invoice (%)</label>
-                            <input type="number" class="form-control" id="bonus-discount-invoice" name="discount_invoice" min="0" step="0.0001" />
-                        </div>
-                        <div class="col-md-4">
-                            <label for="bonus-discount-bonus" class="form-label">Diskon Bonus (%)</label>
-                            <input type="number" class="form-control" id="bonus-discount-bonus" name="discount_bonus" min="0" step="0.0001" />
-                        </div>
-                        <div class="col-md-4">
-                            <label for="bonus-discount-effective" class="form-label">Diskon Efektif (%)</label>
-                            <input type="number" class="form-control" id="bonus-discount-effective" name="effective_discount" min="0" step="0.0001" />
+                            <label for="bonus-total" class="form-label">Total Diskon <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="bonus-total" name="total_discount" min="0" step="0.0001" value="0" required />
                         </div>
                         <div class="col-12">
-                            <div class="form-text mb-3">Diskon efektif diisi manual; rumus perhitungannya belum dikonfirmasi bisnis.</div>
+                            <div class="form-text mb-3">Semua nilai diisi manual seperti legacy; total diskon tidak dihitung otomatis karena rumusnya belum dikonfirmasi.</div>
                             <input type="hidden" name="is_active" value="0" />
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="bonus-active" name="is_active" value="1" checked />

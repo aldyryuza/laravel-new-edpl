@@ -12,7 +12,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Yajra\DataTables\Facades\DataTables;
 
 /**
- * Skema bonus (legacy dpl_bonus), mis. beli 5 bonus 1.
+ * Skema bonus (legacy dpl_bonus), mis. program 5+1.
  */
 class BonusSchemeController extends Controller implements HasMiddleware
 {
@@ -34,11 +34,11 @@ class BonusSchemeController extends Controller implements HasMiddleware
     public function datatable(): JsonResponse
     {
         $query = BonusScheme::query()
-            ->select(['id', 'code', 'name', 'buy_quantity', 'bonus_quantity', 'discount_invoice', 'discount_bonus', 'effective_discount', 'is_active'])
+            ->select(['id', 'code', 'name', 'bonus', 'discount_invoice', 'discount_bonus', 'discount_rounded', 'total_discount', 'is_active'])
             ->withCount('dplItems');
 
         return DataTables::eloquent($query)
-            ->whitelist(['code', 'name', 'buy_quantity', 'bonus_quantity', 'is_active'])
+            ->whitelist(['code', 'name', 'bonus', 'total_discount', 'is_active'])
             ->toJson();
     }
 

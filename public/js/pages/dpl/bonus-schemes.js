@@ -1,5 +1,5 @@
 /**
- * Skema bonus (legacy dpl_bonus).
+ * Skema bonus (mengikuti legacy dpl_bonus: bonus, diskon invoice/bonus/pembulatan, total diskon).
  *
  * Tabel: Yajra server-side (GET api/dpl/bonus-schemes/datatable), form tambah/edit di modal.
  */
@@ -14,7 +14,7 @@ $(function () {
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('bonus-modal'));
     let editingId = null;
 
-    const numberFields = ['buy_quantity', 'bonus_quantity', 'discount_invoice', 'discount_bonus', 'effective_discount'];
+    const numberFields = ['bonus', 'discount_invoice', 'discount_bonus', 'discount_rounded', 'total_discount'];
     const muted = text => `<span class="text-body-secondary">${text}</span>`;
     // Nilai NUMERIC dikirim server sebagai string; hanya diformat untuk tampilan.
     const formatNumber = value => value === null ? muted('-') : Number(value).toLocaleString('id-ID', { maximumFractionDigits: 4 });
@@ -31,7 +31,7 @@ $(function () {
             ...numberFields.map(field => ({
                 data: field,
                 name: field,
-                orderable: ['buy_quantity', 'bonus_quantity'].includes(field),
+                orderable: ['bonus', 'total_discount'].includes(field),
                 searchable: false,
                 className: 'text-end',
                 render: formatNumber

@@ -440,17 +440,17 @@ Index: `product_id`.
 | Column | Type | Nullable | Constraint/Note |
 |---|---|---:|---|
 | `id` | bigint | No | PK |
-| `code` | varchar(30) | Yes | UNIQUE jika dapat dimapping |
-| `name` | varchar(255) | No | |
-| `buy_quantity` | numeric(12,4) | Yes | |
-| `bonus_quantity` | numeric(12,4) | Yes | |
-| `discount_invoice` | numeric(10,4) | Yes | |
-| `discount_bonus` | numeric(10,4) | Yes | |
-| `effective_discount` | numeric(10,4) | Yes | |
+| `code` | varchar(30) | Yes | UNIQUE bila diisi (tidak ada di legacy) |
+| `name` | varchar(255) | No | legacy `name`, mis. `5+1` |
+| `bonus` | numeric(10,4) | No | default 0; legacy `bonus` |
+| `discount_invoice` | numeric(10,4) | No | default 0; legacy `discount_invoiced` |
+| `discount_bonus` | numeric(10,4) | No | default 0; legacy `discount_bonus` |
+| `discount_rounded` | numeric(10,4) | No | default 0; legacy `discount_rounded` |
+| `total_discount` | numeric(10,4) | No | default 0; legacy `total_discount` |
 | `is_active` | boolean | No | default true |
 | timestamps | timestamp | Yes | |
 
-Legacy values must be inspected before forcing buy/bonus quantity parsing. Saat ini semua nilai diisi manual lewat UI; `effective_discount` tidak dihitung otomatis karena rumusnya belum dikonfirmasi.
+Struktur mengikuti legacy `dpl_bonus` (user confirmation, migration `2026_10_06_000051`; `buy_quantity`/`bonus_quantity` dihapus, `effective_discount` -> `total_discount`). Semua nilai diisi manual; `total_discount` tidak dihitung otomatis karena rumusnya belum dikonfirmasi. Arti kolom `bonus` (kuantitas atau persentase) perlu dikonfirmasi dari data legacy.
 
 ### `commercial_parameters`
 
@@ -1045,7 +1045,7 @@ Do not add percentage <= 100 constraints before special-case data is validated.
 | `dpl_price_region` | none | Tidak dimigrasikan; harga tidak dibedakan per region |
 | `dpl_price_product` | `product_prices` | Redesign numeric types |
 | `dpl_price_product_special` | `product_price_overrides` | Redesign |
-| `dpl_bonus` | `bonus_schemes` | Redesign after data inspection |
+| `dpl_bonus` | `bonus_schemes` | Keep (kolom sama; `discount_invoiced` -> `discount_invoice`) |
 | `dpl_distributor_margin` | `distributor_margin_rules` | Pending exact rule review |
 | `dpl_distributor_spesial_margin_outlet` | `distributor_margin_overrides` | Pending exact rule review |
 | `dpl_config` | `commercial_parameters` / app config split | Redesign |

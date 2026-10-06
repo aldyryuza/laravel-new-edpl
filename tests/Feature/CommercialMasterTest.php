@@ -95,9 +95,12 @@ class CommercialMasterTest extends TestCase
     public function test_bonus_scheme_code_is_unique_and_used_scheme_cannot_be_deleted(): void
     {
         $actor = $this->userWithAccess(['bonus-schemes' => ['create', 'delete']]);
-        $payload = ['code' => 'B5P1', 'name' => 'Beli 5 Bonus 1', 'buy_quantity' => '5', 'bonus_quantity' => '1', 'is_active' => true];
+        $payload = [
+            'code' => 'B5P1', 'name' => '5+1', 'bonus' => '1', 'discount_invoice' => '16.67', 'discount_bonus' => '0',
+            'discount_rounded' => '0', 'total_discount' => '16.67', 'is_active' => true,
+        ];
 
-        $this->actingAs($actor)->postJson('/api/dpl/bonus-schemes', $payload)->assertCreated()->assertJsonPath('data.buy_quantity', '5.0000');
+        $this->actingAs($actor)->postJson('/api/dpl/bonus-schemes', $payload)->assertCreated()->assertJsonPath('data.total_discount', '16.6700');
         $this->actingAs($actor)->postJson('/api/dpl/bonus-schemes', $payload)->assertUnprocessable()->assertJsonValidationErrors('code');
 
         $scheme = BonusScheme::query()->where('code', 'B5P1')->sole();

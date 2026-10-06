@@ -17,8 +17,7 @@ use Spatie\Activitylog\Support\LogOptions;
  */
 #[Table('dpl.bonus_schemes')]
 #[Fillable([
-    'code', 'name', 'buy_quantity', 'bonus_quantity', 'discount_invoice', 'discount_bonus',
-    'effective_discount', 'is_active',
+    'code', 'name', 'bonus', 'discount_invoice', 'discount_bonus', 'discount_rounded', 'total_discount', 'is_active',
 ])]
 class BonusScheme extends Model
 {
@@ -27,7 +26,7 @@ class BonusScheme extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return AuditLog::dataOptions(['code', 'name', 'buy_quantity', 'bonus_quantity', 'discount_invoice', 'discount_bonus', 'effective_discount', 'is_active'], fn () => "Skema bonus {$this->name}");
+        return AuditLog::dataOptions(['code', 'name', 'bonus', 'discount_invoice', 'discount_bonus', 'discount_rounded', 'total_discount', 'is_active'], fn () => "Skema bonus {$this->name}");
     }
 
     /**
@@ -38,11 +37,11 @@ class BonusScheme extends Model
     protected function casts(): array
     {
         return [
-            'buy_quantity' => 'decimal:4',
-            'bonus_quantity' => 'decimal:4',
+            'bonus' => 'decimal:4',
             'discount_invoice' => 'decimal:4',
             'discount_bonus' => 'decimal:4',
-            'effective_discount' => 'decimal:4',
+            'discount_rounded' => 'decimal:4',
+            'total_discount' => 'decimal:4',
             'is_active' => 'boolean',
         ];
     }

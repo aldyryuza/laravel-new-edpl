@@ -8,16 +8,13 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Skema bonus (legacy dpl_bonus). Semua nilai diisi manual; diskon efektif tidak dihitung otomatis
- * karena rumusnya belum dikonfirmasi.
+ * Skema bonus, mengikuti legacy dpl_bonus (name, bonus, discount_invoiced, discount_bonus, discount_rounded,
+ * total_discount). Semua nilai diisi manual; total diskon tidak dihitung otomatis karena rumusnya belum dikonfirmasi.
  */
 class BonusSchemeRequest extends FormRequest
 {
-    /** Batas numeric(12,4) untuk kuantitas. */
-    private const MAX_QUANTITY = '99999999.9999';
-
-    /** Batas numeric(10,4) untuk persentase diskon. */
-    private const MAX_DISCOUNT = '999999.9999';
+    /** Batas kolom numeric(10,4). */
+    private const MAX_AMOUNT = '999999.9999';
 
     /**
      * Hak akses dicek oleh middleware `can:bonus-schemes.*` di controller.
@@ -34,17 +31,16 @@ class BonusSchemeRequest extends FormRequest
      */
     public function rules(): array
     {
-        $quantity = ['nullable', 'numeric', 'min:0', 'max:'.self::MAX_QUANTITY, 'decimal:0,4'];
-        $discount = ['nullable', 'numeric', 'min:0', 'max:'.self::MAX_DISCOUNT, 'decimal:0,4'];
+        $amount = ['required', 'numeric', 'min:0', 'max:'.self::MAX_AMOUNT, 'decimal:0,4'];
 
         return [
             'code' => ['nullable', 'string', 'max:30', Rule::unique(BonusScheme::class, 'code')->ignore($this->route('bonus_scheme'))],
             'name' => ['required', 'string', 'max:255'],
-            'buy_quantity' => $quantity,
-            'bonus_quantity' => $quantity,
-            'discount_invoice' => $discount,
-            'discount_bonus' => $discount,
-            'effective_discount' => $discount,
+            'bonus' => $amount,
+            'discount_invoice' => $amount,
+            'discount_bonus' => $amount,
+            'discount_rounded' => $amount,
+            'total_discount' => $amount,
             'is_active' => ['required', 'boolean'],
         ];
     }
@@ -57,11 +53,11 @@ class BonusSchemeRequest extends FormRequest
         return [
             'code' => 'kode',
             'name' => 'nama',
-            'buy_quantity' => 'jumlah beli',
-            'bonus_quantity' => 'jumlah bonus',
+            'bonus' => 'bonus',
             'discount_invoice' => 'diskon invoice',
             'discount_bonus' => 'diskon bonus',
-            'effective_discount' => 'diskon efektif',
+            'discount_rounded' => 'diskon pembulatan',
+            'total_discount' => 'total diskon',
             'is_active' => 'status aktif',
         ];
     }
