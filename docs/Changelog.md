@@ -35,6 +35,8 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 - Model `User` mengisi `uuid` otomatis saat create (PK tetap `id`).
 - Migration E-DPL dikelompokkan per domain di `database/migrations/{identity,organization,master,commercial,dpl,approval,documents}`; subfolder didaftarkan di `AppServiceProvider` dan urutan eksekusi tetap mengikuti timestamp nama file.
 - PostgreSQL schema per sistem: tabel commercial, DPL, approval, dan dokumen E-DPL berada di schema `dpl` (`2026_10_06_000000_create_dpl_schema`); master bersama tetap di `public`. `search_path` menjadi `public,dpl`.
+- Model Eloquent + factory untuk 37 tabel E-DPL (model schema `dpl` memakai `#[Table('dpl.…')]`; pivot `distributor_regions` lewat `belongsToMany`). Konstanta status/tipe DPL, relasi DPL, dan aksi approval mengikuti `docs/Architecture.md`/`docs/Schema.md`.
+- Seeder `ApprovalReferenceSeeder` (role RM/NSM/GM/SMD/DMD + workflow `DPL_STANDARD` RM -> NSM -> GM -> SMD -> DMD) dan `OutletClassificationSeeder` (kategori RUMAH_SAKIT/INSTANSI, kepemilikan PEMERINTAH/NON_PEMERINTAH); idempotent, terdaftar di `DatabaseSeeder`.
 
 ### Changed (testing)
 
