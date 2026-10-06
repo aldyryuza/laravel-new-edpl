@@ -1,10 +1,10 @@
 # Architecture
 
-> Project: `[PROJECT_NAME]`  
+> Project: `E-DPL Rebuild`  
 > Laravel: `13.x`  
 > PHP: `>= 8.3`  
 > Database: `PostgreSQL`  
-> Updated: `[YYYY-MM-DD]`
+> Updated: `2026-10-06`
 
 ## 1. Prinsip
 
@@ -16,8 +16,47 @@
 6. Repository dan Action bersifat opsional.
 7. Database constraint digunakan untuk invariant yang memang harus dijaga database.
 8. Jangan membuat architecture baru tanpa masalah nyata yang ingin diselesaikan.
+9. Sistem baru tidak menyalin struktur legacy MySQL/MariaDB 1:1; schema baru mengikuti domain E-DPL.
+10. PostgreSQL `users` adalah canonical user master baru untuk arah migrasi CRM, EBU, dan E-DPL.
+11. Business history seperti revision, status transition, dan approval action disimpan eksplisit; audit teknis/data tetap menggunakan `spatie/laravel-activitylog`.
+12. Reporting tidak boleh menjadi dependency transaksi core E-DPL.
 
-## 2. Decision tree layer
+## 2. Target system context
+
+```text
+                         PostgreSQL
+                             |
+                     +-------+-------+
+                     |     users     |
+                     | canonical IAM |
+                     +-------+-------+
+                             |
+            +----------------+----------------+
+            |                |                |
+           CRM              EBU             E-DPL
+         future           future            current
+        migration        migration          rebuild
+```
+
+Pada fase rebuild E-DPL ini, PostgreSQL menjadi source of truth untuk user E-DPL. Struktur `users`, `roles`, `user_has_roles`, `menus`, dan `role_menu_accesses` yang sudah ada tetap digunakan dan tidak dibuat ulang sebagai subsistem lain.
+
+### Identity convention
+
+- `users.id`: internal relational key dan FK aplikasi.
+- `users.nik`: business/employee identifier, unique, dipakai untuk login dan mapping legacy.
+- `users.uuid`: stable opaque identifier untuk kebutuhan integrasi/JWT di masa depan.
+- Password tetap disimpan sebagai hash Laravel; password/token tidak boleh masuk audit log.
+
+Future JWT convention:
+
+```text
+sub -> users.uuid
+nik -> optional business claim
+```
+
+NIK tidak digunakan sebagai primary key database.
+
+## 3. Decision tree layer
 
 ```text
 Apakah hanya CRUD/query sederhana?
@@ -43,7 +82,7 @@ Tetap gunakan struktur paling sederhana.
 
 Repository hanya dipertimbangkan jika persistence/query sudah kompleks atau reusable lintas beberapa service.
 
-## 3. Struktur layer
+## 4. Struktur layer
 
 ### Route
 
@@ -56,13 +95,6 @@ Repository hanya dipertimbangkan jika persistence/query sudah kompleks atau reus
 Tidak ada business logic.
 
 ### Web Controller
-
-```php
-public function index()
-{
-    return view('products.index');
-}
-```
 
 Fokus pada halaman, view, redirect, dan kebutuhan HTTP web.
 
@@ -84,41 +116,40 @@ Fokus pada validation dan request-level authorization/normalization.
 
 Digunakan untuk:
 
-- business rule;
-- multi-step workflow;
-- koordinasi beberapa model;
-- transaction boundary;
+- calculation commercial;
+- approval workflow;
+- state transition DPL;
+- amendment/renewal;
+- consolidation;
+- multi-table transaction;
 - integration orchestration.
+
+Contoh kandidat service:
+
+```text
+DplSubmissionService
+DplApprovalService
+DplCalculationService
+DplAmendmentService
+DplRenewalService
+DplConsolidationService
+ExitLetterService
+```
 
 Jangan membuat service pass-through yang hanya meneruskan `Model::create()`.
 
 ### Action
 
-Opsional untuk satu use-case yang jelas:
+Opsional untuk use-case yang jelas, misalnya:
 
 ```text
 SubmitDpl
-ApproveDpl
-RejectDpl
-GenerateReport
+ApproveDplItem
+RejectDplItem
+RequestDplOverride
+ActivateDpl
+GenerateExitLetter
 ```
-
-Jangan membuat Action untuk semua CRUD.
-
-### Repository
-
-Opsional untuk query/persistence kompleks atau reusable.
-
-Jangan membuat:
-
-```php
-public function find($id)
-{
-    return Model::find($id);
-}
-```
-
-hanya untuk membungkus Eloquent.
 
 ### Model
 
@@ -130,7 +161,297 @@ Fokus pada:
 - attribute behavior kecil;
 - query sederhana.
 
-## 4. Web architecture
+Workflow lintas entity tidak ditempatkan di Model.
+
+## 5. Domain/module boundaries
+
+```text
+Identity & Access
+├── users
+├── roles
+├── user_has_roles
+├── menus
+└── role_menu_accesses
+
+Organization
+├── sales_zones
+├── sales_regions
+├── sales_areas
+└── user_org_assignments
+
+Master Data
+├── outlet_categories
+├── ownership_types
+├── outlet_groups
+├── outlet_group_members
+├── outlets
+├── products
+├── distributors
+└── distributor_regions
+
+Commercial
+├── price_regions
+├── product_prices
+├── product_price_overrides
+├── bonus_schemes
+├── distributor_margin_rules
+├── distributor_margin_overrides
+└── commercial_parameters
+
+DPL Core
+├── dpl_proposals
+├── dpl_items
+├── dpl_item_terms
+├── dpl_revisions
+├── dpl_relations
+├── dpl_status_histories
+├── dpl_consolidations
+└── dpl_consolidation_outlets
+
+Approval
+├── approval_workflows
+├── approval_workflow_steps
+├── approver_assignments
+├── approval_instances
+├── approval_step_instances
+├── approval_item_states
+├── approval_actions
+└── approval_override_requests
+
+Documents
+├── distributor_branch_heads
+├── exit_letters
+└── attachments
+
+Audit
+└── activity_log (Spatie)
+
+Reporting
+├── selling_in / sales_in
+├── selling_out / sales_out
+└── target / sales_targets
+```
+
+Nama final tabel reporting boleh diputuskan pada fase migrasi reporting. Core DPL tidak memiliki FK ke reporting.
+
+## 6. Organization and approval resolution
+
+Hierarchy organisasi:
+
+```text
+ZONE
+  └── REGION
+       └── AREA
+```
+
+Penentuan approver:
+
+```text
+RM  -> berdasarkan region DPL/outlet
+NSM -> berdasarkan zone dari region
+GM  -> global/fixed assignment
+SMD -> global/fixed assignment
+DMD -> global/fixed assignment
+```
+
+Urutan standard approval:
+
+```text
+RM -> NSM -> GM -> SMD -> DMD
+```
+
+`users_level_order` legacy **bukan** sumber approval. Tabel tersebut hanya digunakan sebagai bagian dari visibility KAE terhadap pengajuan SPV/AM/atasannya.
+
+Approver yang sudah di-resolve saat workflow dimulai harus di-snapshot ke `approval_step_instances.assigned_user_id`. Perubahan master approver setelah workflow berjalan tidak boleh mengubah historical assignment.
+
+## 7. KAE visibility
+
+Visibility dipisahkan dari approval.
+
+KAE dapat melihat pengajuan berdasarkan:
+
+- area yang menjadi scope-nya;
+- SPV/AM yang terkait;
+- relasi visibility yang berasal dari mapping legacy `users_level_order`.
+
+Implementasi target menggunakan kombinasi:
+
+```text
+user_area_scopes
+user_visibility_edges
+```
+
+Authorization backend tetap wajib; menyembunyikan tombol/menu hanya UX.
+
+## 8. DPL lifecycle
+
+Proposal status dan program status adalah konsep berbeda.
+
+### Proposal status
+
+```text
+DRAFT
+SUBMITTED
+IN_APPROVAL
+PARTIALLY_APPROVED
+APPROVED
+REJECTED
+CANCELLED
+```
+
+### Program status
+
+```text
+INACTIVE
+ACTIVE
+EXPIRED
+SUPERSEDED
+```
+
+Simplified flow:
+
+```text
+DRAFT
+  -> SUBMITTED
+  -> IN_APPROVAL
+  -> PARTIALLY_APPROVED (jika hanya sebagian item selesai)
+  -> APPROVED
+  -> ACTIVE
+  -> EXPIRED / SUPERSEDED
+
+IN_APPROVAL
+  -> REJECTED / RETURNED sesuai workflow
+```
+
+Approval bersifat per DPL item. `approval_actions` adalah immutable business event/history; current state berada pada `approval_item_states` dan step instance.
+
+## 9. Revision, amendment, renewal
+
+Tiga konsep harus dibedakan:
+
+```text
+REVISION
+- proposal yang sama diedit
+- historical snapshot disimpan
+- dapat menyebabkan approval restart sesuai business rule
+
+AMENDMENT
+- legacy "Make a Copy"
+- sumber harus DPL active
+- periode program tetap
+- digunakan untuk tambah/ubah item tertentu
+
+RENEWAL
+- legacy "Duplicate"
+- membuat proposal baru untuk periode baru
+- periode dapat berubah
+- approval dimulai dari awal
+```
+
+Hubungan antar DPL disimpan pada `dpl_relations`, bukan melalui kombinasi flag/string seperti legacy `ref_id_dpl`, `from_dpl_action`, atau `tag_make_a_copy`.
+
+## 10. Commercial calculation
+
+Nilai commercial dipisahkan dari identitas dasar DPL item.
+
+```text
+DplItem
+  -> DplItemTerms
+       ├── principle discount on/off
+       ├── distributor discount on/off
+       ├── negotiated price
+       ├── margin
+       ├── logistic support
+       ├── effective discount
+       └── calculator percentage
+```
+
+Aturan:
+
+- financial/commercial value menggunakan PostgreSQL `NUMERIC`, bukan float/double;
+- threshold seperti 35% tidak di-hardcode pada schema/controller; gunakan `commercial_parameters`;
+- calculated value hanya disimpan jika dibutuhkan untuk snapshot/history/performance dan strategi konsistensinya jelas;
+- `dpl_logistic` legacy tidak dimigrasikan karena praktis tidak digunakan.
+
+## 11. Product and outlet classification
+
+Product grouping 500 ml / 250 ml / 100 ml / 25 ml ditentukan dari `products.volume`. Tidak dibuat tabel `product_groups` hanya untuk grouping volume.
+
+Outlet legacy:
+
+```text
+GRUP1 -> outlet category (INSTANSI / RUMAH SAKIT)
+GRUP2 -> ownership type (PEMERINTAH / BUKAN PEMERINTAH)
+GRUP3 -> hospital/outlet group (HERMINA, SILOAM, dst.)
+```
+
+GRUP1, GRUP2, dan GRUP3 bukan hierarchy yang sama dan dinormalisasi menjadi master/relationship terpisah.
+
+## 12. Consolidation
+
+Consolidation/RS Group adalah parent process yang dapat memiliki banyak outlet.
+
+```text
+DPL Consolidation
+  ├── Outlet A -> generated DPL A
+  ├── Outlet B -> generated DPL B
+  └── Outlet C -> generated DPL C
+```
+
+Setelah full approval, DPL per outlet menjadi transaksi operasional yang berlaku; parent consolidation tetap menjadi referensi history dan tidak menjadi DPL aktif per outlet.
+
+## 13. Document / Surat Keluar
+
+`dpl_exit_letter_master` legacy digunakan sebagai master nama Kacab. Desain baru menggunakan `distributor_branch_heads` dengan validity period.
+
+Pada saat surat dibuat, nama/jabatan Kacab disimpan sebagai snapshot pada `exit_letters` agar histori dokumen tidak berubah ketika master Kacab berubah.
+
+Surat keluar hanya dapat diproses dari DPL yang memenuhi status bisnis yang dipersyaratkan (legacy: DPL active).
+
+## 14. Audit and business history
+
+Gunakan dua mekanisme dengan tujuan berbeda:
+
+### `activity_log`
+
+Dipakai untuk audit teknis/data dengan `spatie/laravel-activitylog`:
+
+- siapa;
+- action;
+- subject;
+- perubahan attribute penting;
+- timestamp;
+- metadata aman seperti IP/user-agent bila perlu.
+
+### Business history
+
+Tetap disimpan pada tabel domain:
+
+```text
+dpl_revisions
+dpl_status_histories
+approval_actions
+```
+
+Jangan mengganti business history dengan activity log karena kebutuhan query dan semantics berbeda.
+
+## 15. Reporting boundary
+
+Legacy:
+
+```text
+selling_in
+selling_out
+target
+```
+
+hanya digunakan untuk reporting dan tidak masuk transaction dependency core E-DPL.
+
+Volume data reporting yang besar harus diperlakukan sebagai workload terpisah secara logical. Fase awal boleh tetap satu PostgreSQL instance, tetapi query/reporting tidak boleh membuat submit/approval DPL bergantung pada tabel reporting.
+
+`distributor_outlet` legacy tidak digunakan E-DPL dan tidak dimigrasikan ke core.
+
+## 16. Web architecture
 
 ```text
 Browser
@@ -142,14 +463,12 @@ Browser
   -> routes/api.php
   -> API Controller
   -> Form Request
-  -> Service (optional)
+  -> Service (optional/required for workflow)
   -> Model / Query
   -> PostgreSQL
 ```
 
-Halaman tidak perlu memanggil database langsung dari JavaScript.
-
-## 5. API architecture
+## 17. API architecture
 
 ```text
 Client / jQuery AJAX
@@ -157,101 +476,45 @@ Client / jQuery AJAX
   -> Middleware/Auth
   -> Form Request
   -> API Controller
-  -> Service (optional)
+  -> Service
   -> Model / Query / Integration
   -> JSON Response
 ```
 
-Gunakan API Resource jika response transformation cukup kompleks atau membutuhkan contract yang stabil.
-
-## 6. Standard API response
-
-### Data tabel: Yajra DataTables
-
-Semua data yang ditampilkan sebagai tabel diambil dari `GET api/{resource}/datatable`
-(`yajra/laravel-datatables-oracle`), response mengikuti protokol DataTables
-(`draw`, `recordsTotal`, `recordsFiltered`, `data`), bukan envelope di bawah.
-
-```php
-public function datatable(Request $request): JsonResponse
-{
-    $query = User::query()->select([...])->with('roles:id,name');
-
-    return DataTables::eloquent($query)
-        ->whitelist(['nik', 'name', 'email'])   // WAJIB: kolom yang boleh di-sort/search
-        ->toJson();
-}
-```
-
-Aturan:
-
-- Selalu `whitelist()` kolom; nama kolom dari request tidak boleh dipakai bebas.
-- `select()` kolom yang dibutuhkan saja; jangan kirim atribut sensitif.
-- Kolom relasi/hasil hitung: kembalikan **array**, bukan Collection (Yajra mengubah objek jadi string).
-- Escape HTML di server dimatikan (`config/datatables.php`); HTML dirender di JS dengan `App.escape()`.
-- Error Yajra diteruskan ke exception handler (`DATATABLES_ERROR=throw`) agar SQL tidak bocor.
-- Filter yang dipakai juga oleh ekspor (mis. `User::search()`) ditaruh di scope model supaya hasil tabel = hasil ekspor.
-
-Endpoint JSON biasa (envelope di bawah) dipakai untuk kebutuhan non-tabel, misalnya dropdown.
-
-### Envelope JSON
-
-Default project:
-
-```json
-{
-  "success": true,
-  "message": "Data berhasil diproses",
-  "data": {}
-}
-```
-
-List:
-
-```json
-{
-  "success": true,
-  "message": "Data berhasil diambil",
-  "data": [],
-  "meta": {
-    "current_page": 1,
-    "per_page": 10,
-    "total": 100
-  }
-}
-```
-
-Validation/error:
-
-```json
-{
-  "success": false,
-  "message": "Validation failed",
-  "errors": {}
-}
-```
-
-Jika project sudah memiliki contract berbeda, ikuti contract existing dan dokumentasikan di sini.
-
-## 7. Transaction
-
-Gunakan `DB::transaction()` ketika beberapa perubahan database harus atomic.
-
-Contoh:
+Endpoint domain action diperbolehkan untuk workflow nyata, misalnya:
 
 ```text
-Submit
+POST /api/dpl/{dpl}/submit
+POST /api/dpl/{dpl}/approve
+POST /api/dpl/{dpl}/reject
+POST /api/dpl/{dpl}/request-override
+POST /api/dpl/{dpl}/amend
+POST /api/dpl/{dpl}/renew
+```
+
+## 18. Transaction boundary
+
+Gunakan `DB::transaction()` untuk workflow multi-table.
+
+Contoh submit:
+
+```text
+Submit DPL
  -> validate business rule
- -> update header
- -> create detail/history
- -> create approval record
- -> create audit record
+ -> freeze revision/snapshot bila perlu
+ -> update proposal status
+ -> create approval instance
+ -> resolve approvers
+ -> create step/item states
+ -> create status history
  -> commit
 ```
 
 Jangan menahan database transaction saat menunggu external HTTP request jika bisa dihindari.
 
-## 8. Integration
+## 19. Integration direction
+
+Arah future:
 
 ```text
 Service
@@ -259,110 +522,29 @@ Service
   -> External API
 ```
 
-Integration client menangani authentication, timeout, serialization, retry, dan mapping error.
+NetSuite/external integration tidak boleh di-hardcode ke model/controller. External IDs yang sudah menjadi bagian data legacy dapat dipertahankan, tetapi behavior integrasi harus diimplementasikan hanya setelah requirement integrasi dikonfirmasi.
 
-Credential berasal dari `.env`/config, bukan hardcode.
+## 20. Migration strategy
 
-## 9. Queue/job
-
-Gunakan Job jika proses:
-
-- lambat;
-- dapat di-retry;
-- tidak harus selesai sebelum response;
-- cocok untuk email, report, file processing, atau integration sync.
-
-Tentukan retry/backoff/timeout/idempotency untuk job penting.
-
-## 10. Logging
-
-Log context yang berguna:
-
-- request/correlation ID;
-- user ID jika sesuai;
-- business record ID;
-- operation;
-- integration;
-- retry attempt.
-
-Jangan log password, token, secret, atau payload sensitif yang tidak diperlukan.
-
-### Audit log (`spatie/laravel-activitylog` v5)
-
-Tabel `activity_log`, dibaca di halaman **Pengaturan > Audit Log** (`audit-log.read`).
-Konvensi ada di `App\Support\AuditLog`.
-
-| Kategori (`log_name`) | Sumber |
-|---|---|
-| `auth` | Listener `LogAuthenticationActivity` (login, login gagal, logout), ganti role, ganti/reset password |
-| `data` | Trait `LogsActivity` di model `User`, `Role`, `Menu`, `RoleMenuAccess` (hanya atribut yang berubah) + perubahan role user (pivot, dicatat manual) |
-| `security` | Request yang kena rate limit, dicatat sekali per IP + route + user selama window limit |
-
-Model baru yang perlu diaudit: pakai `LogsActivity` dan `AuditLog::dataOptions([...atribut], label)`.
-Jangan masukkan atribut rahasia ke daftar atribut. Pembersihan log lama: `php artisan activitylog:clean`
-(`clean_after_days` di `config/activitylog.php`, default 365); belum dijadwalkan.
-
-## 11. Security
-
-### Rate limit
-
-Didefinisikan di `AppServiceProvider::registerRateLimiters()`:
-
-| Limiter | Batas | Dipakai di |
-|---|---|---|
-| `login` | 5/menit per NIK + IP, dan 20/menit per IP | `POST /login` |
-| `api` | 60/menit per user | semua `routes/api.php` |
-| `password` | 5/menit per user | `PUT api/profile/password` |
-| `export` | 10/menit per user | ekspor Excel (`/users/export`) |
-
-Request yang ditolak tidak sampai ke controller/listener, sehingga tidak membanjiri audit log.
-
-### Real-time (Laravel Reverb)
+Rebuild dilakukan sebagai transformasi domain, bukan table copy 1:1.
 
 ```text
-Browser (public/js/realtime.js, Echo + pusher-js statis)
-  -> WebSocket Reverb (php artisan reverb:start)
-  -> POST /broadcasting/auth (session web) -> routes/channels.php
+Legacy MySQL/MariaDB
+        |
+        v
+Extract + validate
+        |
+        v
+Transform / mapping
+        |
+        v
+PostgreSQL target schema
+        |
+        v
+Reconcile counts/business samples
+        |
+        v
+Cutover
 ```
 
-- Presence channel `online`: semua user login bergabung, member disimpan Reverb di memori (tanpa query DB).
-- Halaman yang sedang dibuka dikirim browser sebagai parameter otorisasi saat join (`auth.params`),
-  bukan pesan antar-browser, agar beban linear terhadap jumlah user. Jika satu user membuka
-  beberapa tab, yang tampil adalah halaman tab pertama.
-- Kapasitas: event loop bawaan (`stream_select`) kira-kira 1.000 koneksi per proses (1 tab = 1 koneksi).
-  Di atas itu pasang `ext-uv`; di Linux naikkan `ulimit -n` (mis. 10000). `REVERB_APP_MAX_CONNECTIONS`
-  kosong = tanpa batas.
-- File Echo statis di `public/assets/vendor/libs/echo` (versi di `VERSION.txt`), update manual.
-- Alamat untuk browser bisa dibedakan dengan `REVERB_CLIENT_HOST/PORT/SCHEME` (reverse proxy/TLS).
-- Production: jalankan `php artisan reverb:start` sebagai service (supervisor/systemd).
-
-### Ekspor Excel (Laravel Excel v4)
-
-- Kelas ekspor di `app/Exports` (`php artisan make:export`). Contoh: `UsersExport`.
-- Hak akses ekspor = action `print` menu terkait (mis. `can:users.print`), plus `throttle:export`.
-- Filter ekspor memakai scope model yang sama dengan tabel Yajra (hasil tabel = isi file).
-- **Wajib** `extends StringValueBinder implements WithCustomValueBinder`: semua sel jadi teks, mencegah
-  formula injection (`=HYPERLINK(...)`) dan menjaga nol di depan NIK.
-- Ekspor data pribadi dicatat ke audit log (`event: exported`).
-- Dataset sangat besar: pertimbangkan `ShouldQueue` + notifikasi, jangan download sinkron.
-- Butuh extension PHP `zip`.
-
-### Monitoring server (Laravel Pulse)
-
-- Dashboard `/pulse` (menu **Monitoring Server**), akses via gate `viewPulse` -> hak akses menu `pulse.read`.
-- Data disimpan di tabel `pulse_*` (database yang sama). Avatar user tidak diambil dari Gravatar.
-- Pulse meng-cache hasil query dashboard sebagai object. Laravel 13 menolak unserialize object dari
-  cache secara default, jadi `config/cache.php` `serializable_classes` meng-allowlist **hanya**
-  `Collection`, `stdClass`, `CarbonImmutable`. Jangan ganti dengan `true` (membuka risiko gadget chain).
-- Kartu "Servers" butuh proses `php artisan pulse:check` berjalan terus (sudah ada di `composer dev`;
-  di production jalankan sebagai service). Di test, Pulse dimatikan (`PULSE_ENABLED=false`).
-
-### Umum
-
-- Authorization server-side.
-- Validation server-side.
-- `.env` tidak di-commit.
-- Production `APP_DEBUG=false`.
-- Public web root adalah `public/`.
-- Mass assignment dikontrol.
-- Sensitive attribute tidak diekspos melalui API.
+NIK menjadi identifier utama untuk mapping user legacy ke PostgreSQL user baru. Legacy numeric user ID tidak dianggap stable business identity.
