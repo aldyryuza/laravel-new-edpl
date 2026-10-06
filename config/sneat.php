@@ -144,6 +144,12 @@ return [
             'js' => ['vendor/libs/bootstrap-daterangepicker/bootstrap-daterangepicker.js'],
         ],
 
+        // Leaflet 1.9 (window.L). Tile server diatur di config('services.map').
+        'leaflet' => [
+            'css' => ['vendor/libs/leaflet/leaflet.css'],
+            'js' => ['vendor/libs/leaflet/leaflet.js'],
+        ],
+
         'apexcharts' => [
             'css' => ['vendor/libs/apex-charts/apex-charts.css'],
             'js' => ['vendor/libs/apex-charts/apexcharts.js'],

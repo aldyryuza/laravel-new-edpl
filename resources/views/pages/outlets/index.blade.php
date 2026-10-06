@@ -1,4 +1,4 @@
-@extends('layouts.app', ['vendors' => ['datatables', 'select2', 'sweetalert2']])
+@extends('layouts.app', ['vendors' => ['datatables', 'select2', 'sweetalert2', 'leaflet']])
 
 @section('title', 'Outlet')
 
@@ -168,6 +168,26 @@
                         <div class="col-md-3">
                             <label for="outlet-longitude" class="form-label">Longitude</label>
                             <input type="number" class="form-control" id="outlet-longitude" name="longitude" step="0.0000001" min="-180" max="180" />
+                        </div>
+                        <div class="col-12">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                <span class="form-label mb-0">Posisi Outlet</span>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-label-primary" id="btn-my-location">
+                                        <i class="icon-base bx bx-current-location me-1"></i> Lokasi saya
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-label-secondary" id="btn-clear-location">
+                                        <i class="icon-base bx bx-x me-1"></i> Hapus titik
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="outlet-map" class="rounded border" style="height: 300px;"
+                                data-tile-url="{{ config('services.map.tile_url') }}"
+                                data-attribution="{{ config('services.map.attribution') }}"
+                                data-center="{{ json_encode(config('services.map.center')) }}"
+                                data-zoom="{{ config('services.map.zoom') }}"
+                                data-marker-icon="{{ theme_asset('vendor/libs/leaflet/images/marker-icon.png') }}"></div>
+                            <div class="form-text">Klik peta atau geser marker untuk mengisi latitude/longitude. Mengetik angka juga memindahkan marker.</div>
                         </div>
                         <div class="col-12">
                             <input type="hidden" name="is_active" value="0" />

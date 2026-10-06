@@ -30,6 +30,8 @@ $(function () {
         });
     });
 
+    const locationPicker = createLocationPicker();
+
     const filterParams = () => Object.fromEntries($filters.toArray().map(el => [$(el).data('filter'), $(el).val()]));
 
     const table = $('#outlets-table').DataTable({
@@ -40,7 +42,13 @@ $(function () {
         ajax: App.dataTableSource('api/outlets/datatable', filterParams),
         columns: [
             { data: 'code', name: 'code', render: App.escape },
-            { data: 'name', name: 'name', render: App.escape },
+            {
+                data: 'name',
+                name: 'name',
+                render: (name, type, row) => App.escape(name) + (row.latitude !== null && row.longitude !== null
+                    ? ` <i class="icon-base bx bx-map-pin text-primary" title="${App.escape(`${row.latitude}, ${row.longitude}`)}"></i>`
+                    : '')
+            },
             {
                 data: 'area',
                 orderable: false,
@@ -110,7 +118,124 @@ $(function () {
 
         $('#outlet-area').val(outlet && outlet.area_id ? String(outlet.area_id) : '').trigger('change');
         $('#outlet-group').val(membership ? String(membership.outlet_group_id) : '').trigger('change');
+        locationPicker.syncFromInputs();
         modal.show();
+    }
+
+    /**
+     * Peta Leaflet di form: klik/geser marker mengisi latitude & longitude, mengetik angka memindahkan marker.
+     * Tile server dan pusat default diatur dari config('services.map') lewat data attribute #outlet-map.
+     */
+    function createLocationPicker() {
+        const $map = $('#outlet-map');
+        const $lat = $('#outlet-latitude');
+        const $lng = $('#outlet-longitude');
+        const defaultView = { center: $map.data('center'), zoom: $map.data('zoom') };
+        const pointZoom = 16;
+
+        const map = L.map($map[0]).setView(defaultView.center, defaultView.zoom);
+        L.tileLayer($map.data('tile-url'), { maxZoom: 19, attribution: $map.data('attribution') }).addTo(map);
+
+        // Ikon eksplisit: bundle Sneat tidak menyertakan marker-shadow, jadi path default Leaflet tidak dipakai.
+        const icon = L.icon({ iconUrl: $map.data('marker-icon'), iconSize: [25, 41], iconAnchor: [12, 41] });
+        let marker = null;
+
+        const isValid = (lat, lng) => Number.isFinite(lat) && Number.isFinite(lng)
+            && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+
+        function fillInputs(latLng) {
+            $lat.val(latLng.lat.toFixed(7));
+            $lng.val(latLng.lng.toFixed(7));
+            App.clearErrors($lat.closest('.row'));
+        }
+
+        function placeMarker(latLng) {
+            if (marker) {
+                marker.setLatLng(latLng);
+                return;
+            }
+
+            marker = L.marker(latLng, { icon, draggable: true }).addTo(map);
+            marker.on('dragend', () => fillInputs(marker.getLatLng()));
+        }
+
+        function removeMarker() {
+            if (marker) {
+                map.removeLayer(marker);
+                marker = null;
+            }
+        }
+
+        /** Posisikan marker sesuai input (tanpa mengubah input). */
+        function syncFromInputs() {
+            const lat = parseFloat($lat.val());
+            const lng = parseFloat($lng.val());
+
+            if (isValid(lat, lng)) {
+                placeMarker(L.latLng(lat, lng));
+            } else {
+                removeMarker();
+            }
+        }
+
+        function focusView() {
+            map.invalidateSize();
+
+            if (marker) {
+                map.setView(marker.getLatLng(), pointZoom);
+            } else {
+                map.setView(defaultView.center, defaultView.zoom);
+            }
+        }
+
+        map.on('click', event => {
+            placeMarker(event.latlng);
+            fillInputs(event.latlng);
+        });
+
+        $lat.add($lng).on('input', () => {
+            syncFromInputs();
+
+            if (marker) {
+                map.panTo(marker.getLatLng());
+            }
+        });
+
+        $('#btn-clear-location').on('click', () => {
+            $lat.val('');
+            $lng.val('');
+            removeMarker();
+        });
+
+        // Geolocation browser hanya tersedia di HTTPS atau localhost.
+        $('#btn-my-location').on('click', function () {
+            if (!navigator.geolocation) {
+                App.notify('error', 'Browser tidak mendukung pengambilan lokasi.');
+                return;
+            }
+
+            const $button = $(this).prop('disabled', true);
+
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    const latLng = L.latLng(position.coords.latitude, position.coords.longitude);
+                    placeMarker(latLng);
+                    fillInputs(latLng);
+                    map.setView(latLng, pointZoom);
+                    $button.prop('disabled', false);
+                },
+                () => {
+                    App.notify('error', 'Lokasi tidak bisa diambil. Pastikan izin lokasi aktif dan aplikasi diakses lewat HTTPS.');
+                    $button.prop('disabled', false);
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        });
+
+        // Modal awalnya tersembunyi: ukuran peta dihitung ulang setelah modal tampil.
+        document.getElementById('outlet-modal').addEventListener('shown.bs.modal', focusView);
+
+        return { syncFromInputs };
     }
 
     $('#btn-add-outlet').on('click', () => openForm());

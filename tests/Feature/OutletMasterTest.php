@@ -40,6 +40,18 @@ class OutletMasterTest extends TestCase
         $this->actingAs($this->userWithAccess([$menu => ['read']]))->get($url)->assertOk();
     }
 
+    public function test_outlet_page_loads_leaflet_with_configured_tile_server(): void
+    {
+        config(['services.map.tile_url' => 'https://tiles.internal.test/{z}/{x}/{y}.png']);
+
+        $this->actingAs($this->userWithAccess(['outlets' => ['read']]))
+            ->get('/outlets')
+            ->assertOk()
+            ->assertSee('vendor/libs/leaflet/leaflet.js', escape: false)
+            ->assertSee('id="outlet-map"', escape: false)
+            ->assertSee('data-tile-url="https://tiles.internal.test/{z}/{x}/{y}.png"', escape: false);
+    }
+
     public function test_category_in_use_cannot_be_deleted(): void
     {
         $actor = $this->userWithAccess(['outlet-classifications' => ['create', 'delete']]);

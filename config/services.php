@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    /*
+    | Peta Leaflet (posisi outlet). Tile diambil browser langsung dari server tile ini;
+    | ganti ke tile server internal bila tersedia. Pusat default = Indonesia.
+    */
+    'map' => [
+        'tile_url' => env('MAP_TILE_URL', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+        'attribution' => env('MAP_TILE_ATTRIBUTION', '&copy; OpenStreetMap contributors'),
+        'center' => [(float) env('MAP_CENTER_LAT', -2.5), (float) env('MAP_CENTER_LNG', 118.0)],
+        'zoom' => (int) env('MAP_DEFAULT_ZOOM', 5),
+    ],
+
 ];
