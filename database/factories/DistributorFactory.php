@@ -21,7 +21,7 @@ class DistributorFactory extends Factory
             'code' => fake()->unique()->bothify('D-#####'),
             'name' => 'PT '.fake()->company(),
             'group_code' => null,
-            'city_name' => fake()->city(),
+            'city_id' => null,
             'is_branch' => false,
             'parent_distributor_id' => null,
             'is_active' => true,

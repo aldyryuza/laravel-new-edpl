@@ -3,6 +3,7 @@
 use App\Http\Controllers\Web\ActiveRoleController;
 use App\Http\Controllers\Web\AuditLogController;
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\CityController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\DistributorController;
 use App\Http\Controllers\Web\Dpl\ApproverAssignmentController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Web\OutletController;
 use App\Http\Controllers\Web\OutletGroupController;
 use App\Http\Controllers\Web\ProductController;
 use App\Http\Controllers\Web\ProfileController;
+use App\Http\Controllers\Web\ProvinceController;
 use App\Http\Controllers\Web\RoleController;
 use App\Http\Controllers\Web\SalesAreaController;
 use App\Http\Controllers\Web\SalesRegionController;
@@ -65,6 +67,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/sales-areas/import-template', [SalesAreaController::class, 'template'])
         ->middleware(['can:sales-areas.create', 'throttle:export'])
         ->name('sales-areas.import-template');
+
+    // Wilayah administratif (schema public)
+    Route::get('/provinces', [ProvinceController::class, 'index'])->middleware('can:provinces.read')->name('provinces.index');
+    Route::get('/provinces/import-template', [ProvinceController::class, 'template'])
+        ->middleware(['can:provinces.create', 'throttle:export'])
+        ->name('provinces.import-template');
+    Route::get('/cities', [CityController::class, 'index'])->middleware('can:cities.read')->name('cities.index');
+    Route::get('/cities/import-template', [CityController::class, 'template'])
+        ->middleware(['can:cities.create', 'throttle:export'])
+        ->name('cities.import-template');
 
     // Master outlet (schema public)
     Route::get('/outlets', [OutletController::class, 'index'])->middleware('can:outlets.read')->name('outlets.index');

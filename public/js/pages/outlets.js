@@ -13,7 +13,7 @@ $(function () {
     const $form = $('#outlet-form');
     const $submit = $form.find('[type="submit"]');
     const $filters = $page.find('[data-filter]');
-    const $selects = $('#outlet-area, #outlet-group');
+    const $selects = $('#outlet-city, #outlet-area, #outlet-group');
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('outlet-modal'));
     let editingId = null;
 
@@ -58,9 +58,10 @@ $(function () {
                 data: 'area',
                 orderable: false,
                 searchable: false,
-                render: area => area
+                render: (area, type, row) => (area
                     ? `${App.escape(area.name)}${area.region ? `<br><small class="text-body-secondary">${App.escape(area.region.name)}</small>` : ''}`
-                    : muted('-')
+                    : muted('-'))
+                    + (row.city ? `<br><small class="text-body-secondary"><i class="icon-base bx bx-buildings"></i> ${App.escape(row.city.name)}</small>` : '')
             },
             { data: 'category', orderable: false, searchable: false, render: item => item ? App.escape(item.name) : muted('-') },
             { data: 'ownership_type', orderable: false, searchable: false, render: item => item ? App.escape(item.name) : muted('-') },
@@ -121,6 +122,7 @@ $(function () {
 
         const membership = outlet ? outlet.active_group_membership : null;
 
+        $('#outlet-city').val(outlet && outlet.city_id ? String(outlet.city_id) : '').trigger('change');
         $('#outlet-area').val(outlet && outlet.area_id ? String(outlet.area_id) : '').trigger('change');
         $('#outlet-group').val(membership ? String(membership.outlet_group_id) : '').trigger('change');
         locationPicker.syncFromInputs();

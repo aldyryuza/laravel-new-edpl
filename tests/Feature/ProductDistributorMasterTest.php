@@ -139,7 +139,7 @@ class ProductDistributorMasterTest extends TestCase
         Distributor::factory()->create();
 
         $this->actingAs($this->userWithAccess(['distributors' => ['read']]))
-            ->getJson('/api/distributors/datatable?'.$this->dataTableQuery(['code', 'name', 'city_name', 'is_active'], ['region_id' => $region->id]))
+            ->getJson('/api/distributors/datatable?'.$this->dataTableQuery(['code', 'name', 'is_active'], ['region_id' => $region->id]))
             ->assertOk()
             ->assertJsonPath('recordsFiltered', 1)
             ->assertJsonPath('data.0.code', $inRegion->code)

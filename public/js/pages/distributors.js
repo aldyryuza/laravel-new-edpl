@@ -29,10 +29,12 @@ $(function () {
         modal: '#distributor-modal'
     });
 
-    [$parent, $regions].forEach($select => {
+    const $city = $('#distributor-city');
+
+    [$city, $parent, $regions].forEach($select => {
         $select.wrap('<div class="position-relative"></div>').select2({
             dropdownParent: $select.parent(),
-            placeholder: $select.is('[multiple]') ? 'Pilih region' : 'Tanpa induk',
+            placeholder: $select.find('option[value=""]').text() || 'Pilih region',
             allowClear: true,
             width: '100%'
         });
@@ -53,10 +55,10 @@ $(function () {
                     + (row.group_code ? `<br><small class="text-body-secondary">Grup: ${App.escape(row.group_code)}</small>` : '')
             },
             {
-                data: 'city_name',
-                name: 'city_name',
+                data: 'city',
+                orderable: false,
                 searchable: false,
-                render: (city, type, row) => (city ? App.escape(city) : muted('-')) + (row.latitude !== null && row.longitude !== null
+                render: (city, type, row) => (city ? App.escape(city.name) : muted('-')) + (row.latitude !== null && row.longitude !== null
                     ? ` <i class="icon-base bx bx-map-pin text-primary" title="${App.escape(`${row.latitude}, ${row.longitude}`)}"></i>`
                     : '')
             },
@@ -121,7 +123,7 @@ $(function () {
 
         if (distributor) {
             [
-                'code', 'name', 'city_name', 'group_code', 'netsuite_id', 'address', 'phone', 'fax', 'email', 'npwp',
+                'code', 'name', 'group_code', 'netsuite_id', 'address', 'phone', 'fax', 'email', 'npwp',
                 'latitude', 'longitude', 'meeting_radius_meters'
             ].forEach(field => $form.find(`[name="${field}"]`).val(distributor[field] ?? ''));
             $('#distributor-branch').prop('checked', distributor.is_branch);
@@ -135,6 +137,7 @@ $(function () {
             $parent.find(`option[value="${editingId}"]`).prop('disabled', true);
         }
 
+        $city.val(distributor && distributor.city_id ? String(distributor.city_id) : '').trigger('change');
         $parent.val(distributor && distributor.parent_distributor_id ? String(distributor.parent_distributor_id) : '').trigger('change');
         $regions.val(distributor ? distributor.regions.map(region => String(region.id)) : []).trigger('change');
         locationPicker.syncFromInputs();

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exports\ImportTemplateExport;
 use App\Exports\ImportTemplateSheet;
+use App\Models\City;
 use App\Models\Distributor;
 use App\Models\SalesRegion;
 use App\Support\AuditLog;
@@ -21,7 +22,7 @@ use Illuminate\Validation\ValidationException;
 class DistributorImportService extends ExcelImporter
 {
     public const COLUMNS = [
-        'kode', 'nama', 'grup_distributor', 'kota', 'alamat', 'telepon', 'fax', 'email', 'npwp', 'latitude', 'longitude',
+        'kode', 'nama', 'grup_distributor', 'kode_kota', 'alamat', 'telepon', 'fax', 'email', 'npwp', 'latitude', 'longitude',
         'radius_meter', 'cabang', 'kode_induk', 'kode_region', 'netsuite_id', 'aktif',
     ];
 
@@ -32,7 +33,6 @@ class DistributorImportService extends ExcelImporter
      */
     private const TEXT_COLUMNS = [
         'grup_distributor' => ['group_code', 50],
-        'kota' => ['city_name', 150],
         'alamat' => ['address', 2000],
         'telepon' => ['phone', 50],
         'fax' => ['fax', 50],
@@ -71,7 +71,7 @@ class DistributorImportService extends ExcelImporter
             ['kode', 'Wajib, maks. 30 karakter. Kode yang sudah ada akan diperbarui.'],
             ['nama', 'Wajib, maks. 255 karakter.'],
             ['grup_distributor', 'Opsional, maks. 50 karakter (pengelompokan legacy).'],
-            ['kota', 'Opsional, maks. 150 karakter.'],
+            ['kode_kota', 'Opsional, kode kota/kabupaten (kode wilayah BPS, mis. 8271) dari menu Master Organisasi > Provinsi & Kota.'],
             ['alamat', 'Opsional.'],
             ['telepon', 'Opsional, maks. 50 karakter.'],
             ['fax', 'Opsional, maks. 50 karakter.'],
@@ -106,6 +106,7 @@ class DistributorImportService extends ExcelImporter
     private function validateRows(array $rows): array
     {
         $regionIds = SalesRegion::query()->pluck('id', 'code')->all();
+        $cityIds = City::query()->pluck('id', 'code')->all();
         // Induk saat ini di database: kode -> kode induk.
         $parentOf = DB::table('distributors')
             ->leftJoin('distributors as parents', 'parents.id', '=', 'distributors.parent_distributor_id')
@@ -176,6 +177,17 @@ class DistributorImportService extends ExcelImporter
             }
 
             $attributes['meeting_radius_meters'] = $radius === '' ? null : (int) $radius;
+
+            $cityCode = $this->text($row['kode_kota'] ?? null);
+            $attributes['city_id'] = null;
+
+            if ($cityCode !== '') {
+                if (! isset($cityIds[$cityCode])) {
+                    $rowErrors[] = "kode_kota {$cityCode} tidak ditemukan";
+                } else {
+                    $attributes['city_id'] = $cityIds[$cityCode];
+                }
+            }
 
             if ($parentCode !== '' && ! array_key_exists($parentCode, $parentOf) && ! isset($fileCodes[$parentCode])) {
                 $rowErrors[] = "kode_induk {$parentCode} tidak ditemukan";

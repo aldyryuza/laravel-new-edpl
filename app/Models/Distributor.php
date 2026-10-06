@@ -18,7 +18,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * Master distributor beserta cabangnya.
  */
 #[Fillable([
-    'code', 'name', 'group_code', 'city_name', 'address', 'phone', 'fax', 'email', 'npwp', 'latitude', 'longitude',
+    'code', 'name', 'group_code', 'city_id', 'address', 'phone', 'fax', 'email', 'npwp', 'latitude', 'longitude',
     'meeting_radius_meters', 'is_branch', 'parent_distributor_id', 'is_active', 'netsuite_id',
 ])]
 class Distributor extends Model
@@ -29,7 +29,7 @@ class Distributor extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return AuditLog::dataOptions([
-            'code', 'name', 'group_code', 'city_name', 'address', 'phone', 'fax', 'email', 'npwp', 'latitude', 'longitude',
+            'code', 'name', 'group_code', 'city_id', 'address', 'phone', 'fax', 'email', 'npwp', 'latitude', 'longitude',
             'meeting_radius_meters', 'is_branch', 'parent_distributor_id', 'is_active', 'netsuite_id',
         ], fn () => "Distributor {$this->name} ({$this->code})");
     }
@@ -48,6 +48,14 @@ class Distributor extends Model
             'is_branch' => 'boolean',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * @return BelongsTo<City, $this>
+     */
+    public function city(): BelongsTo
+    {
+        return $this->belongsTo(City::class);
     }
 
     /**

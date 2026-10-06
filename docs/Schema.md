@@ -108,6 +108,7 @@ erDiagram
 | Domain | Tables |
 |---|---|
 | Identity/Organization | `sales_zones`, `sales_regions`, `sales_areas`, `user_org_assignments`, `user_area_scopes`, `user_visibility_edges` |
+| Wilayah administratif | `provinces`, `cities` |
 | Outlet master | `outlet_categories`, `ownership_types`, `outlet_groups`, `outlet_group_members`, `outlets` |
 | Product/Distributor master | `products`, `distributors`, `distributor_regions` |
 | Commercial | `price_regions`, `product_prices`, `product_price_overrides`, `bonus_schemes`, `distributor_margin_rules`, `distributor_margin_overrides`, `commercial_parameters` |
@@ -240,6 +241,33 @@ Index: `(viewer_user_id, owner_user_id)`.
 
 ## 6. Outlet master
 
+### `provinces`
+
+Master provinsi (master bersama). Kode = kode wilayah BPS tanpa titik, mis. `82`.
+
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `code` | varchar(10) | No | UNIQUE |
+| `name` | varchar(100) | No | |
+| `is_active` | boolean | No | default true |
+| timestamps | timestamp | Yes | |
+
+### `cities`
+
+Master kota/kabupaten (master bersama). Kode = kode wilayah BPS tanpa titik, mis. `8271` = Kota Ternate; sama dengan legacy `distributor.city_id`, sehingga bisa dipetakan langsung. Data diisi lewat import Excel (dari tabel kota legacy atau daftar kode wilayah resmi), tidak di-seed dari kode.
+
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `code` | varchar(10) | No | UNIQUE |
+| `name` | varchar(100) | No | |
+| `province_id` | bigint | No | FK `provinces.id`, RESTRICT |
+| `is_active` | boolean | No | default true |
+| timestamps | timestamp | Yes | |
+
+Index: `province_id`.
+
 ### `outlet_categories`
 
 Mapping legacy GRUP1.
@@ -285,6 +313,7 @@ Mapping legacy GRUP3 / group rumah sakit.
 | `code` | varchar(30) | No | UNIQUE setelah legacy validation |
 | `name` | varchar(255) | No | |
 | `address` | text | Yes | |
+| `city_id` | bigint | Yes | FK `cities.id`, RESTRICT; kota administratif, terpisah dari area penjualan |
 | `area_id` | bigint | Yes | FK `sales_areas.id`, RESTRICT |
 | `outlet_category_id` | bigint | Yes | FK `outlet_categories.id`, RESTRICT |
 | `ownership_type_id` | bigint | Yes | FK `ownership_types.id`, RESTRICT |
@@ -339,7 +368,7 @@ Tidak membuat `product_groups` hanya untuk volume.
 | `code` | varchar(30) | No | UNIQUE setelah legacy validation |
 | `name` | varchar(255) | No | |
 | `group_code` | varchar(50) | Yes | legacy grouping bila masih diperlukan |
-| `city_name` | varchar(150) | Yes | sementara sampai city master dibutuhkan |
+| `city_id` | bigint | Yes | FK `cities.id`, RESTRICT; menggantikan teks `city_name` (migration `2026_10_06_000048`) |
 | `address` | text | Yes | legacy `ALAMAT` |
 | `phone` | varchar(50) | Yes | legacy `TELP` |
 | `fax` | varchar(50) | Yes | legacy `FAX` |
@@ -1063,7 +1092,7 @@ Disusun dari contoh data `MJMTERNATE` + keputusan user (2026-10-06).
 | `IDDIST` | `distributors.code` | kode per lokasi/cabang; validasi unik sebelum migrasi |
 | `NAMA` | `distributors.name` | `NAMADISTRIB` duplikat, tidak diambil |
 | `KODEDIST` / `group` | `distributors.group_code` | validasi keduanya selalu sama |
-| `KOTA` | `distributors.city_name` | `city_id` dicatat untuk master kota di masa depan |
+| `city_id` (+ `KOTA`) | `distributors.city_id` | `city_id` legacy = kode kota BPS (mis. 8271) -> `cities.code`; teks `KOTA` hanya untuk verifikasi |
 | `ALAMAT`, `TELP`, `FAX`, `EMAIL`, `NPWP` | `address`, `phone`, `fax`, `email`, `npwp` | trim spasi |
 | `LATITUDE`, `LONGITUDE`, `RADIUS` | `latitude`, `longitude`, `meeting_radius_meters` | radius dalam meter; monthly meeting CRM |
 | `REGIONAL` (+ `REGNAME`) | `distributor_regions` | map ke `sales_regions.code` |

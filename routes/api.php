@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\CityController;
 use App\Http\Controllers\Api\DistributorController;
 use App\Http\Controllers\Api\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Api\MenuController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\Api\OutletGroupController;
 use App\Http\Controllers\Api\OwnershipTypeController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ProvinceController;
 use App\Http\Controllers\Api\RoleAccessController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SalesAreaController;
@@ -55,6 +57,14 @@ Route::apiResource('sales-regions', SalesRegionController::class)->except('index
 Route::get('sales-areas/datatable', [SalesAreaController::class, 'datatable'])->name('sales-areas.datatable');
 Route::post('sales-areas/import', [SalesAreaController::class, 'import'])->name('sales-areas.import');
 Route::apiResource('sales-areas', SalesAreaController::class)->except('index');
+
+// Wilayah administratif (schema public)
+Route::get('provinces/datatable', [ProvinceController::class, 'datatable'])->name('provinces.datatable');
+Route::post('provinces/import', [ProvinceController::class, 'import'])->name('provinces.import');
+Route::apiResource('provinces', ProvinceController::class)->only(['store', 'update', 'destroy']);
+Route::get('cities/datatable', [CityController::class, 'datatable'])->name('cities.datatable');
+Route::post('cities/import', [CityController::class, 'import'])->name('cities.import');
+Route::apiResource('cities', CityController::class)->only(['store', 'update', 'destroy']);
 
 // Master outlet (schema public)
 Route::get('outlets/datatable', [OutletController::class, 'datatable'])->name('outlets.datatable');

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\City;
 use App\Models\OutletCategory;
 use App\Models\OutletGroup;
 use App\Models\OwnershipType;
@@ -21,6 +22,7 @@ class OutletController extends Controller
     public function index(): View
     {
         return view('pages.outlets.index', [
+            'cities' => City::query()->with('province:id,name')->orderBy('name')->get(['id', 'code', 'name', 'province_id', 'is_active']),
             'regions' => SalesRegion::query()->orderBy('name')->get(['id', 'code', 'name']),
             'areas' => SalesArea::query()->with('region:id,name')->orderBy('name')->get(['id', 'code', 'name', 'region_id', 'is_active']),
             'categories' => OutletCategory::query()->orderBy('name')->get(['id', 'code', 'name', 'is_active']),

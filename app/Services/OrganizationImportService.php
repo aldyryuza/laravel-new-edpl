@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Exports\ImportTemplateExport;
 use App\Exports\ImportTemplateSheet;
+use App\Models\City;
+use App\Models\Province;
 use App\Models\SalesArea;
 use App\Models\SalesRegion;
 use App\Models\SalesZone;
@@ -15,7 +17,8 @@ use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
- * Import Excel master organisasi (zona, region, area) dengan aturan:
+ * Import Excel master berkode sederhana dengan parent opsional: organisasi penjualan (zona, region, area)
+ * dan wilayah administratif (provinsi, kota). Aturan:
  * - kode yang sudah ada diperbarui, kode baru dibuat (upsert berdasarkan kode);
  * - semua baris divalidasi dulu; bila ada satu saja error, tidak ada yang disimpan;
  * - parent (zona/region) dirujuk lewat kode, bukan ID.
@@ -27,6 +30,10 @@ class OrganizationImportService extends ExcelImporter
     public const REGION = 'region';
 
     public const AREA = 'area';
+
+    public const PROVINCE = 'province';
+
+    public const CITY = 'city';
 
     /**
      * @return array{created: int, updated: int, unchanged: int}
@@ -59,7 +66,7 @@ class OrganizationImportService extends ExcelImporter
         $parent = $definition['parent'];
 
         $guide = [
-            ['kode', 'Wajib, maks. 30 karakter. Kode yang sudah ada akan diperbarui.'],
+            ['kode', "Wajib, maks. {$definition['code_max']} karakter. Kode yang sudah ada akan diperbarui."],
             ['nama', 'Wajib, maks. 100 karakter.'],
         ];
 
@@ -85,21 +92,31 @@ class OrganizationImportService extends ExcelImporter
     }
 
     /**
-     * @return array{model: class-string<Model>, label: string, parent: array{column: string, model: class-string<Model>, key: string, label: string}|null}
+     * @return array{model: class-string<Model>, label: string, code_max: int, parent: array{column: string, model: class-string<Model>, key: string, label: string}|null}
      */
     private function definition(string $type): array
     {
         return match ($type) {
-            self::ZONE => ['model' => SalesZone::class, 'label' => 'zona', 'parent' => null],
+            self::ZONE => ['model' => SalesZone::class, 'label' => 'zona', 'code_max' => 30, 'parent' => null],
             self::REGION => [
                 'model' => SalesRegion::class,
                 'label' => 'region',
+                'code_max' => 30,
                 'parent' => ['column' => 'kode_zona', 'model' => SalesZone::class, 'key' => 'zone_id', 'label' => 'zona'],
             ],
             self::AREA => [
                 'model' => SalesArea::class,
                 'label' => 'area',
+                'code_max' => 30,
                 'parent' => ['column' => 'kode_region', 'model' => SalesRegion::class, 'key' => 'region_id', 'label' => 'region'],
+            ],
+            // Kode wilayah BPS tanpa titik: provinsi mis. 82, kota mis. 8271.
+            self::PROVINCE => ['model' => Province::class, 'label' => 'provinsi', 'code_max' => 10, 'parent' => null],
+            self::CITY => [
+                'model' => City::class,
+                'label' => 'kota',
+                'code_max' => 10,
+                'parent' => ['column' => 'kode_provinsi', 'model' => Province::class, 'key' => 'province_id', 'label' => 'provinsi'],
             ],
             default => throw new InvalidArgumentException("Tipe import tidak dikenal: {$type}"),
         };
@@ -117,7 +134,7 @@ class OrganizationImportService extends ExcelImporter
     /**
      * Validasi seluruh baris; kembalikan data siap simpan per kode.
      *
-     * @param  array{model: class-string<Model>, label: string, parent: array{column: string, model: class-string<Model>, key: string, label: string}|null}  $definition
+     * @param  array{model: class-string<Model>, label: string, code_max: int, parent: array{column: string, model: class-string<Model>, key: string, label: string}|null}  $definition
      * @param  array<int, array<string, mixed>>  $rows
      * @return array<string, array<string, mixed>>
      */
@@ -135,8 +152,8 @@ class OrganizationImportService extends ExcelImporter
 
             if ($code === '') {
                 $rowErrors[] = 'kode wajib diisi';
-            } elseif (mb_strlen($code) > 30) {
-                $rowErrors[] = 'kode maksimal 30 karakter';
+            } elseif (mb_strlen($code) > $definition['code_max']) {
+                $rowErrors[] = "kode maksimal {$definition['code_max']} karakter";
             } elseif (isset($records[$code])) {
                 $rowErrors[] = "kode {$code} muncul lebih dari sekali di file";
             }

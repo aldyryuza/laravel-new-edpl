@@ -114,6 +114,15 @@
                             <textarea class="form-control" id="outlet-address" name="address" rows="2" maxlength="2000"></textarea>
                         </div>
                         <div class="col-md-6">
+                            <label for="outlet-city" class="form-label">Kota/Kabupaten</label>
+                            <select class="form-select" id="outlet-city" name="city_id">
+                                <option value="">Tanpa kota</option>
+                                @foreach ($cities as $city)
+                                    <option value="{{ $city->id }}">{{ $city->name }} ({{ $city->code }}) - {{ $city->province?->name }}{{ $city->is_active ? '' : ' - nonaktif' }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
                             <label for="outlet-area" class="form-label">Area</label>
                             <select class="form-select" id="outlet-area" name="area_id">
                                 <option value="">Tanpa area</option>
@@ -123,7 +132,7 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <div class="form-text">Menentukan region/zona outlet, dipakai untuk resolusi approver RM/NSM.</div>
+                            <div class="form-text">Area penjualan: menentukan region/zona untuk resolusi approver RM/NSM.</div>
                         </div>
                         <div class="col-md-6">
                             <label for="outlet-group" class="form-label">Group RS</label>
@@ -192,7 +201,7 @@
     @if (auth()->user()->can('outlets.create') && auth()->user()->can('outlets.update'))
         <x-excel-import-modal title="Import Outlet dari Excel" upload-path="api/outlets/import"
             :template-url="route('outlets.import-template')"
-            columns="kode, nama, alamat, kode_area, kode_kategori, kode_kepemilikan, jumlah_bed, kode_grup, crm_id, latitude, longitude, aktif" />
+            columns="kode, nama, alamat, kode_kota, kode_area, kode_kategori, kode_kepemilikan, jumlah_bed, kode_grup, crm_id, latitude, longitude, aktif" />
     @endif
 @endpush
 

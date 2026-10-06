@@ -27,7 +27,8 @@ class OutletImportTest extends TestCase
         OutletGroup::factory()->create(['code' => 'HERMINA']);
 
         $this->import([
-            ['OUT-1', 'RS Hermina Bandung', 'Jl. Contoh', 'A-BDG', 'RUMAH_SAKIT', '', 150, 'HERMINA', 9001, -6.9147, 107.6098, 'ya'],
+            ['kode' => 'OUT-1', 'nama' => 'RS Hermina Bandung', 'alamat' => 'Jl. Contoh', 'kode_area' => 'A-BDG', 'kode_kategori' => 'RUMAH_SAKIT',
+                'jumlah_bed' => 150, 'kode_grup' => 'HERMINA', 'crm_id' => 9001, 'latitude' => -6.9147, 'longitude' => 107.6098, 'aktif' => 'ya'],
         ])->assertOk()->assertJsonPath('data.created', 1);
 
         $outlet = Outlet::query()->where('code', 'OUT-1')->with(['area', 'category', 'activeGroupMembership.outletGroup'])->sole();
@@ -44,7 +45,7 @@ class OutletImportTest extends TestCase
         $membership = OutletGroupMember::factory()->create();
         $outlet = $membership->outlet;
 
-        $this->import([[$outlet->code, 'Nama Baru', '', '', '', '', '', '', '', '', '', '1']])
+        $this->import([['kode' => $outlet->code, 'nama' => 'Nama Baru', 'aktif' => '1']])
             ->assertOk()
             ->assertJsonPath('data.updated', 1);
 
@@ -57,7 +58,7 @@ class OutletImportTest extends TestCase
         $outlet = OutletGroupMember::factory()->create()->outlet;
         OutletGroup::factory()->create(['code' => 'SILOAM']);
 
-        $this->import([[$outlet->code, $outlet->name, '', '', '', '', '', 'SILOAM', '', '', '', '']])->assertOk();
+        $this->import([['kode' => $outlet->code, 'nama' => $outlet->name, 'kode_grup' => 'SILOAM']])->assertOk();
 
         $this->assertSame('SILOAM', $outlet->activeGroupMembership()->first()->outletGroup->code);
         $this->assertSame(2, $outlet->groupMemberships()->count());
@@ -66,8 +67,9 @@ class OutletImportTest extends TestCase
     public function test_invalid_references_and_numbers_reject_whole_file(): void
     {
         $response = $this->import([
-            ['OUT-OK', 'Valid', '', '', '', '', '', '', '', '', '', ''],
-            ['OUT-X', 'Salah', '', 'A-XXX', 'KAT-X', 'OWN-X', '-5', 'GRP-X', 'abc', '120', '', ''],
+            ['kode' => 'OUT-OK', 'nama' => 'Valid'],
+            ['kode' => 'OUT-X', 'nama' => 'Salah', 'kode_area' => 'A-XXX', 'kode_kategori' => 'KAT-X', 'kode_kepemilikan' => 'OWN-X',
+                'jumlah_bed' => '-5', 'kode_grup' => 'GRP-X', 'crm_id' => 'abc', 'latitude' => '120'],
         ])->assertUnprocessable();
 
         $error = $response->json('errors.file.0');
@@ -92,12 +94,13 @@ class OutletImportTest extends TestCase
     }
 
     /**
-     * @param  array<int, array<int, mixed>>  $rows  urutan kolom = OutletImportService::COLUMNS
+     * @param  array<int, array<string, mixed>>  $rows  diisi per nama kolom; kolom yang tidak disebut dikosongkan
      */
     private function import(array $rows): TestResponse
     {
+        $ordered = array_map(fn (array $row) => array_map(fn (string $column) => $row[$column] ?? '', OutletImportService::COLUMNS), $rows);
         $spreadsheet = new Spreadsheet;
-        $spreadsheet->getActiveSheet()->fromArray([OutletImportService::COLUMNS, ...$rows], null, 'A1', true);
+        $spreadsheet->getActiveSheet()->fromArray([OutletImportService::COLUMNS, ...$ordered], null, 'A1', true);
         $path = tempnam(sys_get_temp_dir(), 'outlet').'.xlsx';
         IOFactory::createWriter($spreadsheet, 'Xlsx')->save($path);
 

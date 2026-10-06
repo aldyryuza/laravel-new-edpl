@@ -1,0 +1,31 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use App\Models\Province;
+use App\Services\OrganizationImportService;
+use Illuminate\Contracts\View\View;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+
+class CityController extends Controller
+{
+    /**
+     * Pilihan provinsi dikirim dari sini supaya form tetap bisa dipakai tanpa akses ke menu Provinsi.
+     */
+    public function index(): View
+    {
+        return view('pages.cities.index', [
+            'provinces' => Province::query()->orderBy('name')->get(['id', 'code', 'name', 'is_active']),
+        ]);
+    }
+
+    /**
+     * Template Excel untuk import (sheet Data + Petunjuk berisi kode provinsi).
+     */
+    public function template(OrganizationImportService $importService): BinaryFileResponse
+    {
+        return Excel::download($importService->template(OrganizationImportService::CITY), 'template-import-kota.xlsx');
+    }
+}

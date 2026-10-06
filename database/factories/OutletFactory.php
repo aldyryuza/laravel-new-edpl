@@ -22,6 +22,7 @@ class OutletFactory extends Factory
             'code' => fake()->unique()->bothify('OUT-#####'),
             'name' => 'RS '.fake()->company(),
             'address' => fake()->address(),
+            'city_id' => null,
             'area_id' => SalesArea::factory(),
             'outlet_category_id' => null,
             'ownership_type_id' => null,

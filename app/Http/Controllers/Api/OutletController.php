@@ -22,6 +22,7 @@ class OutletController extends Controller implements HasMiddleware
 
     /** Relasi yang ditampilkan di tabel/form. */
     private const RELATIONS = [
+        'city:id,code,name',
         'area:id,code,name,region_id',
         'area.region:id,code,name',
         'category:id,code,name',
@@ -52,7 +53,7 @@ class OutletController extends Controller implements HasMiddleware
     {
         $query = Outlet::query()
             ->select([
-                'outlets.id', 'outlets.code', 'outlets.name', 'outlets.address', 'outlets.area_id', 'outlets.outlet_category_id',
+                'outlets.id', 'outlets.code', 'outlets.name', 'outlets.address', 'outlets.city_id', 'outlets.area_id', 'outlets.outlet_category_id',
                 'outlets.ownership_type_id', 'outlets.bed_count', 'outlets.crm_id', 'outlets.latitude', 'outlets.longitude', 'outlets.is_active',
             ])
             ->with(self::RELATIONS)

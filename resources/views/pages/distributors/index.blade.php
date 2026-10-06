@@ -91,7 +91,12 @@
                         </div>
                         <div class="col-md-6">
                             <label for="distributor-city" class="form-label">Kota</label>
-                            <input type="text" class="form-control" id="distributor-city" name="city_name" maxlength="150" />
+                            <select class="form-select" id="distributor-city" name="city_id">
+                                <option value="">Tanpa kota</option>
+                                @foreach ($cities as $city)
+                                    <option value="{{ $city->id }}">{{ $city->name }} ({{ $city->code }}) - {{ $city->province?->name }}{{ $city->is_active ? '' : ' - nonaktif' }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label for="distributor-group" class="form-label">Grup Distributor</label>
@@ -178,7 +183,7 @@
     @if (auth()->user()->can('distributors.create') && auth()->user()->can('distributors.update'))
         <x-excel-import-modal title="Import Distributor dari Excel" upload-path="api/distributors/import"
             :template-url="route('distributors.import-template')"
-            columns="kode, nama, grup_distributor, kota, alamat, telepon, fax, email, npwp, latitude, longitude, radius_meter, cabang, kode_induk, kode_region, netsuite_id, aktif" />
+            columns="kode, nama, grup_distributor, kode_kota, alamat, telepon, fax, email, npwp, latitude, longitude, radius_meter, cabang, kode_induk, kode_region, netsuite_id, aktif" />
     @endif
 @endpush
 

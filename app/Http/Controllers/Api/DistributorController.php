@@ -21,7 +21,7 @@ class DistributorController extends Controller implements HasMiddleware
     use DeletesRestrictedModels;
 
     /** Relasi yang ditampilkan di tabel/form. */
-    private const RELATIONS = ['parent:id,code,name', 'regions:id,code,name'];
+    private const RELATIONS = ['city:id,code,name', 'parent:id,code,name', 'regions:id,code,name'];
 
     /**
      * @return array<int, Middleware>
@@ -45,7 +45,7 @@ class DistributorController extends Controller implements HasMiddleware
     {
         $query = Distributor::query()
             ->select([
-                'distributors.id', 'distributors.code', 'distributors.name', 'distributors.group_code', 'distributors.city_name',
+                'distributors.id', 'distributors.code', 'distributors.name', 'distributors.group_code', 'distributors.city_id',
                 'distributors.address', 'distributors.phone', 'distributors.fax', 'distributors.email', 'distributors.npwp',
                 'distributors.latitude', 'distributors.longitude', 'distributors.meeting_radius_meters',
                 'distributors.is_branch', 'distributors.parent_distributor_id', 'distributors.netsuite_id', 'distributors.is_active',
@@ -58,7 +58,7 @@ class DistributorController extends Controller implements HasMiddleware
             ->when($request->filled('is_active'), fn (Builder $query) => $query->where('is_active', $request->boolean('is_active')));
 
         return DataTables::eloquent($query)
-            ->whitelist(['code', 'name', 'city_name', 'is_active'])
+            ->whitelist(['code', 'name', 'is_active'])
             ->filter(function (Builder $query) use ($request): void {
                 $term = trim((string) $request->input('search.value'));
 
@@ -66,7 +66,7 @@ class DistributorController extends Controller implements HasMiddleware
                     $query->where(fn (Builder $query) => $query
                         ->whereLike('distributors.code', "%{$term}%")
                         ->orWhereLike('distributors.name', "%{$term}%")
-                        ->orWhereLike('distributors.city_name', "%{$term}%")
+                        ->orWhereHas('city', fn (Builder $city) => $city->whereLike('name', "%{$term}%"))
                         ->orWhereLike('distributors.group_code', "%{$term}%"));
                 }
             })

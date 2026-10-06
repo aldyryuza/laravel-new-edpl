@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\City;
 use App\Models\Distributor;
 use App\Models\Product;
 use App\Models\SalesRegion;
@@ -51,8 +52,8 @@ class ProductDistributorImportTest extends TestCase
         SalesRegion::factory()->create(['code' => 'R-DKI']);
 
         $this->importDistributors([
-            ['kode' => 'D-BDG', 'nama' => 'Cabang Bandung', 'grup_distributor' => 'GRP-A', 'kota' => 'Bandung', 'cabang' => 'ya', 'kode_induk' => 'D-PUSAT', 'kode_region' => 'R-JABAR'],
-            ['kode' => 'D-PUSAT', 'nama' => 'Distributor Pusat', 'grup_distributor' => 'GRP-A', 'kota' => 'Jakarta', 'kode_region' => 'R-DKI, R-JABAR'],
+            ['kode' => 'D-BDG', 'nama' => 'Cabang Bandung', 'grup_distributor' => 'GRP-A', 'cabang' => 'ya', 'kode_induk' => 'D-PUSAT', 'kode_region' => 'R-JABAR'],
+            ['kode' => 'D-PUSAT', 'nama' => 'Distributor Pusat', 'grup_distributor' => 'GRP-A', 'kode_region' => 'R-DKI, R-JABAR'],
         ])->assertOk()->assertJsonPath('data.created', 2);
 
         $branch = Distributor::query()->where('code', 'D-BDG')->with('parent', 'regions')->sole();
@@ -94,10 +95,11 @@ class ProductDistributorImportTest extends TestCase
     public function test_legacy_distributor_row_imports_contact_and_meeting_location(): void
     {
         SalesRegion::factory()->create(['code' => 'V']);
+        $ternate = City::factory()->create(['code' => '8271', 'name' => 'KOTA TERNATE']);
 
         // Contoh baris legacy MJMTERNATE (telepon berawalan spasi, koordinat & radius angka).
         $this->importDistributors([[
-            'kode' => 'MJMTERNATE', 'nama' => 'PT. MARKSON JAYA MEDIKA', 'grup_distributor' => 'MJM', 'kota' => 'TERNATE',
+            'kode' => 'MJMTERNATE', 'nama' => 'PT. MARKSON JAYA MEDIKA', 'grup_distributor' => 'MJM', 'kode_kota' => 8271,
             'alamat' => 'Jl. Raya Mangga Dua, Mangga Dua, Kec. Ternate Sel., Kota Ternate, Maluku Utara',
             'telepon' => ' 0811-4329-539', 'latitude' => 0.7713696, 'longitude' => 127.3762587, 'radius_meter' => 20,
             'kode_region' => 'V', 'aktif' => 1,
@@ -108,6 +110,7 @@ class ProductDistributorImportTest extends TestCase
         $this->assertSame('0.7713696', $distributor->latitude);
         $this->assertSame('127.3762587', $distributor->longitude);
         $this->assertSame(20, $distributor->meeting_radius_meters);
+        $this->assertSame($ternate->id, $distributor->city_id, 'Kode kota legacy (angka) dicocokkan sebagai teks.');
         $this->assertSame(['V'], $distributor->regions->pluck('code')->all());
     }
 

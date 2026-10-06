@@ -19,7 +19,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * (area -> region -> zone). Region harga outlet milik DPL ada di Dpl\OutletPriceRegion.
  */
 #[Fillable([
-    'code', 'name', 'address', 'area_id', 'outlet_category_id', 'ownership_type_id', 'bed_count',
+    'code', 'name', 'address', 'city_id', 'area_id', 'outlet_category_id', 'ownership_type_id', 'bed_count',
     'crm_id', 'latitude', 'longitude', 'is_active',
 ])]
 class Outlet extends Model
@@ -29,7 +29,7 @@ class Outlet extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return AuditLog::dataOptions(['code', 'name', 'address', 'area_id', 'outlet_category_id', 'ownership_type_id', 'bed_count', 'crm_id', 'latitude', 'longitude', 'is_active'], fn () => "Outlet {$this->name} ({$this->code})");
+        return AuditLog::dataOptions(['code', 'name', 'address', 'city_id', 'area_id', 'outlet_category_id', 'ownership_type_id', 'bed_count', 'crm_id', 'latitude', 'longitude', 'is_active'], fn () => "Outlet {$this->name} ({$this->code})");
     }
 
     /**
@@ -46,6 +46,16 @@ class Outlet extends Model
             'longitude' => 'decimal:7',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Kota administratif (master kota), terpisah dari area penjualan.
+     *
+     * @return BelongsTo<City, $this>
+     */
+    public function city(): BelongsTo
+    {
+        return $this->belongsTo(City::class);
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exports\ImportTemplateExport;
 use App\Exports\ImportTemplateSheet;
+use App\Models\City;
 use App\Models\Outlet;
 use App\Models\OutletCategory;
 use App\Models\OutletGroup;
@@ -22,7 +23,7 @@ use Illuminate\Validation\ValidationException;
 class OutletImportService extends ExcelImporter
 {
     public const COLUMNS = [
-        'kode', 'nama', 'alamat', 'kode_area', 'kode_kategori', 'kode_kepemilikan', 'jumlah_bed', 'kode_grup',
+        'kode', 'nama', 'alamat', 'kode_kota', 'kode_area', 'kode_kategori', 'kode_kepemilikan', 'jumlah_bed', 'kode_grup',
         'crm_id', 'latitude', 'longitude', 'aktif',
     ];
 
@@ -32,6 +33,7 @@ class OutletImportService extends ExcelImporter
      * @var array<string, array{0: class-string<Model>, 1: string}>
      */
     private const REFERENCES = [
+        'kode_kota' => [City::class, 'city_id'],
         'kode_area' => [SalesArea::class, 'area_id'],
         'kode_kategori' => [OutletCategory::class, 'outlet_category_id'],
         'kode_kepemilikan' => [OwnershipType::class, 'ownership_type_id'],
@@ -64,7 +66,8 @@ class OutletImportService extends ExcelImporter
             ['kode', 'Wajib, maks. 30 karakter. Kode yang sudah ada akan diperbarui.'],
             ['nama', 'Wajib, maks. 255 karakter.'],
             ['alamat', 'Opsional.'],
-            ['kode_area', 'Opsional, kode area terdaftar (menu Master Organisasi > Area).'],
+            ['kode_kota', 'Opsional, kode kota/kabupaten (kode wilayah BPS, mis. 8271) dari menu Master Organisasi > Provinsi & Kota.'],
+            ['kode_area', 'Opsional, kode area penjualan terdaftar (menu Master Organisasi > Area).'],
             ['kode_kategori', 'Opsional, kode kategori outlet (lihat daftar di bawah).'],
             ['kode_kepemilikan', 'Opsional, kode jenis kepemilikan (lihat daftar di bawah).'],
             ['jumlah_bed', 'Opsional, angka bulat >= 0.'],

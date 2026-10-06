@@ -50,12 +50,15 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 - Menu **Master Produk & Distributor**: Product (`/products`, volume dalam ml untuk grouping 500/250/100/25 ml, filter volume/branded/status, import Excel) dan Distributor (`/distributors`, induk -> cabang, multi region `distributor_regions`, filter region/jenis/status, import Excel). API `api/products`, `api/distributors`; hak akses `products.*`, `distributors.*`.
 - Distributor: hierarki induk melingkar ditolak (form via `DistributorService::createsCycle`, import via cek in-memory); perubahan region tercatat di audit log (`regions_updated`). Import: `kode_induk` boleh merujuk baris di file yang sama, `kode_region` dipisah koma (kosong = region tidak diubah).
 - Distributor: kontak (alamat, telepon, fax, email, NPWP) dan lokasi monthly meeting CRM (latitude, longitude, `meeting_radius_meters`) di form, tabel, dan import Excel (migration `2026_10_06_000043`). Mapping region harga distributor `dpl.distributor_price_regions` (`000044`) dan telepon Kacab `dpl.distributor_branch_heads.phone` (`000045`). Mapping kolom legacy `distributor` dicatat di `docs/Schema.md` §16.
+- Master wilayah administratif: Provinsi (`/provinces`) dan Kota/Kabupaten (`/cities`) di menu Master Organisasi, kode = kode wilayah BPS tanpa titik (mis. 8271), CRUD + import Excel (`OrganizationImportService` tipe `province`/`city`). Hak akses `provinces.*`, `cities.*`. Migration `2026_10_06_000046`–`000047`.
+- Outlet dan Distributor memakai master kota (`city_id`, pilihan select2; kolom import `kode_kota`). `outlets.city_id` ditambahkan (`000049`).
 - Komponen peta bersama `<x-location-picker>` + `public/js/location-picker.js` (marker, lokasi saya, hapus titik, lingkaran radius); dipakai halaman Outlet dan Distributor.
 - Base class `ExcelImporter` untuk import Excel master (dipakai import organisasi dan outlet).
 
 ### Changed (schema)
 
 - `outlets.price_region_id` dihapus; region harga outlet pindah ke mapping `dpl.outlet_price_regions` (migration `2026_10_06_000041`, data lama ikut dipindah). Model `Dpl\OutletPriceRegion`; relasi `Outlet::priceRegion()` dihapus.
+- **Breaking (schema/API/import):** `distributors.city_name` (teks) diganti `distributors.city_id` (FK master kota), migration `2026_10_06_000048`. Teks lama dicocokkan ke `cities.name`; bila ada yang tidak cocok migration berhenti (tidak ada data hilang diam-diam). Field API `city_name` -> `city_id`; kolom import distributor `kota` -> `kode_kota`.
 
 ### Changed (user)
 
