@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ResolveActiveRole;
 use App\Http\Requests\LoginRequest;
+use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,12 +23,28 @@ class AuthController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         $credentials = $request->safe()->only(['nik', 'password']);
+        $isInactive = false;
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        // Callback hanya dijalankan setelah password terbukti benar, jadi pesan "nonaktif"
+        // tidak membocorkan NIK mana yang terdaftar.
+        $authenticated = Auth::attemptWhen(
+            $credentials,
+            function (User $user) use (&$isInactive): bool {
+                $isInactive = ! $user->is_active;
+
+                return ! $isInactive;
+            },
+            $request->boolean('remember'),
+        );
+
+        if (! $authenticated) {
             throw ValidationException::withMessages([
-                'nik' => 'NIK atau password salah.',
+                'nik' => $isInactive ? EnsureUserIsActive::MESSAGE : 'NIK atau password salah.',
             ]);
         }
+
+        // saveQuietly: login sudah dicatat listener auth, tidak perlu log "User diubah".
+        $request->user()->forceFill(['last_login_at' => now()])->saveQuietly();
 
         $request->session()->regenerate();
         $request->session()->forget(ResolveActiveRole::SESSION_KEY);

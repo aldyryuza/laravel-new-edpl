@@ -28,6 +28,7 @@ class StoreUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', Password::defaults()],
+            'is_active' => ['sometimes', 'boolean'],
             'role_ids' => ['array'],
             'role_ids.*' => ['integer', 'distinct', 'exists:roles,id'],
         ];
@@ -38,6 +39,6 @@ class StoreUserRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['nik' => 'NIK', 'name' => 'nama', 'role_ids' => 'role', 'role_ids.*' => 'role'];
+        return ['nik' => 'NIK', 'name' => 'nama', 'is_active' => 'status aktif', 'role_ids' => 'role', 'role_ids.*' => 'role'];
     }
 }

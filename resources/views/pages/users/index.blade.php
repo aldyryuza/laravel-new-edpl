@@ -30,6 +30,8 @@
                         <th>Nama</th>
                         <th>Email</th>
                         <th>Role</th>
+                        <th>Status</th>
+                        <th>Login Terakhir</th>
                         <th class="text-end">Aksi</th>
                     </tr>
                 </thead>
@@ -67,6 +69,15 @@
                         <input type="password" class="form-control" id="user-password" name="password"
                             autocomplete="new-password" />
                         <div class="form-text d-none" id="user-password-hint">Kosongkan jika tidak ingin mengganti password.</div>
+                    </div>
+                    <div class="mb-4">
+                        <input type="hidden" name="is_active" value="0" />
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="user-active" name="is_active" value="1"
+                                checked />
+                            <label class="form-check-label" for="user-active">Aktif</label>
+                        </div>
+                        <div class="form-text">User nonaktif tidak dapat login; data dan riwayatnya tetap tersimpan.</div>
                     </div>
                     <div>
                         <label class="form-label d-block">Role</label>

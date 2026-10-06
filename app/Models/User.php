@@ -18,12 +18,21 @@ use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
-#[Fillable(['nik', 'name', 'email', 'password'])]
+#[Fillable(['nik', 'name', 'email', 'password', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasUuids, LogsActivity, Notifiable;
+
+    /**
+     * Samakan dengan default kolom DB agar instance baru langsung bernilai benar.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'is_active' => true,
+    ];
 
     /**
      * Hak akses role aktif, di-cache per instance (per request).
@@ -43,7 +52,7 @@ class User extends Authenticatable
      */
     public function getActivitylogOptions(): LogOptions
     {
-        return AuditLog::dataOptions(['nik', 'name', 'email'], fn () => "User {$this->name} ({$this->nik})");
+        return AuditLog::dataOptions(['nik', 'name', 'email', 'is_active'], fn () => "User {$this->name} ({$this->nik})");
     }
 
     /**

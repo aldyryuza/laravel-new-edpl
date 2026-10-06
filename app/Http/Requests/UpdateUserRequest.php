@@ -24,13 +24,15 @@ class UpdateUserRequest extends FormRequest
      */
     public function rules(): array
     {
-        $userId = $this->route('user')->id;
+        $user = $this->route('user');
 
         return [
-            'nik' => ['required', 'string', 'max:30', Rule::unique('users', 'nik')->ignore($userId)],
+            'nik' => ['required', 'string', 'max:30', Rule::unique('users', 'nik')->ignore($user->id)],
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', Password::defaults()],
+            // Akun yang sedang dipakai login tidak boleh menonaktifkan dirinya sendiri.
+            'is_active' => ['sometimes', 'boolean', Rule::when($user->is($this->user()), ['accepted'])],
             'role_ids' => ['array'],
             'role_ids.*' => ['integer', 'distinct', 'exists:roles,id'],
         ];
@@ -41,6 +43,14 @@ class UpdateUserRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['nik' => 'NIK', 'name' => 'nama', 'role_ids' => 'role', 'role_ids.*' => 'role'];
+        return ['nik' => 'NIK', 'name' => 'nama', 'is_active' => 'status aktif', 'role_ids' => 'role', 'role_ids.*' => 'role'];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return ['is_active.accepted' => 'Tidak dapat menonaktifkan akun yang sedang dipakai login.'];
     }
 }

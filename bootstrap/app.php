@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ResolveActiveRole;
 use App\Support\AuditLog;
 use Illuminate\Foundation\Application;
@@ -25,8 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Role aktif harus sudah ditentukan sebelum middleware `can:` berjalan.
-        $middleware->appendToGroup('web', ResolveActiveRole::class);
+        // User nonaktif dikeluarkan dulu; role aktif harus sudah ditentukan sebelum middleware `can:` berjalan.
+        $middleware->appendToGroup('web', [EnsureUserIsActive::class, ResolveActiveRole::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

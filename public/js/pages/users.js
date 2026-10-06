@@ -14,6 +14,10 @@ $(function () {
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('user-modal'));
     let editingId = null;
 
+    const formatDate = value => value
+        ? new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
+        : '<span class="text-body-secondary">-</span>';
+
     const table = $('#users-table').DataTable({
         serverSide: true,
         processing: true,
@@ -32,6 +36,15 @@ $(function () {
                     ? roles.map(role => `<span class="badge bg-label-primary me-1">${App.escape(role.name)}</span>`).join('')
                     : '<span class="text-body-secondary">-</span>'
             },
+            {
+                data: 'is_active',
+                name: 'is_active',
+                searchable: false,
+                render: active => active
+                    ? '<span class="badge bg-label-success">Aktif</span>'
+                    : '<span class="badge bg-label-secondary">Nonaktif</span>'
+            },
+            { data: 'last_login_at', name: 'last_login_at', searchable: false, className: 'text-nowrap', render: formatDate },
             { data: null, orderable: false, searchable: false, className: 'text-end text-nowrap', render: renderActions }
         ],
         language: { emptyTable: 'Belum ada user', zeroRecords: 'User tidak ditemukan', search: 'Cari:' }
@@ -67,6 +80,7 @@ $(function () {
             $form.find('[name="nik"]').val(user.nik);
             $form.find('[name="name"]').val(user.name);
             $form.find('[name="email"]').val(user.email);
+            $('#user-active').prop('checked', user.is_active);
             user.roles.forEach(role => $(`#user-role-${role.id}`).prop('checked', true));
         }
 

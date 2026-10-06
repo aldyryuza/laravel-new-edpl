@@ -7,6 +7,7 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use App\Support\AuditLog;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -16,6 +17,9 @@ use Yajra\DataTables\Facades\DataTables;
 
 class UserController extends Controller implements HasMiddleware
 {
+    /** SQLSTATE PostgreSQL untuk pelanggaran foreign key. */
+    private const FOREIGN_KEY_VIOLATION = '23503';
+
     /**
      * @return array<int, Middleware>
      */
@@ -36,11 +40,11 @@ class UserController extends Controller implements HasMiddleware
     public function datatable(Request $request): JsonResponse
     {
         $query = User::query()
-            ->select(['users.id', 'users.nik', 'users.name', 'users.email', 'users.created_at'])
+            ->select(['users.id', 'users.nik', 'users.name', 'users.email', 'users.is_active', 'users.last_login_at', 'users.created_at'])
             ->with('roles:id,name');
 
         return DataTables::eloquent($query)
-            ->whitelist(['nik', 'name', 'email', 'created_at'])
+            ->whitelist(['nik', 'name', 'email', 'is_active', 'last_login_at', 'created_at'])
             ->filter(fn ($query) => $query->search($request->input('search.value')))
             // Kembalikan array (bukan Collection): Yajra mengubah objek menjadi string.
             ->editColumn('roles', fn (User $user) => $user->roles->map->only(['id', 'name'])->values()->all())
@@ -134,7 +138,20 @@ class UserController extends Controller implements HasMiddleware
             ], 422);
         }
 
-        $user->delete();
+        // User yang sudah dipakai data bisnis (DPL, approval, dst.) dijaga FK RESTRICT.
+        // Transaction (savepoint bila bersarang) menjaga koneksi PostgreSQL tetap bisa dipakai setelah gagal.
+        try {
+            DB::transaction(fn () => $user->delete());
+        } catch (QueryException $exception) {
+            if ($exception->getCode() !== self::FOREIGN_KEY_VIOLATION) {
+                throw $exception;
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'User sudah dipakai pada data lain sehingga tidak dapat dihapus. Nonaktifkan user ini sebagai gantinya.',
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,

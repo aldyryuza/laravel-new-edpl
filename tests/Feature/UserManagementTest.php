@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Dpl\DplProposal;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,6 +37,8 @@ class UserManagementTest extends TestCase
             ->assertJsonPath('recordsFiltered', 1)
             ->assertJsonPath('data.0.nik', '9988776655')
             ->assertJsonPath('data.0.roles.0.name', 'Sales')
+            ->assertJsonPath('data.0.is_active', true)
+            ->assertJsonPath('data.0.last_login_at', null)
             ->assertJsonMissingPath('data.0.password');
 
         $this->actingAs($actor)
@@ -110,6 +113,53 @@ class UserManagementTest extends TestCase
         $this->assertSame($oldPassword, $user->password);
         $this->assertEquals([$newRole->id], $user->roles()->pluck('roles.id')->all());
         $this->assertNotContains($oldRole->id, $user->roles()->pluck('roles.id')->all());
+    }
+
+    public function test_update_can_deactivate_another_user(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($this->userWithAccess(['users' => ['update']]))
+            ->putJson("/api/users/{$user->id}", [
+                'nik' => $user->nik,
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_active' => false,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.is_active', false);
+
+        $this->assertFalse($user->fresh()->is_active);
+    }
+
+    public function test_user_cannot_deactivate_own_account(): void
+    {
+        $actor = $this->userWithAccess(['users' => ['update']]);
+
+        $this->actingAs($actor)
+            ->putJson("/api/users/{$actor->id}", [
+                'nik' => $actor->nik,
+                'name' => $actor->name,
+                'email' => $actor->email,
+                'is_active' => false,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('is_active');
+
+        $this->assertTrue($actor->fresh()->is_active);
+    }
+
+    public function test_delete_is_rejected_for_user_referenced_by_business_data(): void
+    {
+        $user = User::factory()->create();
+        DplProposal::factory()->for($user, 'creator')->create();
+
+        $this->actingAs($this->userWithAccess(['users' => ['delete']]))
+            ->deleteJson("/api/users/{$user->id}")
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false);
+
+        $this->assertModelExists($user);
     }
 
     public function test_user_cannot_delete_own_account(): void

@@ -28,7 +28,7 @@ class UsersExport extends StringValueBinder implements FromQuery, ShouldAutoSize
     public function query(): Builder
     {
         return User::query()
-            ->select(['users.id', 'users.nik', 'users.name', 'users.email', 'users.created_at'])
+            ->select(['users.id', 'users.nik', 'users.name', 'users.email', 'users.is_active', 'users.last_login_at', 'users.created_at'])
             ->with('roles:id,name')
             ->search($this->search)
             ->orderBy('name')
@@ -40,7 +40,7 @@ class UsersExport extends StringValueBinder implements FromQuery, ShouldAutoSize
      */
     public function headings(): array
     {
-        return ['NIK', 'Nama', 'Email', 'Role', 'Dibuat'];
+        return ['NIK', 'Nama', 'Email', 'Role', 'Dibuat', 'Status', 'Login Terakhir'];
     }
 
     /**
@@ -55,6 +55,8 @@ class UsersExport extends StringValueBinder implements FromQuery, ShouldAutoSize
             $row->email,
             $row->roles->pluck('name')->sort()->implode(', '),
             $row->created_at?->timezone(config('app.timezone'))->format('Y-m-d H:i'),
+            $row->is_active ? 'Aktif' : 'Nonaktif',
+            $row->last_login_at?->timezone(config('app.timezone'))->format('Y-m-d H:i'),
         ];
     }
 

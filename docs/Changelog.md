@@ -37,6 +37,12 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 - PostgreSQL schema per sistem: tabel commercial, DPL, approval, dan dokumen E-DPL berada di schema `dpl` (`2026_10_06_000000_create_dpl_schema`); master bersama tetap di `public`. `search_path` menjadi `public,dpl`.
 - Model Eloquent + factory untuk 37 tabel E-DPL (model schema `dpl` memakai `#[Table('dpl.…')]` dan berada di `App\Models\Dpl` / `Database\Factories\Dpl`; pivot `distributor_regions` lewat `belongsToMany`). Konstanta status/tipe DPL, relasi DPL, dan aksi approval mengikuti `docs/Architecture.md`/`docs/Schema.md`.
 - Seeder `ApprovalReferenceSeeder` (role RM/NSM/GM/SMD/DMD + workflow `DPL_STANDARD` RM -> NSM -> GM -> SMD -> DMD) dan `OutletClassificationSeeder` (kategori RUMAH_SAKIT/INSTANSI, kepemilikan PEMERINTAH/NON_PEMERINTAH); idempotent, terdaftar di `DatabaseSeeder`.
+- Status akun user: login user nonaktif ditolak ("Akun Anda nonaktif", hanya bila password benar), sesi user yang dinonaktifkan langsung diputus oleh middleware `EnsureUserIsActive` (web: redirect login, API: 401). `last_login_at` diisi saat login berhasil.
+- Management User: switch **Aktif** di form, kolom Status & Login Terakhir di tabel dan ekspor Excel; perubahan status tercatat di audit log. Akun yang sedang login tidak bisa menonaktifkan dirinya sendiri.
+
+### Changed (user)
+
+- `DELETE api/users/{id}` mengembalikan 422 bila user sudah dipakai data bisnis (FK RESTRICT); user tersebut dinonaktifkan, bukan dihapus. Kontrak endpoint lain tidak berubah; `is_active` opsional di `POST`/`PUT api/users`.
 
 ### Changed (testing)
 
