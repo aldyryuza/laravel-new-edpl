@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\City;
-use App\Models\Distributor;
 use App\Models\SalesRegion;
 use App\Services\DistributorImportService;
 use Illuminate\Contracts\View\View;
@@ -14,14 +13,14 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class DistributorController extends Controller
 {
     /**
-     * Pilihan kota, region, dan induk dikirim dari sini supaya form tetap bisa dipakai tanpa akses ke menu Region.
+     * Pilihan kota dan region dikirim dari sini supaya form tetap bisa dipakai tanpa akses ke menu Region.
+     * Pilihan induk dimuat via AJAX (api/distributors/options) agar distributor baru langsung bisa dipilih.
      */
     public function index(): View
     {
         return view('pages.distributors.index', [
             'cities' => City::query()->with('province:id,name')->orderBy('name')->get(['id', 'code', 'name', 'province_id', 'is_active']),
             'regions' => SalesRegion::query()->orderBy('name')->get(['id', 'code', 'name', 'is_active']),
-            'parents' => Distributor::query()->orderBy('name')->get(['id', 'code', 'name', 'is_active']),
         ]);
     }
 

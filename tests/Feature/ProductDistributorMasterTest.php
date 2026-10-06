@@ -117,6 +117,36 @@ class ProductDistributorMasterTest extends TestCase
             ->assertJsonValidationErrors(['email', 'longitude', 'meeting_radius_meters']);
     }
 
+    public function test_parent_options_search_includes_newly_created_distributor_and_excludes_self(): void
+    {
+        $actor = $this->userWithAccess(['distributors' => ['create', 'read']]);
+
+        $this->actingAs($actor)
+            ->postJson('/api/distributors', ['code' => 'SDLSURABAYA', 'name' => 'SDL Surabaya', 'is_branch' => false, 'is_active' => true])
+            ->assertCreated();
+        $headId = Distributor::query()->where('code', 'SDLSURABAYA')->value('id');
+
+        $this->actingAs($actor)
+            ->getJson('/api/distributors/options?q=sdlsura')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $headId)
+            ->assertJsonPath('data.0.text', 'SDL Surabaya (SDLSURABAYA)');
+
+        $this->actingAs($actor)
+            ->getJson("/api/distributors/options?q=sdl&exclude_id={$headId}")
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->actingAs($actor)
+            ->postJson('/api/distributors', [
+                'code' => 'SDLSEMARANG', 'name' => 'SDL Semarang', 'is_branch' => true, 'parent_distributor_id' => $headId, 'is_active' => true,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.parent.code', 'SDLSURABAYA');
+
+        $this->actingAs($this->userWithAccess([]))->getJson('/api/distributors/options')->assertForbidden();
+    }
+
     public function test_distributor_cannot_use_itself_or_its_branch_as_parent(): void
     {
         $head = Distributor::factory()->create();

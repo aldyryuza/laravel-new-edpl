@@ -31,13 +31,28 @@ $(function () {
 
     const $city = $('#distributor-city');
 
-    [$city, $parent, $regions].forEach($select => {
+    [$city, $regions].forEach($select => {
         $select.wrap('<div class="position-relative"></div>').select2({
             dropdownParent: $select.parent(),
             placeholder: $select.find('option[value=""]').text() || 'Pilih region',
             allowClear: true,
             width: '100%'
         });
+    });
+
+    // Induk dicari ke server saat mengetik, jadi distributor yang baru dibuat langsung bisa dipilih.
+    $parent.wrap('<div class="position-relative"></div>').select2({
+        dropdownParent: $parent.parent(),
+        placeholder: 'Tanpa induk',
+        allowClear: true,
+        width: '100%',
+        ajax: {
+            url: App.url('api/distributors/options'),
+            delay: 300,
+            data: params => ({ q: params.term || '', exclude_id: editingId || '' }),
+            processResults: res => ({ results: res.data }),
+            error: (xhr, status) => (status === 'abort' ? null : App.handleError(xhr))
+        }
     });
 
     const table = $('#distributors-table').DataTable({
@@ -130,15 +145,16 @@ $(function () {
             $('#distributor-active').prop('checked', distributor.is_active);
         }
 
-        // Distributor tidak bisa menjadi induk dirinya sendiri (kasus melingkar lain dicek server).
-        $parent.find('option').prop('disabled', false);
+        // Pilihan induk dimuat via AJAX: isi ulang opsi terpilih dari data baris (dirinya sendiri dikecualikan
+        // lewat exclude_id; kasus melingkar lain dicek server).
+        $parent.find('option[value!=""]').remove();
 
-        if (editingId) {
-            $parent.find(`option[value="${editingId}"]`).prop('disabled', true);
+        if (distributor && distributor.parent) {
+            $parent.append(new Option(`${distributor.parent.name} (${distributor.parent.code})`, distributor.parent.id, true, true));
         }
 
+        $parent.val(distributor && distributor.parent ? String(distributor.parent.id) : '').trigger('change');
         $city.val(distributor && distributor.city_id ? String(distributor.city_id) : '').trigger('change');
-        $parent.val(distributor && distributor.parent_distributor_id ? String(distributor.parent_distributor_id) : '').trigger('change');
         $regions.val(distributor ? distributor.regions.map(region => String(region.id)) : []).trigger('change');
         locationPicker.syncFromInputs();
         modal.show();

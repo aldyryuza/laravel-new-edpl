@@ -29,7 +29,7 @@ class DistributorController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:distributors.read', only: ['datatable', 'show']),
+            new Middleware('can:distributors.read', only: ['datatable', 'show', 'options']),
             new Middleware('can:distributors.create', only: ['store']),
             new Middleware('can:distributors.update', only: ['update']),
             new Middleware('can:distributors.delete', only: ['destroy']),
@@ -71,6 +71,34 @@ class DistributorController extends Controller implements HasMiddleware
                 }
             })
             ->toJson();
+    }
+
+    /**
+     * Pilihan distributor untuk select2 (pencarian di server, maks. 20 hasil), mis. pilihan induk.
+     * `exclude_id` mengeluarkan distributor yang sedang diedit; hierarki melingkar tetap dicek saat simpan.
+     */
+    public function options(Request $request): JsonResponse
+    {
+        $term = trim((string) $request->input('q'));
+
+        $distributors = Distributor::query()
+            ->select(['id', 'code', 'name', 'is_active'])
+            ->when($term !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->whereLike('code', "%{$term}%")
+                ->orWhereLike('name', "%{$term}%")))
+            ->when($request->integer('exclude_id'), fn (Builder $query, int $id) => $query->whereKeyNot($id))
+            ->orderBy('name')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil diambil',
+            'data' => $distributors->map(fn (Distributor $distributor) => [
+                'id' => $distributor->id,
+                'text' => "{$distributor->name} ({$distributor->code})".($distributor->is_active ? '' : ' - nonaktif'),
+            ]),
+        ]);
     }
 
     public function store(DistributorRequest $request, DistributorService $distributorService): JsonResponse

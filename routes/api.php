@@ -82,6 +82,7 @@ Route::get('products/datatable', [ProductController::class, 'datatable'])->name(
 Route::post('products/import', [ProductController::class, 'import'])->name('products.import');
 Route::apiResource('products', ProductController::class)->except('index');
 Route::get('distributors/datatable', [DistributorController::class, 'datatable'])->name('distributors.datatable');
+Route::get('distributors/options', [DistributorController::class, 'options'])->name('distributors.options');
 Route::post('distributors/import', [DistributorController::class, 'import'])->name('distributors.import');
 Route::apiResource('distributors', DistributorController::class)->except('index');
 

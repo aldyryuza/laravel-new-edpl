@@ -104,12 +104,11 @@
                         </div>
                         <div class="col-md-6">
                             <label for="distributor-parent" class="form-label">Induk</label>
+                            {{-- Opsi dimuat via AJAX (api/distributors/options) saat mengetik. --}}
                             <select class="form-select" id="distributor-parent" name="parent_distributor_id">
                                 <option value="">Tanpa induk</option>
-                                @foreach ($parents as $parent)
-                                    <option value="{{ $parent->id }}">{{ $parent->name }} ({{ $parent->code }}){{ $parent->is_active ? '' : ' - nonaktif' }}</option>
-                                @endforeach
                             </select>
+                            <div class="form-text">Isi untuk cabang; kosongkan untuk distributor pusat.</div>
                         </div>
                         <div class="col-md-6">
                             <label for="distributor-netsuite" class="form-label">NetSuite ID</label>
