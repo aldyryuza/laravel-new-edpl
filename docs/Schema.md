@@ -340,13 +340,23 @@ Tidak membuat `product_groups` hanya untuk volume.
 | `name` | varchar(255) | No | |
 | `group_code` | varchar(50) | Yes | legacy grouping bila masih diperlukan |
 | `city_name` | varchar(150) | Yes | sementara sampai city master dibutuhkan |
+| `address` | text | Yes | legacy `ALAMAT` |
+| `phone` | varchar(50) | Yes | legacy `TELP` |
+| `fax` | varchar(50) | Yes | legacy `FAX` |
+| `email` | varchar(255) | Yes | legacy `EMAIL` |
+| `npwp` | varchar(30) | Yes | legacy `NPWP` |
+| `latitude` | numeric(10,7) | Yes | legacy `LATITUDE`; lokasi monthly meeting CRM |
+| `longitude` | numeric(10,7) | Yes | legacy `LONGITUDE` |
+| `meeting_radius_meters` | integer | Yes | legacy `RADIUS` (meter), CHECK `>= 0` |
 | `is_branch` | boolean | No | default false |
 | `parent_distributor_id` | bigint | Yes | self FK, RESTRICT |
 | `is_active` | boolean | No | default true |
 | `netsuite_id` | varchar(255) | Yes | external identifier jika tersedia |
 | timestamps | timestamp | Yes | |
 
-Index: `parent_distributor_id`.
+Index: `parent_distributor_id`. Kontak/lokasi ditambahkan oleh migration `2026_10_06_000043`. Hierarki induk -> cabang tidak boleh melingkar (dicek aplikasi).
+
+Region harga distributor ada di `dpl.distributor_price_regions` (legacy `PRICE_REGION_ID`).
 
 ### `distributor_regions`
 
@@ -382,6 +392,17 @@ Region harga outlet untuk keperluan DPL (decision #9), satu per outlet.
 | timestamps | timestamp | Yes | |
 
 Index: `price_region_id`. Pengelolaan (UI/import) dibuat di modul Commercial.
+
+### `distributor_price_regions` (schema `dpl`)
+
+Region harga distributor untuk keperluan DPL (legacy `distributor.PRICE_REGION_ID`), satu per distributor. Harga DPL memakai region harga **outlet dan distributor** (user confirmation); aturan prioritas bila keduanya berbeda difinalkan di modul Commercial.
+
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `distributor_id` | bigint | No | FK `public.distributors.id`, RESTRICT, UNIQUE |
+| `price_region_id` | bigint | No | FK `dpl.price_regions.id`, RESTRICT |
+| timestamps | timestamp | Yes | |
 
 ### `product_prices`
 
@@ -825,6 +846,7 @@ Replacement domain for legacy `dpl_exit_letter_master` (master nama Kacab).
 | `distributor_id` | bigint | No | FK distributors, RESTRICT |
 | `name` | varchar(255) | No | |
 | `position` | varchar(150) | Yes | jabatan |
+| `phone` | varchar(50) | Yes | legacy `distributor.HPKACAB` |
 | `valid_from` | date | Yes | |
 | `valid_until` | date | Yes | |
 | `is_active` | boolean | No | default true |
@@ -1015,7 +1037,7 @@ Do not add percentage <= 100 constraints before special-case data is validated.
 | `outlet.GRUP2` | `ownership_types` | Normalize |
 | `outlet.GRUP3` | `outlet_groups` + membership | Normalize |
 | `outlet` | `outlets` | Redesign/Cleanup |
-| `distributor` | `distributors` | Redesign/Cleanup |
+| `distributor` | `distributors` | Redesign/Cleanup (detail kolom di bawah) |
 | `distributor_region` | `distributor_regions` | Keep/Cleanup |
 | `distributor_outlet` | none in core | Remove from E-DPL scope |
 
@@ -1031,6 +1053,29 @@ Do not add percentage <= 100 constraints before special-case data is validated.
 | `dpl_distributor_spesial_margin_outlet` | `distributor_margin_overrides` | Pending exact rule review |
 | `dpl_config` | `commercial_parameters` / app config split | Redesign |
 | `dpl_logistic` | none | Do not migrate; confirmed unused result |
+
+### Legacy `distributor` -> kolom baru
+
+Disusun dari contoh data `MJMTERNATE` + keputusan user (2026-10-06).
+
+| Legacy | Target | Catatan |
+|---|---|---|
+| `IDDIST` | `distributors.code` | kode per lokasi/cabang; validasi unik sebelum migrasi |
+| `NAMA` | `distributors.name` | `NAMADISTRIB` duplikat, tidak diambil |
+| `KODEDIST` / `group` | `distributors.group_code` | validasi keduanya selalu sama |
+| `KOTA` | `distributors.city_name` | `city_id` dicatat untuk master kota di masa depan |
+| `ALAMAT`, `TELP`, `FAX`, `EMAIL`, `NPWP` | `address`, `phone`, `fax`, `email`, `npwp` | trim spasi |
+| `LATITUDE`, `LONGITUDE`, `RADIUS` | `latitude`, `longitude`, `meeting_radius_meters` | radius dalam meter; monthly meeting CRM |
+| `REGIONAL` (+ `REGNAME`) | `distributor_regions` | map ke `sales_regions.code` |
+| `REGAREA`, `AREA`, `NSMZONE` | tidak disimpan | redundan (turunan region/zone); dipakai untuk rekonsiliasi mapping |
+| `branch`, `consolidation` | `is_branch` / `parent_distributor_id` | arti kolom perlu diverifikasi dari data |
+| `is_active` | `distributors.is_active` | |
+| `PRICE_REGION_ID` | `dpl.distributor_price_regions` | |
+| `KACAB`, `HPKACAB` | `dpl.distributor_branch_heads.name`, `.phone` | |
+| `margin`, `margin_tim_b`, `margin_description` | `distributor_margin_rules` (pending) | deskripsi berisi margin + program bonus per volume (500, 100 & 250, 1000, 25) dan margin Tim B; dipecah manual saat migrasi |
+| `NAMAREP`, `HPREP`, `EMAILREP` | tidak diambil | kontak representative tidak dipakai lagi |
+| `USER` | tidak diambil di core E-DPL | akun login distributor sistem lama |
+| `IDDISTRIBUTOR` | mapping ETL saja | kunci lama untuk memetakan referensi tabel DPL legacy ke `distributors.id` |
 
 ### Consolidation/documents/reporting
 

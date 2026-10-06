@@ -2,6 +2,7 @@
 
 namespace App\Models\Dpl;
 
+use App\Models\Distributor;
 use App\Models\Outlet;
 use Database\Factories\Dpl\PriceRegionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -49,5 +50,15 @@ class PriceRegion extends Model
     public function outlets(): BelongsToMany
     {
         return $this->belongsToMany(Outlet::class, 'dpl.outlet_price_regions')->withTimestamps();
+    }
+
+    /**
+     * Distributor yang memakai region harga ini (lewat mapping dpl.distributor_price_regions).
+     *
+     * @return BelongsToMany<Distributor, $this>
+     */
+    public function distributors(): BelongsToMany
+    {
+        return $this->belongsToMany(Distributor::class, 'dpl.distributor_price_regions')->withTimestamps();
     }
 }

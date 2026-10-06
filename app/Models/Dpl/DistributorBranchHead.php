@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Master Kacab distributor (redesign legacy dpl_exit_letter_master) dengan periode berlaku.
  */
 #[Table('dpl.distributor_branch_heads')]
-#[Fillable(['distributor_id', 'name', 'position', 'valid_from', 'valid_until', 'is_active'])]
+#[Fillable(['distributor_id', 'name', 'position', 'phone', 'valid_from', 'valid_until', 'is_active'])]
 class DistributorBranchHead extends Model
 {
     /** @use HasFactory<DistributorBranchHeadFactory> */

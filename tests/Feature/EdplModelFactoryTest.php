@@ -16,6 +16,7 @@ use App\Models\Dpl\Attachment;
 use App\Models\Dpl\BonusScheme;
 use App\Models\Dpl\CommercialParameter;
 use App\Models\Dpl\DistributorBranchHead;
+use App\Models\Dpl\DistributorPriceRegion;
 use App\Models\Dpl\DplConsolidation;
 use App\Models\Dpl\DplConsolidationOutlet;
 use App\Models\Dpl\DplItem;
@@ -76,6 +77,7 @@ class EdplModelFactoryTest extends TestCase
             Distributor::class => 'distributors',
             PriceRegion::class => 'dpl.price_regions',
             OutletPriceRegion::class => 'dpl.outlet_price_regions',
+            DistributorPriceRegion::class => 'dpl.distributor_price_regions',
             ProductPrice::class => 'dpl.product_prices',
             ProductPriceOverride::class => 'dpl.product_price_overrides',
             BonusScheme::class => 'dpl.bonus_schemes',

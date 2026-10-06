@@ -1,4 +1,4 @@
-@extends('layouts.app', ['vendors' => ['datatables', 'select2', 'sweetalert2']])
+@extends('layouts.app', ['vendors' => ['datatables', 'select2', 'sweetalert2', 'leaflet']])
 
 @section('title', 'Distributor')
 
@@ -111,12 +111,47 @@
                             <input type="text" class="form-control" id="distributor-netsuite" name="netsuite_id" maxlength="255" />
                         </div>
                         <div class="col-12">
+                            <label for="distributor-address" class="form-label">Alamat</label>
+                            <textarea class="form-control" id="distributor-address" name="address" rows="2" maxlength="2000"></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="distributor-phone" class="form-label">Telepon</label>
+                            <input type="text" class="form-control" id="distributor-phone" name="phone" maxlength="50" />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="distributor-fax" class="form-label">Fax</label>
+                            <input type="text" class="form-control" id="distributor-fax" name="fax" maxlength="50" />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="distributor-npwp" class="form-label">NPWP</label>
+                            <input type="text" class="form-control" id="distributor-npwp" name="npwp" maxlength="30" />
+                        </div>
+                        <div class="col-12">
+                            <label for="distributor-email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="distributor-email" name="email" maxlength="255" />
+                        </div>
+                        <div class="col-12">
                             <label for="distributor-regions" class="form-label">Region</label>
                             <select class="form-select" id="distributor-regions" name="region_ids[]" multiple>
                                 @foreach ($regions as $region)
                                     <option value="{{ $region->id }}">{{ $region->name }} ({{ $region->code }}){{ $region->is_active ? '' : ' - nonaktif' }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="distributor-latitude" class="form-label">Latitude</label>
+                            <input type="number" class="form-control" id="distributor-latitude" name="latitude" step="0.0000001" min="-90" max="90" />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="distributor-longitude" class="form-label">Longitude</label>
+                            <input type="number" class="form-control" id="distributor-longitude" name="longitude" step="0.0000001" min="-180" max="180" />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="distributor-radius" class="form-label">Radius Meeting (meter)</label>
+                            <input type="number" class="form-control" id="distributor-radius" name="meeting_radius_meters" min="0" max="100000" step="1" />
+                        </div>
+                        <div class="col-12">
+                            <x-location-picker prefix="distributor" label="Lokasi (monthly meeting CRM)" height="260" />
                         </div>
                         <div class="col-12 d-flex gap-6">
                             <input type="hidden" name="is_branch" value="0" />
@@ -143,11 +178,12 @@
     @if (auth()->user()->can('distributors.create') && auth()->user()->can('distributors.update'))
         <x-excel-import-modal title="Import Distributor dari Excel" upload-path="api/distributors/import"
             :template-url="route('distributors.import-template')"
-            columns="kode, nama, grup_distributor, kota, cabang, kode_induk, kode_region, netsuite_id, aktif" />
+            columns="kode, nama, grup_distributor, kota, alamat, telepon, fax, email, npwp, latitude, longitude, radius_meter, cabang, kode_induk, kode_region, netsuite_id, aktif" />
     @endif
 @endpush
 
 @push('scripts')
     <script src="{{ asset_v('js/excel-import.js') }}"></script>
+    <script src="{{ asset_v('js/location-picker.js') }}"></script>
     <script src="{{ asset_v('js/pages/distributors.js') }}"></script>
 @endpush

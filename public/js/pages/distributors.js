@@ -21,6 +21,14 @@ $(function () {
     const muted = text => `<span class="text-body-secondary">${text}</span>`;
     const filterParams = () => Object.fromEntries($filters.toArray().map(el => [$(el).data('filter'), $(el).val()]));
 
+    const locationPicker = LocationPicker.create({
+        prefix: 'distributor',
+        latitude: '#distributor-latitude',
+        longitude: '#distributor-longitude',
+        radius: '#distributor-radius',
+        modal: '#distributor-modal'
+    });
+
     [$parent, $regions].forEach($select => {
         $select.wrap('<div class="position-relative"></div>').select2({
             dropdownParent: $select.parent(),
@@ -44,7 +52,14 @@ $(function () {
                 render: (name, type, row) => App.escape(name)
                     + (row.group_code ? `<br><small class="text-body-secondary">Grup: ${App.escape(row.group_code)}</small>` : '')
             },
-            { data: 'city_name', name: 'city_name', searchable: false, render: value => value ? App.escape(value) : muted('-') },
+            {
+                data: 'city_name',
+                name: 'city_name',
+                searchable: false,
+                render: (city, type, row) => (city ? App.escape(city) : muted('-')) + (row.latitude !== null && row.longitude !== null
+                    ? ` <i class="icon-base bx bx-map-pin text-primary" title="${App.escape(`${row.latitude}, ${row.longitude}`)}"></i>`
+                    : '')
+            },
             {
                 data: 'parent',
                 orderable: false,
@@ -105,7 +120,10 @@ $(function () {
         $('#distributor-modal-title').text(distributor ? 'Edit Distributor' : 'Tambah Distributor');
 
         if (distributor) {
-            ['code', 'name', 'city_name', 'group_code', 'netsuite_id'].forEach(field => $form.find(`[name="${field}"]`).val(distributor[field] ?? ''));
+            [
+                'code', 'name', 'city_name', 'group_code', 'netsuite_id', 'address', 'phone', 'fax', 'email', 'npwp',
+                'latitude', 'longitude', 'meeting_radius_meters'
+            ].forEach(field => $form.find(`[name="${field}"]`).val(distributor[field] ?? ''));
             $('#distributor-branch').prop('checked', distributor.is_branch);
             $('#distributor-active').prop('checked', distributor.is_active);
         }
@@ -119,6 +137,7 @@ $(function () {
 
         $parent.val(distributor && distributor.parent_distributor_id ? String(distributor.parent_distributor_id) : '').trigger('change');
         $regions.val(distributor ? distributor.regions.map(region => String(region.id)) : []).trigger('change');
+        locationPicker.syncFromInputs();
         modal.show();
     }
 

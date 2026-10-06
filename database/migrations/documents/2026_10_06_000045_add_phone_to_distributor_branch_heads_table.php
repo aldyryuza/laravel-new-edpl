@@ -1,0 +1,31 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Nomor HP Kacab (legacy distributor.HPKACAB).
+ */
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('dpl.distributor_branch_heads', function (Blueprint $table) {
+            $table->string('phone', 50)->nullable()->after('position');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('dpl.distributor_branch_heads', function (Blueprint $table) {
+            $table->dropColumn('phone');
+        });
+    }
+};

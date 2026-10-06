@@ -96,6 +96,27 @@ class ProductDistributorMasterTest extends TestCase
         $this->assertSame(2, Activity::query()->where('event', 'regions_updated')->count());
     }
 
+    public function test_distributor_saves_contact_and_meeting_location(): void
+    {
+        $this->actingAs($this->userWithAccess(['distributors' => ['create']]))
+            ->postJson('/api/distributors', [
+                'code' => 'D-TTE', 'name' => 'Distributor Ternate', 'is_branch' => false, 'is_active' => true,
+                'address' => 'Jl. Raya Mangga Dua', 'phone' => '0811-4329-539', 'email' => 'cs@contoh.test', 'npwp' => '01.234.567.8-901.000',
+                'latitude' => '0.7713696', 'longitude' => '127.3762587', 'meeting_radius_meters' => 20,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.meeting_radius_meters', 20)
+            ->assertJsonPath('data.latitude', '0.7713696');
+
+        $this->actingAs($this->userWithAccess(['distributors' => ['create']]))
+            ->postJson('/api/distributors', [
+                'code' => 'D-X', 'name' => 'X', 'is_branch' => false, 'is_active' => true,
+                'email' => 'bukan-email', 'latitude' => '1.5', 'meeting_radius_meters' => -1,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['email', 'longitude', 'meeting_radius_meters']);
+    }
+
     public function test_distributor_cannot_use_itself_or_its_branch_as_parent(): void
     {
         $head = Distributor::factory()->create();

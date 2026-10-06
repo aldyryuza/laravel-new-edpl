@@ -20,7 +20,26 @@ use Illuminate\Validation\ValidationException;
  */
 class DistributorImportService extends ExcelImporter
 {
-    public const COLUMNS = ['kode', 'nama', 'grup_distributor', 'kota', 'cabang', 'kode_induk', 'kode_region', 'netsuite_id', 'aktif'];
+    public const COLUMNS = [
+        'kode', 'nama', 'grup_distributor', 'kota', 'alamat', 'telepon', 'fax', 'email', 'npwp', 'latitude', 'longitude',
+        'radius_meter', 'cabang', 'kode_induk', 'kode_region', 'netsuite_id', 'aktif',
+    ];
+
+    /**
+     * Kolom teks opsional: kolom Excel => [kolom distributors, panjang maksimal].
+     *
+     * @var array<string, array{0: string, 1: int}>
+     */
+    private const TEXT_COLUMNS = [
+        'grup_distributor' => ['group_code', 50],
+        'kota' => ['city_name', 150],
+        'alamat' => ['address', 2000],
+        'telepon' => ['phone', 50],
+        'fax' => ['fax', 50],
+        'email' => ['email', 255],
+        'npwp' => ['npwp', 30],
+        'netsuite_id' => ['netsuite_id', 255],
+    ];
 
     /** Batas kedalaman penelusuran induk, pengaman bila data lama sudah melingkar. */
     private const MAX_DEPTH = 50;
@@ -53,6 +72,14 @@ class DistributorImportService extends ExcelImporter
             ['nama', 'Wajib, maks. 255 karakter.'],
             ['grup_distributor', 'Opsional, maks. 50 karakter (pengelompokan legacy).'],
             ['kota', 'Opsional, maks. 150 karakter.'],
+            ['alamat', 'Opsional.'],
+            ['telepon', 'Opsional, maks. 50 karakter.'],
+            ['fax', 'Opsional, maks. 50 karakter.'],
+            ['email', 'Opsional, alamat email valid.'],
+            ['npwp', 'Opsional, maks. 30 karakter.'],
+            ['latitude', 'Opsional, -90 s/d 90. Diisi bersama longitude.'],
+            ['longitude', 'Opsional, -180 s/d 180. Diisi bersama latitude.'],
+            ['radius_meter', 'Opsional, radius lokasi monthly meeting CRM dalam meter (angka bulat >= 0).'],
             ['cabang', 'Opsional: 1/ya atau 0/tidak. Kosong = tidak.'],
             ['kode_induk', 'Opsional, kode distributor induk (boleh distributor di file yang sama). Kosong = tanpa induk.'],
             ['kode_region', 'Opsional, satu atau lebih kode region dipisah koma, mis. R-JABAR,R-DKI. Kosong = region tidak diubah.'],
@@ -98,10 +125,10 @@ class DistributorImportService extends ExcelImporter
         foreach ($rows as $index => $row) {
             $code = $this->text($row['kode'] ?? null);
             $name = $this->text($row['nama'] ?? null);
-            $groupCode = $this->text($row['grup_distributor'] ?? null);
-            $city = $this->text($row['kota'] ?? null);
             $parentCode = $this->text($row['kode_induk'] ?? null);
-            $netsuiteId = $this->text($row['netsuite_id'] ?? null);
+            $latitude = $this->text($row['latitude'] ?? null);
+            $longitude = $this->text($row['longitude'] ?? null);
+            $radius = $this->text($row['radius_meter'] ?? null);
             $isBranch = $this->boolean($row['cabang'] ?? null, default: false);
             $active = $this->boolean($row['aktif'] ?? null);
             $rowErrors = [];
@@ -120,11 +147,35 @@ class DistributorImportService extends ExcelImporter
                 $rowErrors[] = 'nama maksimal 255 karakter';
             }
 
-            foreach (['grup_distributor' => [$groupCode, 50], 'kota' => [$city, 150], 'netsuite_id' => [$netsuiteId, 255]] as $column => [$value, $max]) {
+            $attributes = ['code' => $code, 'name' => $name];
+
+            foreach (self::TEXT_COLUMNS as $column => [$attribute, $max]) {
+                $value = $this->text($row[$column] ?? null);
+                $attributes[$attribute] = $value === '' ? null : $value;
+
                 if (mb_strlen($value) > $max) {
                     $rowErrors[] = "{$column} maksimal {$max} karakter";
                 }
             }
+
+            if ($attributes['email'] !== null && filter_var($attributes['email'], FILTER_VALIDATE_EMAIL) === false) {
+                $rowErrors[] = 'email tidak valid';
+            }
+
+            if (($latitude === '') !== ($longitude === '')) {
+                $rowErrors[] = 'latitude dan longitude harus diisi bersamaan';
+            } elseif ($latitude !== '' && (! is_numeric($latitude) || abs((float) $latitude) > 90 || ! is_numeric($longitude) || abs((float) $longitude) > 180)) {
+                $rowErrors[] = 'latitude harus -90 s/d 90 dan longitude -180 s/d 180';
+            }
+
+            $attributes['latitude'] = $latitude === '' ? null : $latitude;
+            $attributes['longitude'] = $longitude === '' ? null : $longitude;
+
+            if ($radius !== '' && (! ctype_digit($radius) || (int) $radius > 100000)) {
+                $rowErrors[] = 'radius_meter harus angka bulat 0 s/d 100000';
+            }
+
+            $attributes['meeting_radius_meters'] = $radius === '' ? null : (int) $radius;
 
             if ($parentCode !== '' && ! array_key_exists($parentCode, $parentOf) && ! isset($fileCodes[$parentCode])) {
                 $rowErrors[] = "kode_induk {$parentCode} tidak ditemukan";
@@ -161,15 +212,7 @@ class DistributorImportService extends ExcelImporter
 
             $lines[$code] = $this->lineNumber($index);
             $records[$code] = [
-                'attributes' => [
-                    'code' => $code,
-                    'name' => $name,
-                    'group_code' => $groupCode === '' ? null : $groupCode,
-                    'city_name' => $city === '' ? null : $city,
-                    'is_branch' => $isBranch,
-                    'netsuite_id' => $netsuiteId === '' ? null : $netsuiteId,
-                    'is_active' => $active,
-                ],
+                'attributes' => [...$attributes, 'is_branch' => $isBranch, 'is_active' => $active],
                 'parent_code' => $parentCode === '' ? null : $parentCode,
                 'region_ids' => $rowRegionIds,
             ];
