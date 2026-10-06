@@ -5,6 +5,12 @@
 @section('content')
     <x-page-header title="Zona" :breadcrumbs="[['label' => 'Master Organisasi']]">
         <x-slot:actions>
+            {{-- Import membuat sekaligus memperbarui data: butuh hak create + update. --}}
+            @if (auth()->user()->can('sales-zones.create') && auth()->user()->can('sales-zones.update'))
+                <button type="button" class="btn btn-label-success" data-bs-toggle="modal" data-bs-target="#excel-import-modal">
+                    <i class="icon-base bx bx-upload me-1"></i> Import Excel
+                </button>
+            @endif
             @can('sales-zones.create')
                 <button type="button" class="btn btn-primary" id="btn-add-zone">
                     <i class="icon-base bx bx-plus me-1"></i> Tambah Zona
@@ -63,8 +69,13 @@
             </form>
         </div>
     </div>
+    @if (auth()->user()->can('sales-zones.create') && auth()->user()->can('sales-zones.update'))
+        <x-excel-import-modal title="Import Zona dari Excel" upload-path="api/sales-zones/import"
+            :template-url="route('sales-zones.import-template')" columns="kode, nama, aktif" />
+    @endif
 @endpush
 
 @push('scripts')
+    <script src="{{ asset_v('js/excel-import.js') }}"></script>
     <script src="{{ asset_v('js/pages/sales-zones.js') }}"></script>
 @endpush

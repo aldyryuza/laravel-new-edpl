@@ -37,6 +37,9 @@ $(function () {
         language: { emptyTable: 'Belum ada area', zeroRecords: 'Area tidak ditemukan', search: 'Cari:' }
     });
 
+    // Muat ulang tabel setelah import Excel berhasil (lihat js/excel-import.js).
+    $(document).on('excel-import:done', () => table.ajax.reload());
+
     $filterRegion.on('change', () => table.ajax.reload());
 
     function renderStatus(active) {

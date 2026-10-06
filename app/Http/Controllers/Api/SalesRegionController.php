@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Concerns\DeletesRestrictedModels;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ExcelImportRequest;
 use App\Http\Requests\SalesRegionRequest;
 use App\Models\SalesRegion;
+use App\Services\OrganizationImportService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +29,8 @@ class SalesRegionController extends Controller implements HasMiddleware
             new Middleware('can:sales-regions.create', only: ['store']),
             new Middleware('can:sales-regions.update', only: ['update']),
             new Middleware('can:sales-regions.delete', only: ['destroy']),
+            // Import bisa membuat dan memperbarui data sekaligus.
+            new Middleware(['can:sales-regions.create', 'can:sales-regions.update'], only: ['import']),
         ];
     }
 
@@ -86,6 +90,20 @@ class SalesRegionController extends Controller implements HasMiddleware
             'success' => true,
             'message' => 'Region berhasil diperbarui',
             'data' => $salesRegion->load('zone:id,code,name'),
+        ]);
+    }
+
+    /**
+     * Import Excel (upsert berdasarkan kode). Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
+     */
+    public function import(ExcelImportRequest $request, OrganizationImportService $importService): JsonResponse
+    {
+        $result = $importService->import(OrganizationImportService::REGION, $request->file('file'));
+
+        return response()->json([
+            'success' => true,
+            'message' => "Import Region selesai: {$result['created']} dibuat, {$result['updated']} diperbarui, {$result['unchanged']} tidak berubah.",
+            'data' => $result,
         ]);
     }
 

@@ -30,7 +30,8 @@ resources/views/
 │       └── footer.blade.php
 ├── components/
 │   ├── page-header.blade.php    # <x-page-header>
-│   └── alert.blade.php          # <x-alert>
+│   ├── alert.blade.php          # <x-alert> (flash message session)
+│   └── excel-import-modal.blade.php # <x-excel-import-modal> + public/js/excel-import.js
 └── pages/
     ├── dashboard/
     └── [module]/
@@ -45,6 +46,7 @@ Default:
 ```text
 public/js/
 ├── app.js                   # bootstrap: CSRF, App.url(), notifikasi, handle error AJAX
+├── excel-import.js          # perilaku <x-excel-import-modal>; event `excel-import:done` setelah sukses
 └── pages/
     ├── users.js
     ├── products.js

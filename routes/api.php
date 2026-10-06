@@ -41,10 +41,13 @@ Route::get('activity-logs/datatable', [ActivityLogController::class, 'datatable'
 
 // Master organisasi (schema public)
 Route::get('sales-zones/datatable', [SalesZoneController::class, 'datatable'])->name('sales-zones.datatable');
+Route::post('sales-zones/import', [SalesZoneController::class, 'import'])->name('sales-zones.import');
 Route::apiResource('sales-zones', SalesZoneController::class)->except('index');
 Route::get('sales-regions/datatable', [SalesRegionController::class, 'datatable'])->name('sales-regions.datatable');
+Route::post('sales-regions/import', [SalesRegionController::class, 'import'])->name('sales-regions.import');
 Route::apiResource('sales-regions', SalesRegionController::class)->except('index');
 Route::get('sales-areas/datatable', [SalesAreaController::class, 'datatable'])->name('sales-areas.datatable');
+Route::post('sales-areas/import', [SalesAreaController::class, 'import'])->name('sales-areas.import');
 Route::apiResource('sales-areas', SalesAreaController::class)->except('index');
 
 // E-DPL (schema dpl)

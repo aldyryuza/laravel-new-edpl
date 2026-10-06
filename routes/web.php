@@ -49,8 +49,17 @@ Route::middleware('auth')->group(function () {
 
     // Master organisasi (schema public)
     Route::get('/sales-zones', [SalesZoneController::class, 'index'])->middleware('can:sales-zones.read')->name('sales-zones.index');
+    Route::get('/sales-zones/import-template', [SalesZoneController::class, 'template'])
+        ->middleware(['can:sales-zones.create', 'throttle:export'])
+        ->name('sales-zones.import-template');
     Route::get('/sales-regions', [SalesRegionController::class, 'index'])->middleware('can:sales-regions.read')->name('sales-regions.index');
+    Route::get('/sales-regions/import-template', [SalesRegionController::class, 'template'])
+        ->middleware(['can:sales-regions.create', 'throttle:export'])
+        ->name('sales-regions.import-template');
     Route::get('/sales-areas', [SalesAreaController::class, 'index'])->middleware('can:sales-areas.read')->name('sales-areas.index');
+    Route::get('/sales-areas/import-template', [SalesAreaController::class, 'template'])
+        ->middleware(['can:sales-areas.create', 'throttle:export'])
+        ->name('sales-areas.import-template');
 
     // E-DPL (schema dpl)
     Route::prefix('dpl')->name('dpl.')->group(function () {

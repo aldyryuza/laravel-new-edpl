@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\SalesZone;
+use App\Services\OrganizationImportService;
 use Illuminate\Contracts\View\View;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SalesRegionController extends Controller
 {
@@ -16,5 +19,13 @@ class SalesRegionController extends Controller
         return view('pages.sales-regions.index', [
             'zones' => SalesZone::query()->orderBy('name')->get(['id', 'code', 'name', 'is_active']),
         ]);
+    }
+
+    /**
+     * Template Excel untuk import (sheet Data + Petunjuk berisi kode referensi).
+     */
+    public function template(OrganizationImportService $importService): BinaryFileResponse
+    {
+        return Excel::download($importService->template(OrganizationImportService::REGION), 'template-import-region.xlsx');
     }
 }

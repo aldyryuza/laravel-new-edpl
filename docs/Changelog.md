@@ -43,6 +43,7 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 - Menu **Master Organisasi**: halaman Zona (`/sales-zones`), Region (`/sales-regions`), Area (`/sales-areas`), dan Approver DPL (`/dpl/approver-assignments`) dengan API `api/sales-zones|sales-regions|sales-areas` dan `api/dpl/approver-assignments` (datatable + CRUD). Hak akses: `sales-zones.*`, `sales-regions.*`, `sales-areas.*`, `approver-assignments.*`. Perubahan tercatat di audit log.
 - Approver DPL: scope dipilih eksplisit (Region/Zona/Global, tidak bergantung nama role), role dibatasi pada role workflow approval, user harus aktif; beberapa approver per role + scope diizinkan, tetapi user yang sama tidak boleh punya assignment aktif ganda dengan periode bertumpang tindih.
 - Trait `DeletesRestrictedModels`: hapus data yang masih dipakai (FK RESTRICT) membalas 422 dengan saran menonaktifkan; dipakai juga oleh API User.
+- Import Excel untuk Zona, Region, Area: template (`GET /sales-zones|sales-regions|sales-areas/import-template`, sheet Data + Petunjuk berisi kode referensi) dan upload (`POST api/{resource}/import`). Upsert berdasarkan kode, parent dirujuk lewat kode (`kode_zona`, `kode_region`), all-or-nothing dengan daftar error per baris, maks. 5.000 baris/5 MB, butuh hak `create` + `update`, tercatat di audit log (`imported`). Komponen bersama `<x-excel-import-modal>` + `public/js/excel-import.js`, service `OrganizationImportService`.
 
 ### Changed (user)
 

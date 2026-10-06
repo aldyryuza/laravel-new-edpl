@@ -5,6 +5,12 @@
 @section('content')
     <x-page-header title="Region" :breadcrumbs="[['label' => 'Master Organisasi']]">
         <x-slot:actions>
+            {{-- Import membuat sekaligus memperbarui data: butuh hak create + update. --}}
+            @if (auth()->user()->can('sales-regions.create') && auth()->user()->can('sales-regions.update'))
+                <button type="button" class="btn btn-label-success" data-bs-toggle="modal" data-bs-target="#excel-import-modal">
+                    <i class="icon-base bx bx-upload me-1"></i> Import Excel
+                </button>
+            @endif
             @can('sales-regions.create')
                 <button type="button" class="btn btn-primary" id="btn-add-region">
                     <i class="icon-base bx bx-plus me-1"></i> Tambah Region
@@ -88,8 +94,13 @@
             </form>
         </div>
     </div>
+    @if (auth()->user()->can('sales-regions.create') && auth()->user()->can('sales-regions.update'))
+        <x-excel-import-modal title="Import Region dari Excel" upload-path="api/sales-regions/import"
+            :template-url="route('sales-regions.import-template')" columns="kode, nama, kode_zona, aktif" />
+    @endif
 @endpush
 
 @push('scripts')
+    <script src="{{ asset_v('js/excel-import.js') }}"></script>
     <script src="{{ asset_v('js/pages/sales-regions.js') }}"></script>
 @endpush
