@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\ApprovalWorkflow;
+use App\Models\Dpl\ApprovalWorkflow;
 use App\Models\OutletCategory;
 use App\Models\OwnershipType;
 use App\Models\Role;

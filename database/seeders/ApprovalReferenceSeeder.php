@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\ApprovalWorkflow;
+use App\Models\Dpl\ApprovalWorkflow;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
 

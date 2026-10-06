@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Dpl\DplProposal;
+use App\Models\Dpl\PriceRegion;
 use Database\Factories\OutletFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Dpl\DistributorBranchHead;
 use Database\Factories\DistributorFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

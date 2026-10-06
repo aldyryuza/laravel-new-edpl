@@ -26,6 +26,7 @@
   - `dpl`: transaksi dan aturan milik E-DPL — Commercial, DPL core, Approval, dan Documents (lihat bagian 3).
   - Sistem berikutnya (EBU/CRM) memakai schema sendiri untuk transaksinya.
 - Tabel schema sistem ditulis qualified (`dpl.dpl_proposals`) di migration/model/query; nama tabel tidak berubah saat dipindah schema.
+- Struktur kode mengikuti schema: model `public` di `App\Models`, model schema `dpl` di `App\Models\Dpl` (factory di `Database\Factories\Dpl`), migration per domain di `database/migrations/{domain}`. Sistem berikutnya mengikuti pola yang sama (mis. `App\Models\Ebu`).
 - `database.connections.pgsql.search_path` = `public,dpl`; setiap schema sistem baru wajib ditambahkan agar ikut di-wipe oleh `migrate:fresh`/`db:wipe`.
 - Master di `public` sebaiknya tidak bergantung pada schema sistem. Pengecualian saat ini: `outlets.price_region_id` -> `dpl.price_regions` (lihat open decision).
 - Test memakai PostgreSQL lokal (`edpl_testing`) karena SQLite tidak mendukung schema.
