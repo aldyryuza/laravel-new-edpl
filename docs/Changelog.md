@@ -31,6 +31,15 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 - Laravel Excel (`maatwebsite/excel` v4): ekspor Daftar User (`GET /users/export`, hak akses `users.print`, rate limit `export` 10/menit per user), mengikuti pencarian tabel, dicatat ke audit log. Semua sel disimpan sebagai teks untuk mencegah formula injection.
 - Yajra DataTables sebagai standar data tabel: endpoint `GET api/users|roles|menus|activity-logs/datatable`, helper JS `App.dataTableSource()`, sorting per kolom (whitelist).
 
+- Migration schema E-DPL PostgreSQL (`2026_10_06_000001`-`000039`): kolom `users.uuid` (UUID v4, unique, backfill user existing), `users.is_active`, `users.last_login_at`; tabel organisasi, master outlet/product/distributor, commercial, DPL core, approval per item, dan dokumen sesuai `docs/Schema.md`. Partial unique index satu DPL ACTIVE per outlet + team. `distributor_margin_rules`/`distributor_margin_overrides` belum dibuat (desain pending).
+- Model `User` mengisi `uuid` otomatis saat create (PK tetap `id`).
+- Migration E-DPL dikelompokkan per domain di `database/migrations/{identity,organization,master,commercial,dpl,approval,documents}`; subfolder didaftarkan di `AppServiceProvider` dan urutan eksekusi tetap mengikuti timestamp nama file.
+- PostgreSQL schema per sistem: tabel commercial, DPL, approval, dan dokumen E-DPL berada di schema `dpl` (`2026_10_06_000000_create_dpl_schema`); master bersama tetap di `public`. `search_path` menjadi `public,dpl`.
+
+### Changed (testing)
+
+- Test suite memakai PostgreSQL lokal `edpl_testing` (sebelumnya SQLite in-memory), karena SQLite tidak mendukung schema. Buat database-nya sekali: `createdb -h 127.0.0.1 -U postgres edpl_testing`.
+
 ### Changed
 
 - **Breaking (API):** `GET api/users`, `GET api/roles`, dan `GET api/activity-logs` dihapus, diganti endpoint `.../datatable` (protokol DataTables). `GET api/menus` tetap untuk pilihan parent. Filter kata kunci Audit Log kini bernama `keyword`.

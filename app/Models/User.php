@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -22,7 +23,7 @@ use Spatie\Activitylog\Support\LogOptions;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, LogsActivity, Notifiable;
+    use HasFactory, HasUuids, LogsActivity, Notifiable;
 
     /**
      * Hak akses role aktif, di-cache per instance (per request).
@@ -43,6 +44,24 @@ class User extends Authenticatable
     public function getActivitylogOptions(): LogOptions
     {
         return AuditLog::dataOptions(['nik', 'name', 'email'], fn () => "User {$this->name} ({$this->nik})");
+    }
+
+    /**
+     * uuid diisi otomatis saat create; PK tetap `id` (bigint) untuk FK internal.
+     *
+     * @return array<int, string>
+     */
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    /**
+     * UUID v4 acak: identifier publik/JWT `sub` yang opaque (tidak memuat waktu pembuatan).
+     */
+    public function newUniqueId(): string
+    {
+        return (string) Str::uuid();
     }
 
     /**
@@ -77,7 +96,9 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 

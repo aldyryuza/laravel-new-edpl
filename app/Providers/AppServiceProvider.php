@@ -31,6 +31,16 @@ class AppServiceProvider extends ServiceProvider
         $this->registerMenuAccessGate();
         $this->registerRateLimiters();
         $this->configurePulse();
+        $this->registerDomainMigrationPaths();
+    }
+
+    /**
+     * Migration E-DPL dikelompokkan per domain di subfolder database/migrations/{domain}.
+     * Urutan eksekusi tetap global berdasarkan timestamp nama file, bukan per folder.
+     */
+    private function registerDomainMigrationPaths(): void
+    {
+        $this->loadMigrationsFrom(glob(database_path('migrations/*'), GLOB_ONLYDIR) ?: []);
     }
 
     /**

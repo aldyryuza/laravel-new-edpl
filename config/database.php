@@ -95,7 +95,9 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
+            // public = master bersama lintas sistem; schema per sistem (dpl, nanti ebu/crm) untuk transaksi.
+            // Schema baru wajib ditambahkan di sini agar ikut di-wipe oleh migrate:fresh / db:wipe.
+            'search_path' => 'public,dpl',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 

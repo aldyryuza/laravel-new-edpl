@@ -21,7 +21,14 @@
 - Event timestamp menggunakan timestamp Laravel/PostgreSQL yang konsisten; future phase dapat menstandardisasi timezone-aware timestamp jika dibutuhkan seluruh project.
 - Historical DPL/approval tidak boleh terhapus karena cascade dari master data.
 - `activity_log` (Spatie) tetap menjadi audit teknis/data. Business history menggunakan tabel domain.
-- Default PostgreSQL schema `public` digunakan untuk menjaga Laravel/Eloquent/tooling sederhana. Tidak dibuat banyak PostgreSQL namespace kecuali ada kebutuhan nyata di masa depan.
+- PostgreSQL schema dipisahkan **per sistem**:
+  - `public`: master bersama lintas sistem (CRM/EBU/E-DPL) — identity & access (`users`, `roles`, `user_has_roles`, `menus`, `role_menu_accesses`, `activity_log`), organization (`sales_*`, `user_org_assignments`, `user_area_scopes`, `user_visibility_edges`), outlet master, `products`, `distributors`, `distributor_regions`, serta tabel framework (cache, jobs, sessions, pulse, migrations).
+  - `dpl`: transaksi dan aturan milik E-DPL — Commercial, DPL core, Approval, dan Documents (lihat bagian 3).
+  - Sistem berikutnya (EBU/CRM) memakai schema sendiri untuk transaksinya.
+- Tabel schema sistem ditulis qualified (`dpl.dpl_proposals`) di migration/model/query; nama tabel tidak berubah saat dipindah schema.
+- `database.connections.pgsql.search_path` = `public,dpl`; setiap schema sistem baru wajib ditambahkan agar ikut di-wipe oleh `migrate:fresh`/`db:wipe`.
+- Master di `public` sebaiknya tidak bergantung pada schema sistem. Pengecualian saat ini: `outlets.price_region_id` -> `dpl.price_regions` (lihat open decision).
+- Test memakai PostgreSQL lokal (`edpl_testing`) karena SQLite tidak mendukung schema.
 
 ## 2. Target ERD - high level
 
@@ -121,7 +128,9 @@ Existing fields remain. Target identity:
 | `name` | varchar(255) | No | - | |
 | `email` | varchar(255) | No | - | UNIQUE |
 | `email_verified_at` | timestamp | Yes | - | existing |
+| `last_login_at` | timestamp | Yes | - | waktu login terakhir |
 | `password` | varchar(255) | No | - | hash only |
+| `is_active` | boolean | No | true | status akun; user dinonaktifkan, bukan dihapus (FK domain RESTRICT) |
 | `remember_token` | varchar(100) | Yes | - | existing Laravel |
 | `created_at` | timestamp | Yes | - | |
 | `updated_at` | timestamp | Yes | - | |
@@ -131,6 +140,7 @@ Rules:
 - `users.id` digunakan oleh FK internal.
 - NIK bukan PK.
 - Future JWT `sub` menggunakan `users.uuid`; NIK boleh menjadi claim tambahan.
+- `uuid` adalah UUID v4 acak, di-generate model `User` saat create; user existing di-backfill oleh migration (nullable -> backfill -> NOT NULL + UNIQUE).
 - Sebelum legacy cutover, audit NIK null/blank/duplicate wajib dilakukan.
 - Jangan mengubah password hash legacy tanpa migration strategy yang sudah dikonfirmasi.
 
@@ -918,6 +928,14 @@ Do not add indexes speculatively beyond known query patterns.
 | DBR-012 | approval_workflow_steps | UNIQUE `(workflow_id, sequence)` | deterministic step order |
 | DBR-013 | approval_item_states | UNIQUE `(step_instance_id, dpl_item_id)` | one current state per item-step |
 | DBR-014 | user_visibility_edges | CHECK viewer != owner | invalid self edge |
+| DBR-015 | tabel dengan `valid_from`/`valid_until` | CHECK `valid_until >= valid_from` bila keduanya terisi | periode valid |
+| DBR-016 | approver_assignments | CHECK `region_id IS NULL OR zone_id IS NULL` | satu scope: region (RM), zone (NSM), atau global |
+| DBR-017 | dpl_consolidation_outlets | UNIQUE `generated_dpl_id` (null diizinkan) | satu DPL hasil hanya milik satu consolidation outlet |
+| DBR-018 | distributors | CHECK parent != id | invalid self parent |
+| DBR-019 | outlets, dpl_proposals, attachments | CHECK `bed_count`, `bed_count_snapshot`, `file_size` null atau >= 0 | nilai non-negatif |
+| DBR-020 | approval_workflow_steps | CHECK `sequence > 0` | urutan step valid |
+
+CHECK constraint dan partial unique index DBR-006 dibuat dengan raw SQL PostgreSQL.
 
 Do not add percentage <= 100 constraints before special-case data is validated.
 
@@ -1161,6 +1179,7 @@ Do not let coding agent invent these:
 6. NetSuite integration ownership/constraints.
 7. Legacy password migration strategy.
 8. Exact reporting table design/load strategy.
+9. `outlets.price_region_id` (master `public`) masih FK ke `dpl.price_regions`: tetap begitu, pindahkan `price_regions` ke `public`, atau ganti dengan mapping outlet -> price region di schema `dpl`.
 
 ## 23. Schema checklist
 
