@@ -60,6 +60,10 @@ class AccessControlSeeder extends Seeder
                 ['code' => 'outlet-groups', 'title' => 'Group RS', 'icon' => 'bx bx-collection', 'route' => 'outlet-groups.index', 'sort_order' => 2],
                 ['code' => 'outlet-classifications', 'title' => 'Klasifikasi Outlet', 'icon' => 'bx bx-category', 'route' => 'outlet-classifications.index', 'sort_order' => 3],
             ]],
+            ['code' => 'master-product-distributor', 'title' => 'Master Produk & Distributor', 'icon' => 'bx bx-package', 'route' => null, 'sort_order' => 12, 'children' => [
+                ['code' => 'products', 'title' => 'Product', 'icon' => 'bx bx-capsule', 'route' => 'products.index', 'sort_order' => 1],
+                ['code' => 'distributors', 'title' => 'Distributor', 'icon' => 'bx bx-store', 'route' => 'distributors.index', 'sort_order' => 2],
+            ]],
             ['code' => 'settings', 'title' => 'Pengaturan', 'icon' => 'bx bx-cog', 'route' => null, 'sort_order' => 99, 'children' => [
                 ['code' => 'users', 'title' => 'User', 'icon' => 'bx bx-user', 'route' => 'users.index', 'sort_order' => 1],
                 ['code' => 'roles', 'title' => 'Role & Hak Akses', 'icon' => 'bx bx-shield-quarter', 'route' => 'roles.index', 'sort_order' => 2],

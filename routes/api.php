@@ -1,12 +1,14 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\DistributorController;
 use App\Http\Controllers\Api\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OutletCategoryController;
 use App\Http\Controllers\Api\OutletController;
 use App\Http\Controllers\Api\OutletGroupController;
 use App\Http\Controllers\Api\OwnershipTypeController;
+use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RoleAccessController;
 use App\Http\Controllers\Api\RoleController;
@@ -64,6 +66,14 @@ Route::get('outlet-categories/datatable', [OutletCategoryController::class, 'dat
 Route::apiResource('outlet-categories', OutletCategoryController::class)->only(['store', 'update', 'destroy']);
 Route::get('ownership-types/datatable', [OwnershipTypeController::class, 'datatable'])->name('ownership-types.datatable');
 Route::apiResource('ownership-types', OwnershipTypeController::class)->only(['store', 'update', 'destroy']);
+
+// Master product & distributor (schema public)
+Route::get('products/datatable', [ProductController::class, 'datatable'])->name('products.datatable');
+Route::post('products/import', [ProductController::class, 'import'])->name('products.import');
+Route::apiResource('products', ProductController::class)->except('index');
+Route::get('distributors/datatable', [DistributorController::class, 'datatable'])->name('distributors.datatable');
+Route::post('distributors/import', [DistributorController::class, 'import'])->name('distributors.import');
+Route::apiResource('distributors', DistributorController::class)->except('index');
 
 // E-DPL (schema dpl)
 Route::prefix('dpl')->name('dpl.')->group(function () {

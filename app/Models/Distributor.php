@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Dpl\DistributorBranchHead;
+use App\Support\AuditLog;
 use Database\Factories\DistributorFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Master distributor beserta cabangnya.
@@ -18,7 +21,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Distributor extends Model
 {
     /** @use HasFactory<DistributorFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return AuditLog::dataOptions(['code', 'name', 'group_code', 'city_name', 'is_branch', 'parent_distributor_id', 'is_active', 'netsuite_id'], fn () => "Distributor {$this->name} ({$this->code})");
+    }
 
     /**
      * Get the attributes that should be cast.

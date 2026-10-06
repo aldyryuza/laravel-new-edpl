@@ -4,6 +4,7 @@ use App\Http\Controllers\Web\ActiveRoleController;
 use App\Http\Controllers\Web\AuditLogController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\DashboardController;
+use App\Http\Controllers\Web\DistributorController;
 use App\Http\Controllers\Web\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Web\ExampleController;
 use App\Http\Controllers\Web\MenuController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Web\OnlineUserController;
 use App\Http\Controllers\Web\OutletClassificationController;
 use App\Http\Controllers\Web\OutletController;
 use App\Http\Controllers\Web\OutletGroupController;
+use App\Http\Controllers\Web\ProductController;
 use App\Http\Controllers\Web\ProfileController;
 use App\Http\Controllers\Web\RoleController;
 use App\Http\Controllers\Web\SalesAreaController;
@@ -73,6 +75,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/outlet-classifications', [OutletClassificationController::class, 'index'])
         ->middleware('can:outlet-classifications.read')
         ->name('outlet-classifications.index');
+
+    // Master product & distributor (schema public)
+    Route::get('/products', [ProductController::class, 'index'])->middleware('can:products.read')->name('products.index');
+    Route::get('/products/import-template', [ProductController::class, 'template'])
+        ->middleware(['can:products.create', 'throttle:export'])
+        ->name('products.import-template');
+    Route::get('/distributors', [DistributorController::class, 'index'])->middleware('can:distributors.read')->name('distributors.index');
+    Route::get('/distributors/import-template', [DistributorController::class, 'template'])
+        ->middleware(['can:distributors.create', 'throttle:export'])
+        ->name('distributors.import-template');
 
     // E-DPL (schema dpl)
     Route::prefix('dpl')->name('dpl.')->group(function () {
