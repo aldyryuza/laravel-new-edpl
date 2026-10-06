@@ -2,7 +2,6 @@
 
 namespace Database\Factories\Dpl;
 
-use App\Models\Dpl\PriceRegion;
 use App\Models\Dpl\ProductPrice;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -21,7 +20,6 @@ class ProductPriceFactory extends Factory
     {
         return [
             'product_id' => Product::factory(),
-            'price_region_id' => PriceRegion::factory(),
             'price' => fake()->randomFloat(4, 1000, 100000),
             'regular_price' => null,
             'valid_from' => null,

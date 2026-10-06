@@ -61,6 +61,7 @@ Catat perubahan penting yang memengaruhi behavior, schema, API, security, UI, at
 
 - `outlets.price_region_id` dihapus; region harga outlet pindah ke mapping `dpl.outlet_price_regions` (migration `2026_10_06_000041`, data lama ikut dipindah). Model `Dpl\OutletPriceRegion`; relasi `Outlet::priceRegion()` dihapus.
 - **Breaking (schema/API/import):** `distributors.city_name` (teks) diganti `distributors.city_id` (FK master kota), migration `2026_10_06_000048`. Teks lama dicocokkan ke `cities.name`; bila ada yang tidak cocok migration berhenti (tidak ada data hilang diam-diam). Field API `city_name` -> `city_id`; kolom import distributor `kota` -> `kode_kota`.
+- **Dihapus (keputusan user): region harga.** Harga DPL tidak dibedakan per region, sehingga `dpl.price_regions`, `dpl.outlet_price_regions`, `dpl.distributor_price_regions`, dan kolom `price_region_id` di `dpl.product_prices`/`dpl.product_price_overrides` dihapus (migration `2026_10_06_000050`, termasuk menu Region Harga/Region Harga Outlet/Region Harga Distributor). Harga Product menjadi satu harga per product + periode berlaku; import tanpa kolom `kode_region_harga`, upsert per product + berlaku mulai.
 
 ### Changed (user)
 

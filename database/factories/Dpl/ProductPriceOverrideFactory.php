@@ -22,7 +22,6 @@ class ProductPriceOverrideFactory extends Factory
             'price_type' => 'JKN',
             'outlet_group_id' => null,
             'product_id' => Product::factory(),
-            'price_region_id' => null,
             'price' => fake()->randomFloat(4, 1000, 100000),
             'valid_from' => null,
             'valid_until' => null,

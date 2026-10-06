@@ -4,8 +4,6 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\CityController;
 use App\Http\Controllers\Api\DistributorController;
 use App\Http\Controllers\Api\Dpl\ApproverAssignmentController;
-use App\Http\Controllers\Api\Dpl\PriceRegionController;
-use App\Http\Controllers\Api\Dpl\PriceRegionMappingController;
 use App\Http\Controllers\Api\Dpl\ProductPriceController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OutletCategoryController;
@@ -95,27 +93,6 @@ Route::prefix('dpl')->name('dpl.')->group(function () {
     Route::apiResource('approver-assignments', ApproverAssignmentController::class)->except('index');
 
     // Komersial DPL
-    Route::get('price-regions/datatable', [PriceRegionController::class, 'datatable'])->name('price-regions.datatable');
-    Route::post('price-regions/import', [PriceRegionController::class, 'import'])->name('price-regions.import');
-    Route::apiResource('price-regions', PriceRegionController::class)->only(['store', 'update', 'destroy']);
-
-    // Region harga outlet & distributor: hak akses dipasang di sini karena tipe datang dari route defaults.
-    foreach (['outlet' => 'outlets', 'distributor' => 'distributors'] as $label => $type) {
-        Route::get("{$label}-price-regions/datatable", [PriceRegionMappingController::class, 'datatable'])
-            ->defaults('type', $type)
-            ->middleware("can:{$label}-price-regions.read")
-            ->name("{$label}-price-regions.datatable");
-        Route::post("{$label}-price-regions/import", [PriceRegionMappingController::class, 'import'])
-            ->defaults('type', $type)
-            ->middleware("can:{$label}-price-regions.update")
-            ->name("{$label}-price-regions.import");
-        Route::put("{$label}-price-regions/{id}", [PriceRegionMappingController::class, 'update'])
-            ->defaults('type', $type)
-            ->whereNumber('id')
-            ->middleware("can:{$label}-price-regions.update")
-            ->name("{$label}-price-regions.update");
-    }
-
     Route::get('product-prices/datatable', [ProductPriceController::class, 'datatable'])->name('product-prices.datatable');
     Route::post('product-prices/import', [ProductPriceController::class, 'import'])->name('product-prices.import');
     Route::apiResource('product-prices', ProductPriceController::class)->only(['store', 'update', 'destroy']);

@@ -67,10 +67,7 @@ class AccessControlSeeder extends Seeder
                 ['code' => 'distributors', 'title' => 'Distributor', 'icon' => 'bx bx-store', 'route' => 'distributors.index', 'sort_order' => 2],
             ]],
             ['code' => 'commercial-dpl', 'title' => 'Komersial DPL', 'icon' => 'bx bx-dollar-circle', 'route' => null, 'sort_order' => 13, 'children' => [
-                ['code' => 'price-regions', 'title' => 'Region Harga', 'icon' => 'bx bx-map', 'route' => 'dpl.price-regions.index', 'sort_order' => 1],
-                ['code' => 'outlet-price-regions', 'title' => 'Region Harga Outlet', 'icon' => 'bx bx-building-house', 'route' => 'dpl.outlet-price-regions.index', 'sort_order' => 2],
-                ['code' => 'distributor-price-regions', 'title' => 'Region Harga Distributor', 'icon' => 'bx bx-store', 'route' => 'dpl.distributor-price-regions.index', 'sort_order' => 3],
-                ['code' => 'product-prices', 'title' => 'Harga Product', 'icon' => 'bx bx-purchase-tag', 'route' => 'dpl.product-prices.index', 'sort_order' => 4],
+                ['code' => 'product-prices', 'title' => 'Harga Product', 'icon' => 'bx bx-purchase-tag', 'route' => 'dpl.product-prices.index', 'sort_order' => 1],
             ]],
             ['code' => 'settings', 'title' => 'Pengaturan', 'icon' => 'bx bx-cog', 'route' => null, 'sort_order' => 99, 'children' => [
                 ['code' => 'users', 'title' => 'User', 'icon' => 'bx bx-user', 'route' => 'users.index', 'sort_order' => 1],

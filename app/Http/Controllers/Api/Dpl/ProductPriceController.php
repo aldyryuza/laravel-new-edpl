@@ -15,11 +15,11 @@ use Illuminate\Routing\Controllers\Middleware;
 use Yajra\DataTables\Facades\DataTables;
 
 /**
- * Harga product per region harga (legacy dpl_price_product) dengan periode berlaku.
+ * Harga product (satu harga per product, legacy dpl_price_product) dengan periode berlaku.
  */
 class ProductPriceController extends Controller implements HasMiddleware
 {
-    private const RELATIONS = ['product:id,code,name,volume', 'priceRegion:id,code,name'];
+    private const RELATIONS = ['product:id,code,name,volume'];
 
     /**
      * @return array<int, Middleware>
@@ -37,7 +37,7 @@ class ProductPriceController extends Controller implements HasMiddleware
     }
 
     /**
-     * Data tabel (Yajra). Filter opsional: price_region_id, is_active, effective_today (berlaku hari ini).
+     * Data tabel (Yajra). Filter opsional: is_active, effective_today (berlaku hari ini).
      * Pencarian: kode/nama product.
      */
     public function datatable(Request $request): JsonResponse
@@ -45,9 +45,8 @@ class ProductPriceController extends Controller implements HasMiddleware
         $today = now()->toDateString();
 
         $query = ProductPrice::query()
-            ->select(['id', 'product_id', 'price_region_id', 'price', 'regular_price', 'valid_from', 'valid_until', 'is_active'])
+            ->select(['id', 'product_id', 'price', 'regular_price', 'valid_from', 'valid_until', 'is_active'])
             ->with(self::RELATIONS)
-            ->when($request->integer('price_region_id'), fn (Builder $query, int $id) => $query->where('price_region_id', $id))
             ->when($request->filled('is_active'), fn (Builder $query) => $query->where('is_active', $request->boolean('is_active')))
             ->when($request->boolean('effective_today'), fn (Builder $query) => $query
                 ->where('is_active', true)
@@ -91,7 +90,7 @@ class ProductPriceController extends Controller implements HasMiddleware
     }
 
     /**
-     * Import Excel (upsert per product + region harga + berlaku mulai). Bila ada baris error, tidak ada
+     * Import Excel (upsert per product + berlaku mulai). Bila ada baris error, tidak ada
      * yang disimpan (422, error di `errors.file`).
      */
     public function import(ExcelImportRequest $request, ProductPriceImportService $importService): JsonResponse

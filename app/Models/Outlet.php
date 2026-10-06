@@ -16,7 +16,7 @@ use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Master outlet (schema public, dipakai lintas sistem). Region/zone outlet diturunkan dari area
- * (area -> region -> zone). Region harga outlet milik DPL ada di Dpl\OutletPriceRegion.
+ * (area -> region -> zone).
  */
 #[Fillable([
     'code', 'name', 'address', 'city_id', 'area_id', 'outlet_category_id', 'ownership_type_id', 'bed_count',

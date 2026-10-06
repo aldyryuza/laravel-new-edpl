@@ -14,10 +14,11 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
 /**
- * Harga product per price region (legacy dpl_price_product).
+ * Harga product (satu harga nasional per product) dengan periode berlaku (legacy dpl_price_product).
+ * Harga tidak dibedakan per region (keputusan user 2026-10-06).
  */
 #[Table('dpl.product_prices')]
-#[Fillable(['product_id', 'price_region_id', 'price', 'regular_price', 'valid_from', 'valid_until', 'is_active'])]
+#[Fillable(['product_id', 'price', 'regular_price', 'valid_from', 'valid_until', 'is_active'])]
 class ProductPrice extends Model
 {
     /** @use HasFactory<ProductPriceFactory> */
@@ -25,7 +26,7 @@ class ProductPrice extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return AuditLog::dataOptions(['product_id', 'price_region_id', 'price', 'regular_price', 'valid_from', 'valid_until', 'is_active'], fn () => "Harga product {$this->product?->code} region {$this->priceRegion?->code}");
+        return AuditLog::dataOptions(['product_id', 'price', 'regular_price', 'valid_from', 'valid_until', 'is_active'], fn () => "Harga product {$this->product?->code}");
     }
 
     /**
@@ -50,13 +51,5 @@ class ProductPrice extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
-    }
-
-    /**
-     * @return BelongsTo<PriceRegion, $this>
-     */
-    public function priceRegion(): BelongsTo
-    {
-        return $this->belongsTo(PriceRegion::class);
     }
 }

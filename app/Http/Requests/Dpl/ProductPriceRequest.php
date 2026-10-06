@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Dpl;
 
-use App\Models\Dpl\PriceRegion;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -29,7 +28,6 @@ class ProductPriceRequest extends FormRequest
     {
         return [
             'product_id' => ['required', 'integer', Rule::exists('products', 'id')],
-            'price_region_id' => ['required', 'integer', Rule::exists(PriceRegion::class, 'id')],
             'price' => ['required', 'numeric', 'min:0', 'max:'.self::MAX_AMOUNT, 'decimal:0,4'],
             'regular_price' => ['nullable', 'numeric', 'min:0', 'max:'.self::MAX_AMOUNT, 'decimal:0,4'],
             'valid_from' => ['nullable', 'date_format:Y-m-d'],
@@ -45,7 +43,6 @@ class ProductPriceRequest extends FormRequest
     {
         return [
             'product_id' => 'product',
-            'price_region_id' => 'region harga',
             'price' => 'harga',
             'regular_price' => 'harga reguler',
             'valid_from' => 'berlaku mulai',

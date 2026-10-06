@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Exports\ImportTemplateExport;
 use App\Exports\ImportTemplateSheet;
 use App\Models\City;
-use App\Models\Dpl\PriceRegion;
 use App\Models\Province;
 use App\Models\SalesArea;
 use App\Models\SalesRegion;
@@ -19,7 +18,7 @@ use InvalidArgumentException;
 
 /**
  * Import Excel master berkode sederhana dengan parent opsional: organisasi penjualan (zona, region, area),
- * wilayah administratif (provinsi, kota), dan region harga DPL. Aturan:
+ * dan wilayah administratif (provinsi, kota). Aturan:
  * - kode yang sudah ada diperbarui, kode baru dibuat (upsert berdasarkan kode);
  * - semua baris divalidasi dulu; bila ada satu saja error, tidak ada yang disimpan;
  * - parent (zona/region) dirujuk lewat kode, bukan ID.
@@ -35,8 +34,6 @@ class CodeMasterImportService extends ExcelImporter
     public const PROVINCE = 'province';
 
     public const CITY = 'city';
-
-    public const PRICE_REGION = 'price_region';
 
     /**
      * @return array{created: int, updated: int, unchanged: int}
@@ -121,7 +118,6 @@ class CodeMasterImportService extends ExcelImporter
                 'code_max' => 10,
                 'parent' => ['column' => 'kode_provinsi', 'model' => Province::class, 'key' => 'province_id', 'label' => 'provinsi'],
             ],
-            self::PRICE_REGION => ['model' => PriceRegion::class, 'label' => 'region harga', 'code_max' => 30, 'parent' => null],
             default => throw new InvalidArgumentException("Tipe import tidak dikenal: {$type}"),
         };
     }

@@ -12,11 +12,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Harga khusus (legacy dpl_price_product_special). price_region_id null = semua region.
+ * Harga khusus (legacy dpl_price_product_special), mis. JKN/PADMA per group outlet.
  */
 #[Table('dpl.product_price_overrides')]
 #[Fillable([
-    'price_type', 'outlet_group_id', 'product_id', 'price_region_id', 'price',
+    'price_type', 'outlet_group_id', 'product_id', 'price',
     'valid_from', 'valid_until', 'is_active', 'note',
 ])]
 class ProductPriceOverride extends Model
@@ -53,13 +53,5 @@ class ProductPriceOverride extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
-    }
-
-    /**
-     * @return BelongsTo<PriceRegion, $this>
-     */
-    public function priceRegion(): BelongsTo
-    {
-        return $this->belongsTo(PriceRegion::class);
     }
 }

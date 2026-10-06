@@ -26,10 +26,10 @@
   - `dpl`: transaksi dan aturan milik E-DPL — Commercial, DPL core, Approval, dan Documents (lihat bagian 3).
   - Sistem berikutnya (EBU/CRM) memakai schema sendiri untuk transaksinya.
 - Tabel schema sistem ditulis qualified (`dpl.dpl_proposals`) di migration/model/query; nama tabel tidak berubah saat dipindah schema.
-- **Validasi `unique`/`exists` untuk tabel schema sistem wajib memakai class model**, mis. `Rule::exists(PriceRegion::class, 'id')`. Bentuk string `exists:dpl.price_regions` atau `Rule::exists('dpl.price_regions')` dibaca Laravel sebagai *koneksi database* `dpl`, bukan schema.
+- **Validasi `unique`/`exists` untuk tabel schema sistem wajib memakai class model**, mis. `Rule::exists(ProductPrice::class, 'id')`. Bentuk string `exists:dpl.product_prices` atau `Rule::exists('dpl.product_prices')` dibaca Laravel sebagai *koneksi database* `dpl`, bukan schema.
 - Struktur kode mengikuti schema: model `public` di `App\Models`, model schema `dpl` di `App\Models\Dpl` (factory di `Database\Factories\Dpl`), migration per domain di `database/migrations/{domain}`. Sistem berikutnya mengikuti pola yang sama (mis. `App\Models\Ebu`).
 - `database.connections.pgsql.search_path` = `public,dpl`; setiap schema sistem baru wajib ditambahkan agar ikut di-wipe oleh `migrate:fresh`/`db:wipe`.
-- Master di `public` tidak bergantung pada schema sistem. Data milik sistem tentang master (mis. region harga outlet untuk DPL) disimpan sebagai mapping di schema sistem tersebut (`dpl.outlet_price_regions`).
+- Master di `public` tidak bergantung pada schema sistem. Data milik sistem tentang master disimpan sebagai mapping di schema sistem tersebut.
 - Test memakai PostgreSQL lokal (`edpl_testing`) karena SQLite tidak mendukung schema.
 
 ## 2. Target ERD - high level
@@ -54,7 +54,6 @@ erDiagram
     OUTLETS ||--o{ OUTLET_GROUP_MEMBERS : member
 
     PRODUCTS ||--o{ PRODUCT_PRICES : priced
-    PRICE_REGIONS ||--o{ PRODUCT_PRICES : defines
     DISTRIBUTORS ||--o{ DISTRIBUTORS : parent_of
 
     OUTLETS ||--o{ DPL_PROPOSALS : receives
@@ -112,7 +111,7 @@ erDiagram
 | Wilayah administratif | `provinces`, `cities` |
 | Outlet master | `outlet_categories`, `ownership_types`, `outlet_groups`, `outlet_group_members`, `outlets` |
 | Product/Distributor master | `products`, `distributors`, `distributor_regions` |
-| Commercial | `price_regions`, `product_prices`, `product_price_overrides`, `bonus_schemes`, `distributor_margin_rules`, `distributor_margin_overrides`, `commercial_parameters` |
+| Commercial | `product_prices`, `product_price_overrides`, `bonus_schemes`, `distributor_margin_rules`, `distributor_margin_overrides`, `commercial_parameters` |
 | DPL core | `dpl_proposals`, `dpl_items`, `dpl_item_terms`, `dpl_status_histories`, `dpl_revisions`, `dpl_relations`, `dpl_consolidations`, `dpl_consolidation_outlets` |
 | Approval | `approval_workflows`, `approval_workflow_steps`, `approver_assignments`, `approval_instances`, `approval_step_instances`, `approval_step_assignees`, `approval_item_states`, `approval_actions`, `approval_override_requests` |
 | Documents | `distributor_branch_heads`, `exit_letters`, `attachments` |
@@ -327,7 +326,7 @@ Mapping legacy GRUP3 / group rumah sakit.
 
 Indexes: `area_id`, `outlet_category_id`, `ownership_type_id`.
 
-Region harga outlet tidak disimpan di sini (decision #9): lihat `dpl.outlet_price_regions`. Kolom `price_region_id` lama dipindah oleh migration `2026_10_06_000041`.
+Tidak ada region harga di outlet: harga DPL tidak dibedakan per region (lihat bagian 8).
 
 ### `outlet_group_members`
 
@@ -386,7 +385,6 @@ Tidak membuat `product_groups` hanya untuk volume.
 
 Index: `parent_distributor_id`. Kontak/lokasi ditambahkan oleh migration `2026_10_06_000043`. Hierarki induk -> cabang tidak boleh melingkar (dicek aplikasi).
 
-Region harga distributor ada di `dpl.distributor_price_regions` (legacy `PRICE_REGION_ID`).
 
 ### `distributor_regions`
 
@@ -399,48 +397,16 @@ PK/UNIQUE composite: `(distributor_id, region_id)`.
 
 ## 8. Commercial master
 
-### `price_regions`
+> **Keputusan user (2026-10-06): harga DPL tidak dibedakan per region.** Tabel `price_regions`, `outlet_price_regions`, dan `distributor_price_regions` beserta kolom `price_region_id` dihapus (migration `2026_10_06_000050`). Harga product = satu harga per product dengan periode berlaku.
 
-| Column | Type | Nullable | Constraint/Note |
-|---|---|---:|---|
-| `id` | bigint | No | PK |
-| `code` | varchar(30) | No | UNIQUE |
-| `name` | varchar(100) | No | |
-| `description` | varchar(255) | Yes | |
-| `is_active` | boolean | No | default true |
-| timestamps | timestamp | Yes | |
+### `product_prices` (schema `dpl`)
 
-### `outlet_price_regions` (schema `dpl`)
-
-Region harga outlet untuk keperluan DPL (decision #9), satu per outlet.
-
-| Column | Type | Nullable | Constraint/Note |
-|---|---|---:|---|
-| `id` | bigint | No | PK |
-| `outlet_id` | bigint | No | FK `public.outlets.id`, RESTRICT, UNIQUE |
-| `price_region_id` | bigint | No | FK `dpl.price_regions.id`, RESTRICT |
-| timestamps | timestamp | Yes | |
-
-Index: `price_region_id`. Pengelolaan (UI/import) dibuat di modul Commercial.
-
-### `distributor_price_regions` (schema `dpl`)
-
-Region harga distributor untuk keperluan DPL (legacy `distributor.PRICE_REGION_ID`), satu per distributor. Harga DPL memakai region harga **outlet dan distributor** (user confirmation); aturan prioritas bila keduanya berbeda difinalkan di modul Commercial.
-
-| Column | Type | Nullable | Constraint/Note |
-|---|---|---:|---|
-| `id` | bigint | No | PK |
-| `distributor_id` | bigint | No | FK `public.distributors.id`, RESTRICT, UNIQUE |
-| `price_region_id` | bigint | No | FK `dpl.price_regions.id`, RESTRICT |
-| timestamps | timestamp | Yes | |
-
-### `product_prices`
+Satu harga per product (legacy `dpl_price_product`, tanpa region) dengan periode berlaku; histori kenaikan harga disimpan sebagai baris baru.
 
 | Column | Type | Nullable | Constraint/Note |
 |---|---|---:|---|
 | `id` | bigint | No | PK |
 | `product_id` | bigint | No | FK `products.id`, RESTRICT |
-| `price_region_id` | bigint | No | FK `price_regions.id`, RESTRICT |
 | `price` | numeric(18,4) | No | |
 | `regular_price` | numeric(18,4) | Yes | |
 | `valid_from` | date | Yes | |
@@ -448,11 +414,11 @@ Region harga distributor untuk keperluan DPL (legacy `distributor.PRICE_REGION_I
 | `is_active` | boolean | No | default true |
 | timestamps | timestamp | Yes | |
 
-Indexes: `(product_id, price_region_id)`, `(price_region_id, is_active)`.
+Index: `(product_id, valid_from)` (kunci upsert import).
 
 Do not create overlapping-period exclusion constraint until the exact pricing history rule is confirmed.
 
-### `product_price_overrides`
+### `product_price_overrides` (schema `dpl`)
 
 | Column | Type | Nullable | Constraint/Note |
 |---|---|---:|---|
@@ -460,13 +426,14 @@ Do not create overlapping-period exclusion constraint until the exact pricing hi
 | `price_type` | varchar(50) | No | legacy JKN/PADMA/etc. |
 | `outlet_group_id` | bigint | Yes | FK `outlet_groups.id`, RESTRICT |
 | `product_id` | bigint | No | FK `products.id`, RESTRICT |
-| `price_region_id` | bigint | Yes | FK `price_regions.id`, RESTRICT; null = all region if business rule retained |
 | `price` | numeric(18,4) | No | |
 | `valid_from` | date | Yes | |
 | `valid_until` | date | Yes | |
 | `is_active` | boolean | No | default true |
 | `note` | text | Yes | |
 | timestamps | timestamp | Yes | |
+
+Index: `product_id`.
 
 ### `bonus_schemes`
 
@@ -1075,7 +1042,7 @@ Do not add percentage <= 100 constraints before special-case data is validated.
 
 | Legacy | New | Action |
 |---|---|---|
-| `dpl_price_region` | `price_regions` | Keep/Cleanup |
+| `dpl_price_region` | none | Tidak dimigrasikan; harga tidak dibedakan per region |
 | `dpl_price_product` | `product_prices` | Redesign numeric types |
 | `dpl_price_product_special` | `product_price_overrides` | Redesign |
 | `dpl_bonus` | `bonus_schemes` | Redesign after data inspection |
@@ -1100,7 +1067,7 @@ Disusun dari contoh data `MJMTERNATE` + keputusan user (2026-10-06).
 | `REGAREA`, `AREA`, `NSMZONE` | tidak disimpan | redundan (turunan region/zone); dipakai untuk rekonsiliasi mapping |
 | `branch`, `consolidation` | `is_branch` / `parent_distributor_id` | arti kolom perlu diverifikasi dari data |
 | `is_active` | `distributors.is_active` | |
-| `PRICE_REGION_ID` | `dpl.distributor_price_regions` | |
+| `PRICE_REGION_ID` | tidak diambil | harga tidak dibedakan per region |
 | `KACAB`, `HPKACAB` | `dpl.distributor_branch_heads.name`, `.phone` | |
 | `margin`, `margin_tim_b`, `margin_description` | `distributor_margin_rules` (pending) | deskripsi berisi margin + program bonus per volume (500, 100 & 250, 1000, 25) dan margin Tim B; dipecah manual saat migrasi |
 | `NAMAREP`, `HPREP`, `EMAILREP` | tidak diambil | kontak representative tidak dipakai lagi |
@@ -1146,7 +1113,6 @@ user_visibility_edges
 outlet_categories
 ownership_types
 outlet_groups
-price_regions
 outlets
 outlet_group_members
 
@@ -1282,7 +1248,7 @@ Do not let coding agent invent these:
 6. NetSuite integration ownership/constraints.
 7. Legacy password migration strategy.
 8. Exact reporting table design/load strategy.
-9. ~~`outlets.price_region_id` (master `public`) masih FK ke `dpl.price_regions`.~~ **Resolved:** dipindah ke mapping `dpl.outlet_price_regions` (user confirmation).
+9. ~~`outlets.price_region_id` (master `public`) masih FK ke `dpl.price_regions`.~~ **Resolved:** region harga dihapus seluruhnya; harga DPL tidak dibedakan per region (user confirmation).
 
 ## 23. Schema checklist
 

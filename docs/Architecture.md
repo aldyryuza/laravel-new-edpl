@@ -190,7 +190,6 @@ Master Data
 └── distributor_regions
 
 Commercial
-├── price_regions
 ├── product_prices
 ├── product_price_overrides
 ├── bonus_schemes

@@ -7,8 +7,6 @@ use App\Http\Controllers\Web\CityController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\DistributorController;
 use App\Http\Controllers\Web\Dpl\ApproverAssignmentController;
-use App\Http\Controllers\Web\Dpl\PriceRegionController;
-use App\Http\Controllers\Web\Dpl\PriceRegionMappingController;
 use App\Http\Controllers\Web\Dpl\ProductPriceController;
 use App\Http\Controllers\Web\ExampleController;
 use App\Http\Controllers\Web\MenuController;
@@ -108,23 +106,6 @@ Route::middleware('auth')->group(function () {
             ->name('approver-assignments.index');
 
         // Komersial DPL
-        Route::get('/price-regions', [PriceRegionController::class, 'index'])->middleware('can:price-regions.read')->name('price-regions.index');
-        Route::get('/price-regions/import-template', [PriceRegionController::class, 'template'])
-            ->middleware(['can:price-regions.create', 'throttle:export'])
-            ->name('price-regions.import-template');
-
-        // Region harga outlet & distributor: satu controller/view, tipe dari route defaults.
-        foreach (['outlet' => 'outlets', 'distributor' => 'distributors'] as $label => $type) {
-            Route::get("/{$label}-price-regions", [PriceRegionMappingController::class, 'index'])
-                ->defaults('type', $type)
-                ->middleware("can:{$label}-price-regions.read")
-                ->name("{$label}-price-regions.index");
-            Route::get("/{$label}-price-regions/import-template", [PriceRegionMappingController::class, 'template'])
-                ->defaults('type', $type)
-                ->middleware(["can:{$label}-price-regions.update", 'throttle:export'])
-                ->name("{$label}-price-regions.import-template");
-        }
-
         Route::get('/product-prices', [ProductPriceController::class, 'index'])->middleware('can:product-prices.read')->name('product-prices.index');
         Route::get('/product-prices/import-template', [ProductPriceController::class, 'template'])
             ->middleware(['can:product-prices.create', 'throttle:export'])
