@@ -348,6 +348,12 @@ Sistem harus:
 | BR-025 | Future JWT menggunakan stable opaque subject (`users.uuid`); NIK boleh menjadi additional claim | Rebuild decision | Planned |
 | BR-026 | Satu role + scope approval boleh memiliki lebih dari satu approver aktif (mis. 2 RM dalam satu region); cukup salah satu yang approve/reject | User confirmation | Confirmed |
 | BR-027 | Nomor DPL `{YYMM}-SAI-{kode zona}-{urut 4 digit}` (mis. `2610-SAI-E-0039`); urutan per zona, mulai lagi dari 0001 setiap bulan; nomor dibuat saat draft dibuat (draft yang dihapus meninggalkan lubang); zona dari outlet -> area -> region -> zona | User confirmation | Confirmed |
+| BR-029 | Tanggal penawaran otomatis hari pembuatan dan tidak bisa diubah; semua tanggal DPL tidak boleh backdated | User confirmation | Confirmed |
+| BR-030 | Satu product hanya boleh satu item per distributor dalam satu DPL | User confirmation | Confirmed |
+| BR-031 | HNA = harga product yang berlaku pada Date Start; HNA - Disc On = HNA × (1 − (Principle ON + Distributor ON)%); HNA+PPN - Disc On = HNA × (1 + PPN%) × (1 − (Principle ON + Distributor ON)%); PPN dari parameter `PPN_PERCENT` (11) | User confirmation | Confirmed |
+| BR-032 | Discount Share Principle OFF diisi -> buyer reward otomatis dicentang | User confirmation | Confirmed |
+| BR-033 | Item Direct wajib logistic fee (boleh 0); Ambil Dari Pabrik -> logistic fee 0; Direct dan Ambil Dari Pabrik tidak boleh bersamaan (boleh keduanya tidak) | User confirmation | Confirmed |
+| BR-034 | Margin item otomatis dari distributor, dengan margin khusus per outlet (legacy `dpl_distributor_spesial_margin_outlet`), per product (legacy `dpl_distributor_margin`), dan product alkes (IV CAT PEN, WING, Infusion) = 10 bila diajukan Tim B | User confirmation | Pending struktur legacy |
 | BR-028 | Team DPL diambil dari team pada penugasan Wilayah User pembuat; bila user punya lebih dari satu team, dipilih saat membuat draft | User confirmation | Confirmed |
 
 ## 9. Workflow

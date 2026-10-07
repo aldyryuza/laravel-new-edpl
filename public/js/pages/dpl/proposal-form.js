@@ -4,6 +4,13 @@
  * Buat: POST api/dpl/proposals, lalu pindah ke halaman detail (nomor DPL dibuat server).
  * Detail: data dimuat dari GET api/dpl/proposals/{id}; bila draft milik user, bisa disimpan via PUT.
  * Item dikelola di browser (tabel + modal) dan dikirim bersama header sebagai JSON.
+ *
+ * Aturan item (juga ditegakkan server):
+ * - HNA = harga product yang berlaku pada Date Start (GET api/dpl/proposals/pricing);
+ *   HNA - Disc On = HNA × (1 − (Principle ON + Distributor ON)%), HNA+PPN - Disc On = HNA × (1 + PPN%) × (1 − ...).
+ * - Discount Share Principle OFF diisi -> Buyer reward dicentang.
+ * - Direct -> Logistic Fee wajib (boleh 0); Ambil Dari Pabrik -> Logistic Fee 0; keduanya tidak boleh bersamaan.
+ * - Satu product hanya sekali per distributor.
  */
 'use strict';
 
@@ -17,17 +24,28 @@ $(function () {
     const $itemForm = $('#item-form');
     const itemModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('item-modal'));
     const $itemsBody = $('#items-table tbody');
+    const $direct = $('#item-is_direct_delivery');
+    const $pickup = $('#item-is_factory_pickup');
+    const $logisticFee = $('#item-logistic-fee');
+    const COLUMNS = 12;
 
-    const FLAGS = ['is_direct_delivery', 'is_buyer_reward', 'is_bonus_conversion', 'is_support_satoria', 'is_returnable'];
-    const TERMS = ['principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off', 'negotiated_price', 'margin', 'logistic_support'];
+    const FLAGS = ['is_direct_delivery', 'is_factory_pickup', 'is_buyer_reward', 'is_bonus_conversion', 'is_support_satoria', 'is_returnable'];
+    const TERMS = [
+        'principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off',
+        'negotiated_price', 'margin', 'logistic_fee', 'logistic_support'
+    ];
 
     /** Item di browser: { id, product_id, distributor_id, ..., labels: {product, distributor, bonus} } */
     let items = [];
     let editingIndex = null;
     let editable = canSave && !proposalId;
+    /** Harga acuan untuk Date Start saat ini: { ppn: number|null, hna: {product_id: number} } */
+    let pricing = { date: null, ppn: null, hna: {} };
 
     const muted = text => `<span class="text-body-secondary">${text}</span>`;
-    const number = value => (value === null || value === undefined || value === '') ? muted('-') : App.escape(String(Number(value)));
+    const isBlank = value => value === null || value === undefined || value === '';
+    const number = value => (isBlank(value) ? muted('-') : App.escape(String(Number(value))));
+    const money = value => (value === null ? muted('-') : App.escape(value.toLocaleString('id-ID', { maximumFractionDigits: 2 })));
 
     initSelect2('#item-product, #item-distributor, #item-bonus');
 
@@ -66,6 +84,110 @@ $(function () {
         $select.val(value ? String(value) : '').trigger('change');
     }
 
+    // ---- Harga acuan (HNA/PPN) ----
+
+    function loadPricing() {
+        const date = $form.find('[name="date_start"]').val();
+
+        if (!date || date === pricing.date) {
+            return;
+        }
+
+        $.get(App.url('api/dpl/proposals/pricing'), { date })
+            .done(res => {
+                pricing = {
+                    date,
+                    ppn: isBlank(res.data.ppn_percent) ? null : Number(res.data.ppn_percent),
+                    hna: Object.fromEntries(Object.entries(res.data.hna).map(([id, price]) => [id, Number(price)]))
+                };
+                renderItems();
+                updateItemPrices();
+            })
+            .fail(xhr => App.handleError(xhr));
+    }
+
+    /** @returns {{hnaDisc: number|null, hnaPpnDisc: number|null}} */
+    function prices(productId, principleOn, distributorOn) {
+        const hna = pricing.hna[productId];
+
+        if (hna === undefined) {
+            return { hnaDisc: null, hnaPpnDisc: null };
+        }
+
+        const factor = 1 - ((Number(principleOn) || 0) + (Number(distributorOn) || 0)) / 100;
+
+        return {
+            hnaDisc: hna * factor,
+            hnaPpnDisc: pricing.ppn === null ? null : hna * (1 + pricing.ppn / 100) * factor
+        };
+    }
+
+    function updateItemPrices() {
+        const productId = $('#item-product').val();
+        const $info = $('#item-price-info');
+
+        if (!productId) {
+            $('#item-hna-disc, #item-hna-ppn-disc').val('');
+            $info.text('');
+            return;
+        }
+
+        const result = prices(productId, valueOrNull('principle_discount_on'), valueOrNull('distributor_discount_on'));
+        const format = value => (value === null ? '-' : value.toLocaleString('id-ID', { maximumFractionDigits: 2 }));
+
+        $('#item-hna-disc').val(format(result.hnaDisc));
+        $('#item-hna-ppn-disc').val(format(result.hnaPpnDisc));
+
+        if (pricing.hna[productId] === undefined) {
+            $info.text(`Harga product belum ada untuk Date Start ${pricing.date || ''}.`);
+        } else if (pricing.ppn === null) {
+            $info.text('Parameter komersial PPN_PERCENT belum diatur.');
+        } else {
+            $info.text(`HNA ${format(pricing.hna[productId])}, PPN ${pricing.ppn}%.`);
+        }
+    }
+
+    $form.on('change', '[name="date_start"]', loadPricing);
+    $('#item-product').on('change', updateItemPrices);
+    $itemForm.on('input', '[name="principle_discount_on"], [name="distributor_discount_on"]', updateItemPrices);
+
+    // ---- Aturan otomatis item ----
+
+    $itemForm.on('input', '[name="principle_discount_off"]', function () {
+        if (Number($(this).val()) > 0) {
+            $('#item-is_buyer_reward').prop('checked', true);
+        }
+    });
+
+    /** Direct dan Ambil Dari Pabrik saling eksklusif; logistic fee tampil untuk keduanya, 0 untuk pabrik. */
+    function applyDeliveryMode(changed = null) {
+        if (changed === 'direct' && $direct.is(':checked')) {
+            $pickup.prop('checked', false);
+        }
+        if (changed === 'pickup' && $pickup.is(':checked')) {
+            $direct.prop('checked', false);
+        }
+
+        const direct = $direct.is(':checked');
+        const pickup = $pickup.is(':checked');
+
+        $('#item-logistic-fee-group').toggleClass('d-none', !direct && !pickup);
+
+        if (pickup) {
+            $logisticFee.val(0).prop('readonly', true);
+        } else {
+            $logisticFee.prop('readonly', false);
+            if (!direct) {
+                $logisticFee.val('');
+            }
+        }
+    }
+
+    $direct.on('change', () => applyDeliveryMode('direct'));
+    $pickup.on('change', () => applyDeliveryMode('pickup'));
+
+    // ---- Tabel & modal item ----
+
     function setEditable(state) {
         editable = state;
         $form.find('input, select, textarea').not('[readonly]').prop('disabled', !state);
@@ -74,13 +196,24 @@ $(function () {
         renderItems();
     }
 
+    function deliveryLabel(item) {
+        if (item.is_direct_delivery) {
+            return `Direct (fee ${number(item.logistic_fee)})`;
+        }
+
+        return item.is_factory_pickup ? 'Ambil Dari Pabrik' : muted('Distributor');
+    }
+
     function renderItems() {
         if (items.length === 0) {
-            $itemsBody.html(`<tr><td colspan="9" class="text-center">${muted('Belum ada item')}</td></tr>`);
+            $itemsBody.html(`<tr><td colspan="${COLUMNS}" class="text-center">${muted('Belum ada item')}</td></tr>`);
             return;
         }
 
-        $itemsBody.html(items.map((item, index) => `
+        $itemsBody.html(items.map((item, index) => {
+            const result = prices(item.product_id, item.principle_discount_on, item.distributor_discount_on);
+
+            return `
             <tr data-index="${index}">
                 <td>${index + 1}</td>
                 <td>${App.escape(item.labels.product)}</td>
@@ -88,14 +221,18 @@ $(function () {
                 <td class="text-end">${number(item.minimum_order)}</td>
                 <td class="text-end">${number(item.principle_discount_on)} / ${number(item.principle_discount_off)}</td>
                 <td class="text-end">${number(item.distributor_discount_on)} / ${number(item.distributor_discount_off)}</td>
+                <td class="text-end">${money(result.hnaDisc)}</td>
+                <td class="text-end">${money(result.hnaPpnDisc)}</td>
                 <td class="text-end">${number(item.negotiated_price)}</td>
+                <td>${deliveryLabel(item)}</td>
                 <td>${item.labels.bonus ? App.escape(item.labels.bonus) : muted('-')}</td>
                 <td class="text-end text-nowrap">${editable ? `
                     <button type="button" class="btn btn-sm btn-icon btn-text-secondary btn-edit-item" title="Edit"><i class="icon-base bx bx-edit"></i></button>
                     <button type="button" class="btn btn-sm btn-icon btn-text-danger btn-remove-item" title="Hapus"><i class="icon-base bx bx-trash"></i></button>`
                     : `<button type="button" class="btn btn-sm btn-icon btn-text-secondary btn-edit-item" title="Lihat"><i class="icon-base bx bx-show"></i></button>`}
                 </td>
-            </tr>`).join(''));
+            </tr>`;
+        }).join(''));
     }
 
     function openItem(index = null) {
@@ -106,33 +243,44 @@ $(function () {
         App.clearErrors($itemForm);
         $('#item-modal-title').text(item ? (editable ? `Edit Item #${index + 1}` : `Item #${index + 1}`) : 'Tambah Item');
 
-        selectValue($('#item-product'), item?.product_id, item?.labels.product);
         selectValue($('#item-distributor'), item?.distributor_id, item?.labels.distributor);
         selectValue($('#item-bonus'), item?.bonus_scheme_id, item?.labels.bonus);
         $itemForm.find('[name="minimum_order"]').val(item?.minimum_order ?? '');
         $itemForm.find('[name="remark"]').val(item?.remark ?? '');
-        TERMS.forEach(field => $itemForm.find(`[name="${field}"]`).val(item && item[field] !== null ? Number(item[field]) : ''));
+        TERMS.forEach(field => $itemForm.find(`[name="${field}"]`).val(item && !isBlank(item[field]) ? Number(item[field]) : ''));
         FLAGS.forEach(flag => $itemForm.find(`[name="${flag}"]`).prop('checked', Boolean(item?.[flag])));
+        selectValue($('#item-product'), item?.product_id, item?.labels.product);
+        applyDeliveryMode();
 
-        $itemForm.find('input, select, textarea').prop('disabled', !editable);
+        $itemForm.find('input, select, textarea').not('[readonly]').prop('disabled', !editable);
         $itemForm.find('[type="submit"]').toggleClass('d-none', !editable);
         itemModal.show();
     }
 
-    const valueOrNull = name => {
+    function valueOrNull(name) {
         const value = $itemForm.find(`[name="${name}"]`).val();
-        return value === '' || value === null ? null : value;
-    };
+        return isBlank(value) ? null : value;
+    }
 
     $itemForm.on('submit', function (event) {
         event.preventDefault();
 
+        const productId = Number(valueOrNull('product_id'));
+        const distributorId = Number(valueOrNull('distributor_id'));
         const errors = {};
-        if (!valueOrNull('product_id')) {
+
+        if (!productId) {
             errors.product_id = 'Product wajib dipilih.';
         }
-        if (!valueOrNull('distributor_id')) {
+        if (!distributorId) {
             errors.distributor_id = 'Distributor wajib dipilih.';
+        }
+        if (productId && distributorId && items.some((other, index) => index !== editingIndex
+            && other.product_id === productId && other.distributor_id === distributorId)) {
+            errors.product_id = 'Product ini sudah ada untuk distributor yang sama.';
+        }
+        if ($direct.is(':checked') && isBlank($logisticFee.val())) {
+            errors.logistic_fee = 'Logistic fee wajib diisi (boleh 0) untuk item Direct.';
         }
         if (Object.keys(errors).length) {
             App.showErrors($itemForm, errors);
@@ -141,8 +289,8 @@ $(function () {
 
         const item = {
             id: editingIndex === null ? null : items[editingIndex].id,
-            product_id: Number(valueOrNull('product_id')),
-            distributor_id: Number(valueOrNull('distributor_id')),
+            product_id: productId,
+            distributor_id: distributorId,
             bonus_scheme_id: valueOrNull('bonus_scheme_id') ? Number(valueOrNull('bonus_scheme_id')) : null,
             minimum_order: valueOrNull('minimum_order'),
             remark: valueOrNull('remark'),
@@ -154,6 +302,10 @@ $(function () {
         };
         TERMS.forEach(field => { item[field] = valueOrNull(field); });
         FLAGS.forEach(flag => { item[flag] = $itemForm.find(`[name="${flag}"]`).is(':checked'); });
+
+        if (!item.is_direct_delivery && !item.is_factory_pickup) {
+            item.logistic_fee = null;
+        }
 
         if (editingIndex === null) {
             items.push(item);
@@ -176,10 +328,11 @@ $(function () {
         renderItems();
     });
 
+    // ---- Simpan ----
+
     function payload() {
         const data = {
             proposal_type: $form.find('[name="proposal_type"]').val(),
-            date_offer: $form.find('[name="date_offer"]').val(),
             date_start: $form.find('[name="date_start"]').val(),
             date_end: $form.find('[name="date_end"]').val(),
             is_contract: $('#proposal-contract').is(':checked'),
@@ -251,8 +404,8 @@ $(function () {
         $('#proposal-outlet-text').val(`${proposal.outlet.name} (${proposal.outlet.code})`
             + (proposal.outlet.area ? ` - ${proposal.outlet.area.name}` : ''));
         $('#proposal-team-text').val(proposal.team_code);
+        $('#proposal-offer').val(proposal.date_offer);
         $form.find('[name="proposal_type"]').val(proposal.proposal_type);
-        $form.find('[name="date_offer"]').val(proposal.date_offer);
         $form.find('[name="date_start"]').val(proposal.date_start);
         $form.find('[name="date_end"]').val(proposal.date_end);
         $('#proposal-contract').prop('checked', proposal.is_contract);
@@ -279,6 +432,7 @@ $(function () {
         });
 
         setEditable(canSave && proposal.can_edit);
+        loadPricing();
     }
 
     if (proposalId) {
@@ -287,9 +441,8 @@ $(function () {
             .done(res => fill(res.data))
             .fail(xhr => App.handleError(xhr));
     } else {
-        const today = new Date().toLocaleDateString('en-CA');
-        $form.find('[name="date_offer"]').val(today);
-        $form.find('[name="date_start"]').val(today);
+        $form.find('[name="date_start"]').val($('#proposal-offer').val());
         setEditable(editable);
+        loadPricing();
     }
 });

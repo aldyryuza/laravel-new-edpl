@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             AccessControlSeeder::class,
             ApprovalReferenceSeeder::class,
             OutletClassificationSeeder::class,
+            CommercialParameterSeeder::class,
         ]);
     }
 }

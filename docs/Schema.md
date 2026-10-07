@@ -611,7 +611,8 @@ UNIQUE `(period, zone_code)`. Dinaikkan atomik dengan `INSERT ... ON CONFLICT DO
 | `distributor_id` | bigint | No | FK `distributors.id`, RESTRICT |
 | `minimum_order` | integer | Yes | CHECK null or `>= 0` |
 | `bonus_scheme_id` | bigint | Yes | FK `bonus_schemes.id`, RESTRICT |
-| `is_direct_delivery` | boolean | No | default false |
+| `is_direct_delivery` | boolean | No | default false; Direct -> `logistic_fee` wajib (boleh 0) |
+| `is_factory_pickup` | boolean | No | default false; Ambil Dari Pabrik -> `logistic_fee` 0. CHECK `NOT (is_direct_delivery AND is_factory_pickup)` |
 | `is_buyer_reward` | boolean | No | default false |
 | `is_bonus_conversion` | boolean | No | default false |
 | `is_support_satoria` | boolean | No | default false |
@@ -623,7 +624,7 @@ UNIQUE `(period, zone_code)`. Dinaikkan atomik dengan `INSERT ... ON CONFLICT DO
 
 Indexes: `dpl_proposal_id`, `product_id`, `distributor_id`, `(dpl_proposal_id, distributor_id)`.
 
-Do not enforce unique product+distributor until business explicitly confirms no valid duplicate scenario.
+Satu product hanya sekali per distributor dalam satu DPL (user confirmation 2026-10-07; divalidasi di aplikasi, belum unique index karena item draft bisa ditukar dalam satu simpan). `is_buyer_reward` otomatis true bila `principle_discount_off > 0`.
 
 ### `dpl_item_terms`
 
@@ -641,7 +642,7 @@ Current commercial terms, one row per DPL item.
 | `margin` | numeric(10,4) | Yes | |
 | `logistic_fee` | numeric(18,4) | Yes | retained only if transaction really stores input/result; not sourced from legacy `dpl_logistic` |
 | `logistic_support` | numeric(18,4) | Yes | |
-| `base_price` | numeric(18,4) | Yes | snapshot/result if needed |
+| `base_price` | numeric(18,4) | Yes | snapshot HNA = `product_prices.price` yang berlaku pada Date Start, disimpan setiap draft disimpan |
 | `final_price` | numeric(18,4) | Yes | snapshot/result if needed |
 | `effective_discount` | numeric(10,4) | Yes | |
 | `calculator_percentage` | numeric(10,4) | Yes | |

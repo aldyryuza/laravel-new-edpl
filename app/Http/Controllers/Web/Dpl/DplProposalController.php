@@ -47,6 +47,7 @@ class DplProposalController extends Controller
 
         return view('pages.dpl.proposals.form', [
             'proposal' => $proposal,
+            'today' => now(config('dpl.timezone'))->toDateString(),
             'teams' => $user->effectiveTeams(),
             'products' => Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name', 'volume']),
             'distributors' => Distributor::query()->visibleTo($user)->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),

@@ -39,6 +39,7 @@ class CommercialParameter extends Model
         'MAX_DPL_DISCOUNT' => 'Batas persentase kalkulator/diskon DPL sebelum butuh override (legacy 35)',
         'MIN_MONTHLY_ORDER' => 'Minimal order per bulan untuk diskon SAI (legacy 200 botol)',
         'MAX_PROGRAM_MONTHS' => 'Maksimal masa program DPL dalam bulan (legacy 12)',
+        'PPN_PERCENT' => 'Persentase PPN untuk HNA+PPN pada DPL (11)',
     ];
 
     /**

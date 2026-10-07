@@ -60,15 +60,16 @@
                     </div>
                     <div class="col-md-3">
                         <label for="proposal-offer" class="form-label">Tanggal Penawaran <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="proposal-offer" name="date_offer" required />
+                        <input type="date" class="form-control" id="proposal-offer" value="{{ $today }}" readonly />
+                        <div class="form-text">Otomatis tanggal pembuatan.</div>
                     </div>
                     <div class="col-md-3">
                         <label for="proposal-start" class="form-label">Date Start <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="proposal-start" name="date_start" required />
+                        <input type="date" class="form-control" id="proposal-start" name="date_start" min="{{ $today }}" required />
                     </div>
                     <div class="col-md-3">
                         <label for="proposal-end" class="form-label">Date End <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="proposal-end" name="date_end" required />
+                        <input type="date" class="form-control" id="proposal-end" name="date_end" min="{{ $today }}" required />
                         <div class="form-text">Maksimal 1 tahun dari Date Start.</div>
                     </div>
                     <div class="col-md-3 d-flex align-items-center">
@@ -100,9 +101,12 @@
                             <th>Product</th>
                             <th>Distributor</th>
                             <th class="text-end">Min. Order</th>
-                            <th class="text-end">Disc. Prinsipal On/Off</th>
-                            <th class="text-end">Disc. Distributor On/Off</th>
+                            <th class="text-end">Principle On/Off (%)</th>
+                            <th class="text-end">Distributor On/Off (%)</th>
+                            <th class="text-end">HNA - Disc On</th>
+                            <th class="text-end">HNA+PPN - Disc On</th>
                             <th class="text-end">Harga Nego</th>
+                            <th>Pengiriman</th>
                             <th>Bonus</th>
                             <th class="text-end">Aksi</th>
                         </tr>
@@ -148,20 +152,29 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="col-md-6">
+                            <label for="item-hna-disc" class="form-label">HNA - Discount On</label>
+                            <input type="text" class="form-control text-end" id="item-hna-disc" readonly placeholder="Pilih product" />
+                        </div>
+                        <div class="col-md-6">
+                            <label for="item-hna-ppn-disc" class="form-label">HNA+PPN - Discount On</label>
+                            <input type="text" class="form-control text-end" id="item-hna-ppn-disc" readonly placeholder="Pilih product" />
+                            <div class="form-text" id="item-price-info"></div>
+                        </div>
                         <div class="col-md-3">
-                            <label for="item-principle-on" class="form-label">Disc. Prinsipal On (%)</label>
+                            <label for="item-principle-on" class="form-label">Discount Share Principle ON (%)</label>
                             <input type="number" class="form-control" id="item-principle-on" name="principle_discount_on" min="0" step="0.0001" />
                         </div>
                         <div class="col-md-3">
-                            <label for="item-principle-off" class="form-label">Disc. Prinsipal Off (%)</label>
+                            <label for="item-principle-off" class="form-label">Discount Share Principle OFF (%)</label>
                             <input type="number" class="form-control" id="item-principle-off" name="principle_discount_off" min="0" step="0.0001" />
                         </div>
                         <div class="col-md-3">
-                            <label for="item-distributor-on" class="form-label">Disc. Distributor On (%)</label>
+                            <label for="item-distributor-on" class="form-label">Discount Share Distributor ON (%)</label>
                             <input type="number" class="form-control" id="item-distributor-on" name="distributor_discount_on" min="0" step="0.0001" />
                         </div>
                         <div class="col-md-3">
-                            <label for="item-distributor-off" class="form-label">Disc. Distributor Off (%)</label>
+                            <label for="item-distributor-off" class="form-label">Discount Share Distributor OFF (%)</label>
                             <input type="number" class="form-control" id="item-distributor-off" name="distributor_discount_off" min="0" step="0.0001" />
                         </div>
                         <div class="col-md-3">
@@ -190,9 +203,24 @@
                             </select>
                         </div>
                         <div class="col-md-6">
+                            <label class="form-label d-block">Pengiriman</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="item-is_direct_delivery" name="is_direct_delivery" value="1" />
+                                <label class="form-check-label" for="item-is_direct_delivery">Direct</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="item-is_factory_pickup" name="is_factory_pickup" value="1" />
+                                <label class="form-check-label" for="item-is_factory_pickup">Ambil Dari Pabrik</label>
+                            </div>
+                            <div class="form-text">Pilih salah satu atau kosongkan (via distributor).</div>
+                        </div>
+                        <div class="col-md-6 d-none" id="item-logistic-fee-group">
+                            <label for="item-logistic-fee" class="form-label">Logistic Fee <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="item-logistic-fee" name="logistic_fee" min="0" step="0.0001" />
+                        </div>
+                        <div class="col-12">
                             <label class="form-label d-block">Opsi</label>
                             @foreach ([
-                                'is_direct_delivery' => 'Kirim langsung',
                                 'is_buyer_reward' => 'Buyer reward',
                                 'is_bonus_conversion' => 'Konversi bonus',
                                 'is_support_satoria' => 'Support Satoria',
@@ -203,6 +231,7 @@
                                     <label class="form-check-label" for="item-{{ $flag }}">{{ $label }}</label>
                                 </div>
                             @endforeach
+                            <div class="form-text">Buyer reward otomatis dicentang bila Discount Share Principle OFF diisi.</div>
                         </div>
                         <div class="col-12">
                             <label for="item-remark" class="form-label">Catatan</label>

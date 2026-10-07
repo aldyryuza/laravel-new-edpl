@@ -27,6 +27,7 @@ class DplItemFactory extends Factory
             'minimum_order' => 200,
             'bonus_scheme_id' => null,
             'is_direct_delivery' => false,
+            'is_factory_pickup' => false,
             'is_buyer_reward' => false,
             'is_bonus_conversion' => false,
             'is_support_satoria' => false,

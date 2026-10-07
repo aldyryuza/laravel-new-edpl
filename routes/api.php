@@ -102,6 +102,7 @@ Route::prefix('dpl')->name('dpl.')->group(function () {
     // Pengajuan DPL
     Route::get('proposals/datatable', [DplProposalController::class, 'datatable'])->name('proposals.datatable');
     Route::get('proposals/outlet-options', [DplProposalController::class, 'outletOptions'])->name('proposals.outlet-options');
+    Route::get('proposals/pricing', [DplProposalController::class, 'pricing'])->name('proposals.pricing');
     Route::apiResource('proposals', DplProposalController::class)->except('index');
 
     Route::get('approver-assignments/datatable', [ApproverAssignmentController::class, 'datatable'])->name('approver-assignments.datatable');

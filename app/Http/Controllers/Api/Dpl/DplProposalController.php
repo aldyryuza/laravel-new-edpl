@@ -7,6 +7,7 @@ use App\Http\Requests\Dpl\DplProposalRequest;
 use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
 use App\Services\Dpl\DplDraftService;
+use App\Services\Dpl\DplPricing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,7 +40,7 @@ class DplProposalController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:dpl-proposals.read', only: ['datatable', 'show']),
+            new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing']),
             new Middleware('can:dpl-proposals.create', only: ['store', 'outletOptions']),
             new Middleware('can:dpl-proposals.update', only: ['update']),
             new Middleware('can:dpl-proposals.delete', only: ['destroy']),
@@ -104,6 +105,20 @@ class DplProposalController extends Controller implements HasMiddleware
                 'id' => $outlet->id,
                 'text' => "{$outlet->name} ({$outlet->code})".($outlet->area ? " - {$outlet->area->name}" : ' - tanpa area'),
             ]),
+        ]);
+    }
+
+    /**
+     * HNA per product yang berlaku pada `date` (Date Start) dan PPN aktif, untuk tampilan HNA - Disc On / HNA+PPN - Disc On.
+     */
+    public function pricing(Request $request, DplPricing $pricing): JsonResponse
+    {
+        $date = $request->validate(['date' => ['required', 'date_format:Y-m-d']])['date'];
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil diambil',
+            'data' => ['ppn_percent' => $pricing->ppnPercent(), 'hna' => (object) $pricing->hnaOn($date)],
         ]);
     }
 

@@ -55,10 +55,9 @@ class DplProposalRequest extends FormRequest
             ] : []),
             // CONSOLIDATION dibuat lewat alur konsolidasi, bukan dari form ini.
             'proposal_type' => ['required', Rule::in([DplProposal::TYPE_NORMAL, DplProposal::TYPE_CLEARANCE])],
-            'date_offer' => ['required', 'date'],
-            // BR-007: Date Start tidak boleh backdated.
+            // Tanggal penawaran otomatis hari ini (diisi server). Semua tanggal tidak boleh backdated (BR-007).
             'date_start' => ['required', 'date', 'after_or_equal:'.$today],
-            'date_end' => ['required', 'date', 'after_or_equal:date_start'],
+            'date_end' => ['required', 'date', 'after_or_equal:'.$today, 'after_or_equal:date_start'],
             'is_contract' => ['required', 'boolean'],
             'description' => ['nullable', 'string', 'max:5000'],
 
@@ -69,6 +68,7 @@ class DplProposalRequest extends FormRequest
             'items.*.minimum_order' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
             'items.*.bonus_scheme_id' => ['nullable', 'integer', Rule::exists(BonusScheme::class, 'id')->where('is_active', true)],
             'items.*.is_direct_delivery' => ['boolean'],
+            'items.*.is_factory_pickup' => ['boolean'],
             'items.*.is_buyer_reward' => ['boolean'],
             'items.*.is_bonus_conversion' => ['boolean'],
             'items.*.is_support_satoria' => ['boolean'],
@@ -80,6 +80,8 @@ class DplProposalRequest extends FormRequest
             'items.*.distributor_discount_off' => $percent,
             'items.*.negotiated_price' => $amount,
             'items.*.margin' => $percent,
+            // Logistic fee wajib (boleh 0) untuk item Direct.
+            'items.*.logistic_fee' => ['nullable', 'required_if_accepted:items.*.is_direct_delivery', 'numeric', 'min:0', 'max:'.self::MAX_AMOUNT],
             'items.*.logistic_support' => $amount,
         ];
     }
@@ -95,6 +97,7 @@ class DplProposalRequest extends FormRequest
             function (Validator $validator): void {
                 $this->validatePeriod($validator);
                 $this->validateDistributors($validator);
+                $this->validateItemRules($validator);
 
                 if ($this->route('proposal') === null) {
                     $this->validateOutlet($validator);
@@ -127,17 +130,65 @@ class DplProposalRequest extends FormRequest
      */
     public function proposalAttributes(): array
     {
-        return $this->safe()->only(['proposal_type', 'date_offer', 'date_start', 'date_end', 'is_contract', 'description']);
+        return $this->safe()->only(['proposal_type', 'date_start', 'date_end', 'is_contract', 'description']);
     }
 
     /**
+     * Item siap simpan dengan aturan otomatis:
+     * - Discount Share Principle OFF diisi (> 0) -> buyer reward dicentang;
+     * - Ambil Dari Pabrik -> logistic fee 0; bukan Direct/Ambil Dari Pabrik -> logistic fee kosong.
+     *
      * @return array<int, array<string, mixed>>
      */
     public function proposalItems(): array
     {
         $fields = array_flip(['id', ...DplDraftService::ITEM_FIELDS, ...DplDraftService::TERM_FIELDS]);
 
-        return array_map(fn (array $item) => array_intersect_key($item, $fields), $this->validated('items', []));
+        return array_map(function (array $item) use ($fields): array {
+            $item = array_intersect_key($item, $fields);
+
+            if ((float) ($item['principle_discount_off'] ?? 0) > 0) {
+                $item['is_buyer_reward'] = true;
+            }
+
+            $item['logistic_fee'] = match (true) {
+                (bool) ($item['is_factory_pickup'] ?? false) => '0',
+                (bool) ($item['is_direct_delivery'] ?? false) => $item['logistic_fee'] ?? null,
+                default => null,
+            };
+
+            return $item;
+        }, $this->validated('items', []));
+    }
+
+    /**
+     * Direct dan Ambil Dari Pabrik tidak boleh bersamaan; satu product hanya sekali per distributor.
+     */
+    private function validateItemRules(Validator $validator): void
+    {
+        $seen = [];
+
+        foreach ($this->input('items', []) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if (filter_var($item['is_direct_delivery'] ?? false, FILTER_VALIDATE_BOOL) && filter_var($item['is_factory_pickup'] ?? false, FILTER_VALIDATE_BOOL)) {
+                $validator->errors()->add("items.{$index}.is_factory_pickup", 'Pilih salah satu: Direct atau Ambil Dari Pabrik.');
+            }
+
+            if (! isset($item['product_id'], $item['distributor_id'])) {
+                continue;
+            }
+
+            $key = (int) $item['product_id'].'-'.(int) $item['distributor_id'];
+
+            if (isset($seen[$key])) {
+                $validator->errors()->add("items.{$index}.product_id", 'Product ini sudah ada untuk distributor yang sama (item #'.($seen[$key] + 1).').');
+            } else {
+                $seen[$key] = $index;
+            }
+        }
     }
 
     private function validatePeriod(Validator $validator): void
@@ -213,7 +264,6 @@ class DplProposalRequest extends FormRequest
             'outlet_id' => 'outlet',
             'team_code' => 'team',
             'proposal_type' => 'jenis DPL',
-            'date_offer' => 'tanggal penawaran',
             'date_start' => 'Date Start',
             'date_end' => 'Date End',
             'is_contract' => 'kontrak',
@@ -223,12 +273,13 @@ class DplProposalRequest extends FormRequest
             'items.*.minimum_order' => 'minimum order',
             'items.*.bonus_scheme_id' => 'skema bonus',
             'items.*.remark' => 'catatan item',
-            'items.*.principle_discount_on' => 'diskon prinsipal on',
-            'items.*.principle_discount_off' => 'diskon prinsipal off',
-            'items.*.distributor_discount_on' => 'diskon distributor on',
-            'items.*.distributor_discount_off' => 'diskon distributor off',
+            'items.*.principle_discount_on' => 'Discount Share Principle ON',
+            'items.*.principle_discount_off' => 'Discount Share Principle OFF',
+            'items.*.distributor_discount_on' => 'Discount Share Distributor ON',
+            'items.*.distributor_discount_off' => 'Discount Share Distributor OFF',
             'items.*.negotiated_price' => 'harga nego',
             'items.*.margin' => 'margin',
+            'items.*.logistic_fee' => 'logistic fee',
             'items.*.logistic_support' => 'logistic support',
         ];
     }
@@ -240,6 +291,8 @@ class DplProposalRequest extends FormRequest
     {
         return [
             'date_start.after_or_equal' => 'Date Start tidak boleh tanggal yang sudah lewat.',
+            'date_end.after_or_equal' => 'Date End tidak boleh tanggal yang sudah lewat atau sebelum Date Start.',
+            'items.*.logistic_fee.required_if_accepted' => 'Logistic fee wajib diisi (boleh 0) untuk item Direct.',
         ];
     }
 }

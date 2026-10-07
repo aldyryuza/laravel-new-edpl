@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Distributor;
+use App\Models\Dpl\CommercialParameter;
 use App\Models\Dpl\DplItem;
 use App\Models\Dpl\DplProposal;
 use App\Models\Dpl\DplStatusHistory;
+use App\Models\Dpl\ProductPrice;
 use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\SalesArea;
@@ -15,6 +17,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Models\UserOrgAssignment;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -69,7 +72,8 @@ class DplProposalDraftTest extends TestCase
         return [
             'outlet_id' => $this->outlet->id,
             'proposal_type' => 'NORMAL',
-            'date_offer' => '2026-10-15',
+            // Diabaikan server: tanggal penawaran selalu hari ini.
+            'date_offer' => '2020-01-01',
             'date_start' => '2026-10-15',
             'date_end' => '2027-10-14',
             'is_contract' => false,
@@ -81,6 +85,7 @@ class DplProposalDraftTest extends TestCase
                 'principle_discount_on' => '10.5',
                 'negotiated_price' => '125000',
                 'is_direct_delivery' => true,
+                'logistic_fee' => '15000',
             ]],
             ...$overrides,
         ];
@@ -95,6 +100,7 @@ class DplProposalDraftTest extends TestCase
             ->assertJsonPath('data.proposal_status', DplProposal::STATUS_DRAFT)
             ->assertJsonPath('data.program_status', DplProposal::PROGRAM_INACTIVE)
             ->assertJsonPath('data.bed_count_snapshot', 120)
+            ->assertJsonPath('data.date_offer', '2026-10-15')
             ->assertJsonPath('data.date_start', '2026-10-15')
             ->assertJsonPath('data.can_edit', true);
 
@@ -251,5 +257,75 @@ class DplProposalDraftTest extends TestCase
         $this->actingAs($this->proposer)->get('/dpl/proposals')->assertOk()->assertSee('proposals.js');
         $this->actingAs($this->proposer)->get('/dpl/proposals/create')->assertOk()->assertSee('proposal-form.js');
         $this->actingAs($this->proposer)->get("/dpl/proposals/{$id}")->assertOk()->assertSee('2610-SAI-E-0001');
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function item(array $overrides = []): array
+    {
+        return ['product_id' => $this->product->id, 'distributor_id' => $this->distributor->id, ...$overrides];
+    }
+
+    public function test_same_product_cannot_appear_twice_for_one_distributor(): void
+    {
+        $otherDistributor = Distributor::factory()->create();
+        $otherDistributor->regions()->attach($this->region);
+
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item(), $this->item()]]))
+            ->assertUnprocessable()->assertJsonValidationErrors('items.1.product_id');
+
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload([
+            'items' => [$this->item(), $this->item(['distributor_id' => $otherDistributor->id])],
+        ]))->assertCreated();
+    }
+
+    public function test_principle_off_discount_marks_buyer_reward(): void
+    {
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload([
+            'items' => [$this->item(['principle_discount_off' => '2', 'is_buyer_reward' => false])],
+        ]))->assertCreated()->assertJsonPath('data.items.0.is_buyer_reward', true);
+    }
+
+    public function test_delivery_mode_rules_for_logistic_fee(): void
+    {
+        $post = fn (array $item) => $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item($item)]]));
+
+        $post(['is_direct_delivery' => true])->assertUnprocessable()->assertJsonValidationErrors('items.0.logistic_fee');
+        $post(['is_direct_delivery' => true, 'is_factory_pickup' => true, 'logistic_fee' => '1000'])
+            ->assertUnprocessable()->assertJsonValidationErrors('items.0.is_factory_pickup');
+
+        $post(['is_direct_delivery' => true, 'logistic_fee' => '0'])->assertCreated()->assertJsonPath('data.items.0.terms.logistic_fee', '0.0000');
+        $post(['is_factory_pickup' => true, 'logistic_fee' => '5000'])->assertCreated()->assertJsonPath('data.items.0.terms.logistic_fee', '0.0000');
+        $post(['logistic_fee' => '5000'])->assertCreated()->assertJsonPath('data.items.0.terms.logistic_fee', null);
+    }
+
+    public function test_database_rejects_direct_and_factory_pickup_together(): void
+    {
+        $this->expectException(QueryException::class);
+
+        DplItem::factory()->create(['is_direct_delivery' => true, 'is_factory_pickup' => true]);
+    }
+
+    public function test_hna_snapshot_uses_price_valid_on_date_start_and_pricing_endpoint(): void
+    {
+        ProductPrice::factory()->for($this->product)->create(['price' => '100000', 'valid_from' => '2026-01-01', 'valid_until' => '2026-10-31']);
+        ProductPrice::factory()->for($this->product)->create(['price' => '110000', 'valid_from' => '2026-11-01']);
+        CommercialParameter::factory()->create(['code' => 'PPN_PERCENT', 'value' => CommercialParameter::wrapValue('number', '11')]);
+
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['date_start' => '2026-11-05']))
+            ->assertCreated()->assertJsonPath('data.items.0.terms.base_price', '110000.0000');
+
+        $this->actingAs($this->proposer)->getJson('/api/dpl/proposals/pricing?date=2026-10-20')
+            ->assertOk()
+            ->assertJsonPath('data.ppn_percent', '11')
+            ->assertJsonPath("data.hna.{$this->product->id}", '100000.0000');
+    }
+
+    public function test_end_date_cannot_be_backdated(): void
+    {
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['date_end' => '2026-10-14']))
+            ->assertUnprocessable()->assertJsonValidationErrors('date_end');
     }
 }

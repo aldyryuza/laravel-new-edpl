@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Nomor DPL dibuat saat draft dibuat (zona dari outlet -> area -> region -> zona). Outlet dan team
  * tidak bisa diganti setelah draft dibuat karena sudah menentukan nomor dan aturan 1 DPL aktif per outlet + team.
+ * base_price menyimpan snapshot HNA (harga product yang berlaku pada Date Start) setiap kali draft disimpan.
  * Nilai hasil kalkulator (final_price, effective_discount, calculator_percentage) belum diisi.
  */
 class DplDraftService
@@ -21,7 +22,7 @@ class DplDraftService
     /** Kolom dpl_item_terms yang diinput user. */
     public const TERM_FIELDS = [
         'principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off',
-        'negotiated_price', 'margin', 'logistic_support',
+        'negotiated_price', 'margin', 'logistic_fee', 'logistic_support',
     ];
 
     /** Diskon wajib terisi di DB (default 0). */
@@ -29,24 +30,28 @@ class DplDraftService
 
     /** Kolom dpl_items yang diinput user. */
     public const ITEM_FIELDS = [
-        'product_id', 'distributor_id', 'minimum_order', 'bonus_scheme_id', 'is_direct_delivery', 'is_buyer_reward',
+        'product_id', 'distributor_id', 'minimum_order', 'bonus_scheme_id', 'is_direct_delivery', 'is_factory_pickup', 'is_buyer_reward',
         'is_bonus_conversion', 'is_support_satoria', 'is_returnable', 'remark',
     ];
 
-    public function __construct(private DplNumberGenerator $numberGenerator) {}
+    public function __construct(private DplNumberGenerator $numberGenerator, private DplPricing $pricing) {}
 
     /**
-     * @param  array<string, mixed>  $header  proposal_type, date_offer, date_start, date_end, is_contract, description
+     * Tanggal penawaran otomatis hari ini (zona waktu config('dpl.timezone')) dan tidak bisa diubah.
+     *
+     * @param  array<string, mixed>  $header  proposal_type, date_start, date_end, is_contract, description
      * @param  array<int, array<string, mixed>>  $items
      */
     public function create(User $user, Outlet $outlet, string $teamCode, array $header, array $items): DplProposal
     {
         return DB::transaction(function () use ($user, $outlet, $teamCode, $header, $items): DplProposal {
             $zoneCode = $outlet->area->region->zone->code;
+            $today = now(config('dpl.timezone'));
 
             $proposal = DplProposal::query()->create([
                 ...$header,
-                'dpl_number' => $this->numberGenerator->next($zoneCode, now(config('dpl.timezone'))),
+                'dpl_number' => $this->numberGenerator->next($zoneCode, $today),
+                'date_offer' => $today->toDateString(),
                 'outlet_id' => $outlet->id,
                 'team_code' => $teamCode,
                 'created_by_user_id' => $user->id,
@@ -98,13 +103,15 @@ class DplDraftService
     {
         $existing = $proposal->items()->get()->keyBy('id');
         $keptIds = [];
+        $hna = $this->pricing->hnaOn($proposal->date_start->toDateString(), array_map(fn (array $item) => (int) $item['product_id'], $items));
 
         foreach ($items as $input) {
             $item = isset($input['id']) ? $existing->get((int) $input['id']) : null;
             $item ??= new DplItem(['dpl_proposal_id' => $proposal->id]);
 
             $item->fill(array_intersect_key($input, array_flip(self::ITEM_FIELDS)))->save();
-            $item->terms()->updateOrCreate([], $this->terms($input));
+            // base_price = snapshot HNA pada Date Start; null bila harga product belum ada.
+            $item->terms()->updateOrCreate([], [...$this->terms($input), 'base_price' => $hna[$item->product_id] ?? null]);
             $keptIds[] = $item->id;
         }
 

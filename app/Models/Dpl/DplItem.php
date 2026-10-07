@@ -16,11 +16,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Item DPL (product + distributor). Commercial terms ada di DplItemTerm.
+ * Satu product hanya sekali per distributor dalam satu DPL (divalidasi di aplikasi). Direct dan
+ * Ambil Dari Pabrik tidak boleh bersamaan (CHECK dpl_items_delivery_mode_check).
  */
 #[Table('dpl.dpl_items')]
 #[Fillable([
     'dpl_proposal_id', 'product_id', 'distributor_id', 'minimum_order', 'bonus_scheme_id',
-    'is_direct_delivery', 'is_buyer_reward', 'is_bonus_conversion', 'is_support_satoria', 'is_returnable',
+    'is_direct_delivery', 'is_factory_pickup', 'is_buyer_reward', 'is_bonus_conversion', 'is_support_satoria', 'is_returnable',
     'remark', 'netsuite_id',
 ])]
 class DplItem extends Model
@@ -38,6 +40,7 @@ class DplItem extends Model
         return [
             'minimum_order' => 'integer',
             'is_direct_delivery' => 'boolean',
+            'is_factory_pickup' => 'boolean',
             'is_buyer_reward' => 'boolean',
             'is_bonus_conversion' => 'boolean',
             'is_support_satoria' => 'boolean',
