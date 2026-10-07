@@ -188,6 +188,15 @@ $(function () {
     }
 
     $group.on('change', () => setProductOptions($group.val()));
+
+    /** Pilih semua / kosongkan product di group (untuk mengajukan satu product: Kosongkan lalu pilih). */
+    $('#btn-select-all-products').on('click', () => {
+        $products.val($products.find('option').toArray().map(option => option.value)).trigger('change');
+    });
+    $('#btn-clear-products').on('click', () => {
+        $products.val([]).trigger('change');
+        $products.select2('open');
+    });
     $products.on('change', applyPriceTypeVolumes);
 
     // ---- Aturan otomatis item ----
@@ -304,6 +313,7 @@ $(function () {
 
         $itemForm.find('input, select, textarea').not('[readonly]').prop('disabled', !editable);
         $group.add($products).prop('disabled', !editable || item !== null);
+        $('#item-product-actions').toggleClass('d-none', !editable || item !== null);
         $itemForm.find('[type="submit"]').toggleClass('d-none', !editable);
         itemModal.show();
     }

@@ -144,9 +144,15 @@
                             </select>
                         </div>
                         <div class="col-md-8">
-                            <label for="item-product" class="form-label">Product <span class="text-danger">*</span></label>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label for="item-product" class="form-label">Product <span class="text-danger">*</span></label>
+                                <div class="d-flex gap-1 mb-1" id="item-product-actions">
+                                    <button type="button" class="btn btn-xs btn-label-primary" id="btn-select-all-products">Pilih semua</button>
+                                    <button type="button" class="btn btn-xs btn-label-secondary" id="btn-clear-products">Kosongkan</button>
+                                </div>
+                            </div>
                             <select class="form-select" id="item-product" name="product_id" multiple></select>
-                            <div class="form-text">Semua product di group otomatis terpilih; hapus yang tidak diajukan. Satu product = satu item.</div>
+                            <div class="form-text">Semua product di group otomatis terpilih. Untuk satu product: Kosongkan lalu pilih. Satu product = satu item.</div>
                         </div>
                         <div class="col-md-8">
                             <label for="item-distributor" class="form-label">Distributor <span class="text-danger">*</span></label>
