@@ -18,6 +18,7 @@ class ProductController extends Controller
     {
         return view('pages.products.index', [
             'volumes' => Product::query()->whereNotNull('volume')->distinct()->orderByDesc('volume')->pluck('volume'),
+            'productGroups' => config('dpl.product_groups'),
         ]);
     }
 

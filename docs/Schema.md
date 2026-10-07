@@ -378,12 +378,13 @@ Satu outlet maksimal **satu keanggotaan aktif** (decision #3). Aktif = `valid_un
 | `code` | varchar(20) | No | UNIQUE; legacy `PID` |
 | `name` | varchar(255) | No | legacy `PNAME` |
 | `volume` | numeric(10,4) | Yes | grouping UI berdasarkan nilai ini |
+| `product_group` | varchar(50) | Yes | index; group manual non-volume, nilai dari `config('dpl.product_groups')` (IV CAT WING, IV CAT PEN) |
 | `is_branded` | boolean | No | default false |
 | `is_active` | boolean | No | default true |
 | `netsuite_id` | varchar(255) | Yes | external identifier |
 | timestamps | timestamp | Yes | |
 
-Tidak membuat `product_groups` hanya untuk volume.
+Tidak membuat tabel `product_groups` hanya untuk volume. Group product di form DPL: `product_group` bila diisi, selain itu dari volume (1L/500ml/250ml/100ml/25ml, `config('dpl.volume_groups')`). Product tanpa group tidak bisa diajukan di DPL.
 
 ### `distributors`
 

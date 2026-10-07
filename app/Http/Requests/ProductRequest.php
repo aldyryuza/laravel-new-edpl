@@ -27,6 +27,8 @@ class ProductRequest extends FormRequest
             'code' => ['required', 'string', 'max:20', Rule::unique('products', 'code')->ignore($this->route('product'))],
             'name' => ['required', 'string', 'max:255'],
             'volume' => ['nullable', 'numeric', 'min:0', 'max:999999.9999', 'decimal:0,4'],
+            // Group manual (mis. IV CAT WING); product bervolume 1L/500/250/100/25 ml tidak perlu diisi.
+            'product_group' => ['nullable', 'string', Rule::in(config('dpl.product_groups'))],
             'is_branded' => ['required', 'boolean'],
             'netsuite_id' => ['nullable', 'string', 'max:255'],
             'is_active' => ['required', 'boolean'],
@@ -42,6 +44,7 @@ class ProductRequest extends FormRequest
             'code' => 'kode',
             'name' => 'nama',
             'volume' => 'volume',
+            'product_group' => 'group product',
             'is_branded' => 'branded',
             'netsuite_id' => 'NetSuite ID',
             'is_active' => 'status aktif',

@@ -51,4 +51,27 @@ return [
         'PRICE_LAMA_2025' => [500],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Group product di form item DPL
+    |--------------------------------------------------------------------------
+    |
+    | Urutan pilihan: group volume (label => volume ml, otomatis dari products.volume), lalu
+    | group manual dari kolom products.product_group. Product di luar group tidak bisa dipilih di DPL.
+    |
+    */
+
+    'volume_groups' => [
+        '1L' => 1000,
+        '500ml' => 500,
+        '250ml' => 250,
+        '100ml' => 100,
+        '25ml' => 25,
+    ],
+
+    'product_groups' => [
+        'IV CAT WING',
+        'IV CAT PEN',
+    ],
+
 ];

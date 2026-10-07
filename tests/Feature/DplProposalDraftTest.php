@@ -353,6 +353,25 @@ class DplProposalDraftTest extends TestCase
         $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => $items]))->assertCreated();
     }
 
+    public function test_only_products_in_a_dpl_group_can_be_proposed(): void
+    {
+        $ungrouped = Product::factory()->create(['volume' => null, 'name' => 'Infusion Set']);
+        $pen = Product::factory()->create(['volume' => null, 'product_group' => 'IV CAT PEN', 'name' => 'IV Catheter Pen 18G']);
+
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item(['product_id' => $ungrouped->id])]]))
+            ->assertUnprocessable()->assertJsonValidationErrors('items.0.product_id');
+
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item(['product_id' => $pen->id])]]))
+            ->assertCreated();
+
+        // Form: product dikelompokkan per group, product tanpa group tidak ditawarkan.
+        $this->actingAs($this->proposer)->get('/dpl/proposals/create')
+            ->assertOk()
+            ->assertSeeInOrder(['1L', '500ml', '250ml', '100ml', '25ml', 'IV CAT WING', 'IV CAT PEN'])
+            ->assertSee('"group":"IV CAT PEN"', escape: false)
+            ->assertDontSee('Infusion Set');
+    }
+
     public function test_minimum_order_is_required(): void
     {
         $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item(['minimum_order' => null])]]))

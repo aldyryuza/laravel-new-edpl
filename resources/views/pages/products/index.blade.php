@@ -58,6 +58,7 @@
                         <th>Kode</th>
                         <th>Nama</th>
                         <th>Volume</th>
+                        <th>Group</th>
                         <th>Branded</th>
                         <th>NetSuite ID</th>
                         <th>Status</th>
@@ -87,6 +88,16 @@
                         <div class="col-md-7">
                             <label for="product-volume" class="form-label">Volume (ml)</label>
                             <input type="number" class="form-control" id="product-volume" name="volume" min="0" step="0.0001" />
+                        </div>
+                        <div class="col-12">
+                            <label for="product-group" class="form-label">Group Product</label>
+                            <select class="form-select" id="product-group" name="product_group">
+                                <option value="">Ikut volume (1L/500/250/100/25 ml)</option>
+                                @foreach ($productGroups as $group)
+                                    <option value="{{ $group }}">{{ $group }}</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text">Untuk product non-cairan (mis. IV Catheter). Menentukan group pilihan product di form DPL.</div>
                         </div>
                         <div class="col-12">
                             <label for="product-name" class="form-label">Nama <span class="text-danger">*</span></label>
@@ -120,7 +131,7 @@
 
     @if (auth()->user()->can('products.create') && auth()->user()->can('products.update'))
         <x-excel-import-modal title="Import Product dari Excel" upload-path="api/products/import"
-            :template-url="route('products.import-template')" columns="kode, nama, volume, branded, netsuite_id, aktif" />
+            :template-url="route('products.import-template')" columns="kode, nama, volume, group_product, branded, netsuite_id, aktif" />
     @endif
 @endpush
 

@@ -44,6 +44,18 @@ class ProductDistributorMasterTest extends TestCase
         $this->actingAs($actor)->postJson('/api/products', $payload)->assertUnprocessable()->assertJsonValidationErrors('code');
     }
 
+    public function test_product_group_must_be_a_configured_group(): void
+    {
+        $actor = $this->userWithAccess(['products' => ['create']]);
+        $payload = ['code' => 'IV-1', 'name' => 'IV Catheter Pen 18G', 'is_branded' => false, 'is_active' => true];
+
+        $this->actingAs($actor)->postJson('/api/products', [...$payload, 'product_group' => 'SPUIT'])
+            ->assertUnprocessable()->assertJsonValidationErrors('product_group');
+
+        $this->actingAs($actor)->postJson('/api/products', [...$payload, 'product_group' => 'IV CAT PEN'])
+            ->assertCreated()->assertJsonPath('data.product_group', 'IV CAT PEN');
+    }
+
     public function test_product_datatable_filters_by_volume_and_branded(): void
     {
         Product::factory()->create(['code' => 'P-1', 'volume' => '500', 'is_branded' => true]);

@@ -31,6 +31,7 @@ $(function () {
             { data: 'code', name: 'code', render: App.escape },
             { data: 'name', name: 'name', render: App.escape },
             { data: 'volume', name: 'volume', searchable: false, className: 'text-nowrap', render: formatVolume },
+            { data: 'product_group', orderable: false, searchable: false, render: value => value ? App.escape(value) : muted('-') },
             {
                 data: 'is_branded',
                 name: 'is_branded',
@@ -84,6 +85,7 @@ $(function () {
             $form.find('[name="code"]').val(product.code);
             $form.find('[name="name"]').val(product.name);
             $form.find('[name="volume"]').val(product.volume === null ? '' : Number(product.volume));
+            $form.find('[name="product_group"]').val(product.product_group || '');
             $form.find('[name="netsuite_id"]').val(product.netsuite_id);
             $('#product-branded').prop('checked', product.is_branded);
             $('#product-active').prop('checked', product.is_active);

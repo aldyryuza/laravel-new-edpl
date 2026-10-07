@@ -134,18 +134,21 @@
                 </div>
                 <div class="modal-body">
                     <div class="row g-4">
-                        <div class="col-md-6">
-                            <label for="item-product" class="form-label">Product <span class="text-danger">*</span></label>
-                            <select class="form-select" id="item-product" name="product_id" required>
-                                <option value="">Pilih product</option>
-                                @foreach ($products as $product)
-                                    <option value="{{ $product->id }}" data-volume="{{ $product->volume !== null ? (float) $product->volume : '' }}">
-                                        {{ $product->name }} ({{ $product->code }})
-                                    </option>
+                        <div class="col-md-4">
+                            <label for="item-group" class="form-label">Group Product <span class="text-danger">*</span></label>
+                            <select class="form-select" id="item-group" name="product_group" required>
+                                <option value="">Pilih group</option>
+                                @foreach ($productGroups as $group)
+                                    <option value="{{ $group }}">{{ $group }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-8">
+                            <label for="item-product" class="form-label">Product <span class="text-danger">*</span></label>
+                            <select class="form-select" id="item-product" name="product_id" multiple></select>
+                            <div class="form-text">Semua product di group otomatis terpilih; hapus yang tidak diajukan. Satu product = satu item.</div>
+                        </div>
+                        <div class="col-md-8">
                             <label for="item-distributor" class="form-label">Distributor <span class="text-danger">*</span></label>
                             <select class="form-select" id="item-distributor" name="distributor_id" required>
                                 <option value="">Pilih distributor</option>
@@ -162,15 +165,6 @@
                                     <option value="{{ $priceType }}" data-volumes="{{ json_encode(config("dpl.price_type_volumes.{$priceType}")) }}">{{ $priceType }}</option>
                                 @endforeach
                             </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="item-hna-disc" class="form-label">HNA - Discount On</label>
-                            <input type="text" class="form-control text-end" id="item-hna-disc" readonly placeholder="Pilih product" />
-                        </div>
-                        <div class="col-md-4">
-                            <label for="item-hna-ppn-disc" class="form-label">HNA+PPN - Discount On</label>
-                            <input type="text" class="form-control text-end" id="item-hna-ppn-disc" readonly placeholder="Pilih product" />
-                            <div class="form-text" id="item-price-info"></div>
                         </div>
                         <div class="col-md-3">
                             <label for="item-principle-on" class="form-label">Discount Share Principle ON (%)</label>
@@ -255,5 +249,7 @@
 @endpush
 
 @push('scripts')
+    {{-- Product per group untuk pilihan item (id, label, group, volume). --}}
+    <script type="application/json" id="dpl-products">@json($productOptions)</script>
     <script src="{{ asset_v('js/pages/dpl/proposal-form.js') }}"></script>
 @endpush

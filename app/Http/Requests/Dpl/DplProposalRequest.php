@@ -162,14 +162,16 @@ class DplProposalRequest extends FormRequest
     }
 
     /**
-     * Direct dan Ambil Dari Pabrik tidak boleh bersamaan; satu product hanya sekali per distributor.
+     * Product harus dalam group DPL, jenis harga sesuai volume, Direct dan Ambil Dari Pabrik tidak boleh bersamaan,
+     * dan satu product hanya sekali per distributor.
      */
     private function validateItemRules(Validator $validator): void
     {
         $seen = [];
-        $volumes = Product::query()
+        $products = Product::query()
             ->whereKey(collect($this->input('items', []))->pluck('product_id')->filter()->map(fn ($id) => (int) $id)->unique()->all())
-            ->pluck('volume', 'id');
+            ->get(['id', 'volume', 'product_group'])
+            ->keyBy('id');
 
         foreach ($this->input('items', []) as $index => $item) {
             if (! is_array($item)) {
@@ -177,9 +179,14 @@ class DplProposalRequest extends FormRequest
             }
 
             $priceType = $item['price_type'] ?? null;
+            $product = isset($item['product_id']) ? $products->get((int) $item['product_id']) : null;
 
-            if (is_string($priceType) && isset($item['product_id']) && $volumes->has((int) $item['product_id'])
-                && ! DplPricing::allowsVolume($priceType, $volumes->get((int) $item['product_id']))) {
+            // Hanya product dalam group DPL (1L/500/250/100/25 ml atau group manual) yang bisa diajukan.
+            if ($product !== null && $product->dplGroup() === null) {
+                $validator->errors()->add("items.{$index}.product_id", 'Product ini tidak termasuk group product DPL.');
+            }
+
+            if (is_string($priceType) && $product !== null && ! DplPricing::allowsVolume($priceType, $product->volume)) {
                 $allowed = implode('/', config("dpl.price_type_volumes.{$priceType}"));
                 $validator->errors()->add("items.{$index}.price_type", "{$priceType} hanya untuk product {$allowed} ml.");
             }

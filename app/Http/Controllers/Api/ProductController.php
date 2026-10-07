@@ -40,7 +40,7 @@ class ProductController extends Controller implements HasMiddleware
     public function datatable(Request $request): JsonResponse
     {
         $query = Product::query()
-            ->select(['products.id', 'products.code', 'products.name', 'products.volume', 'products.is_branded', 'products.netsuite_id', 'products.is_active'])
+            ->select(['products.id', 'products.code', 'products.name', 'products.volume', 'products.product_group', 'products.is_branded', 'products.netsuite_id', 'products.is_active'])
             ->when($request->filled('volume'), fn (Builder $query) => $query->where('volume', $request->input('volume')))
             ->when($request->filled('is_branded'), fn (Builder $query) => $query->where('is_branded', $request->boolean('is_branded')))
             ->when($request->filled('is_active'), fn (Builder $query) => $query->where('is_active', $request->boolean('is_active')));

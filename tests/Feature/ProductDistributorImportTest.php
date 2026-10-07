@@ -24,8 +24,8 @@ class ProductDistributorImportTest extends TestCase
         $existing = Product::factory()->create(['code' => 'P-1', 'name' => 'Lama']);
 
         $this->import('products', ProductImportService::COLUMNS, [
-            ['P-1', 'Baru', 500, 'ya', 'NS-1', ''],
-            ['P-2', 'Product Dua', '', '', '', 'tidak'],
+            ['P-1', 'Baru', 500, '', 'ya', 'NS-1', ''],
+            ['P-2', 'Product Dua', '', 'iv cat pen', '', '', 'tidak'],
         ])->assertOk()->assertJsonPath('data.created', 1)->assertJsonPath('data.updated', 1);
 
         $existing->refresh();
@@ -35,15 +35,24 @@ class ProductDistributorImportTest extends TestCase
 
         $second = Product::query()->where('code', 'P-2')->sole();
         $this->assertNull($second->volume);
+        $this->assertSame('IV CAT PEN', $second->product_group);
+        $this->assertNull($existing->product_group);
         $this->assertFalse($second->is_branded);
         $this->assertFalse($second->is_active);
     }
 
     public function test_product_import_rejects_invalid_volume(): void
     {
-        $this->import('products', ProductImportService::COLUMNS, [['P-1', 'Nama', 'lima ratus', '', '', '']])
+        $this->import('products', ProductImportService::COLUMNS, [['P-1', 'Nama', 'lima ratus', '', '', '', '']])
             ->assertUnprocessable()
             ->assertJsonPath('errors.file.0', 'Baris 2: volume harus angka 0 s/d 999999.9999.');
+    }
+
+    public function test_product_import_rejects_unknown_group(): void
+    {
+        $this->import('products', ProductImportService::COLUMNS, [['P-1', 'Nama', '', 'SPUIT', '', '', '']])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.file.0', 'Baris 2: group_product harus salah satu: IV CAT WING, IV CAT PEN.');
     }
 
     public function test_distributor_import_links_parent_in_same_file_and_regions(): void
