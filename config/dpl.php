@@ -42,4 +42,13 @@ return [
 
     'default_price_type' => 'PRICE_BARU_2026',
 
+    /*
+    | Jenis harga yang hanya boleh untuk volume product tertentu (ml). Jenis harga yang tidak
+    | tercantum boleh untuk semua product.
+    */
+
+    'price_type_volumes' => [
+        'PRICE_LAMA_2025' => [500],
+    ],
+
 ];

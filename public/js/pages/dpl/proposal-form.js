@@ -7,7 +7,7 @@
  *
  * Aturan item (juga ditegakkan server):
  * - HNA = harga product yang berlaku pada Date Start sesuai jenis harga item (GET api/dpl/proposals/pricing),
- *   default PRICE_BARU_2026 (price), bisa diganti PRICE_LAMA_2025 (regular_price);
+ *   default PRICE_BARU_2026 (price), bisa diganti PRICE_LAMA_2025 (regular_price, hanya product 500 ml);
  *   HNA - Disc On = HNA × (1 − (Principle ON + Distributor ON)%), HNA+PPN - Disc On = HNA × (1 + PPN%) × (1 − ...),
  *   dibulatkan ke rupiah (desimal >= 0,5 ke atas, < 0,5 ke bawah).
  * - Minimum order wajib diisi.
@@ -168,7 +168,27 @@ $(function () {
     }
 
     $form.on('change', '[name="date_start"]', loadPricing);
-    $('#item-product, #item-price-type').on('change', updateItemPrices);
+    /** Nonaktifkan jenis harga yang tidak berlaku untuk volume product terpilih (mis. PRICE_LAMA_2025 hanya 500 ml). */
+    function applyPriceTypeVolumes() {
+        const volume = $('#item-product option:selected').data('volume');
+
+        $priceType.find('option').each(function () {
+            const volumes = $(this).data('volumes');
+            const allowed = !Array.isArray(volumes) || (volume !== '' && volume !== undefined && volumes.map(Number).includes(Number(volume)));
+
+            $(this).prop('disabled', !allowed);
+        });
+
+        if ($priceType.find('option:selected').prop('disabled')) {
+            $priceType.val(defaultPriceType);
+        }
+    }
+
+    $('#item-product').on('change', () => {
+        applyPriceTypeVolumes();
+        updateItemPrices();
+    });
+    $priceType.on('change', updateItemPrices);
     $itemForm.on('input', '[name="principle_discount_on"], [name="distributor_discount_on"]', updateItemPrices);
 
     // ---- Aturan otomatis item ----

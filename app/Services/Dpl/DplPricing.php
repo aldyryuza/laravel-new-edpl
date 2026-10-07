@@ -29,6 +29,20 @@ class DplPricing
     }
 
     /**
+     * Apakah jenis harga boleh dipakai untuk product dengan volume tersebut (config dpl.price_type_volumes).
+     */
+    public static function allowsVolume(string $priceType, int|float|string|null $volume): bool
+    {
+        $volumes = config("dpl.price_type_volumes.{$priceType}");
+
+        if ($volumes === null) {
+            return true;
+        }
+
+        return $volume !== null && in_array((float) $volume, array_map('floatval', $volumes), true);
+    }
+
+    /**
      * Harga per product yang berlaku pada tanggal tersebut, per jenis harga. Bila ada beberapa baris berlaku,
      * dipakai yang valid_from terbaru.
      *

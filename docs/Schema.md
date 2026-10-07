@@ -646,7 +646,7 @@ Current commercial terms, one row per DPL item.
 | `final_price` | numeric(18,4) | Yes | snapshot/result if needed |
 | `effective_discount` | numeric(10,4) | Yes | |
 | `calculator_percentage` | numeric(10,4) | Yes | |
-| `price_type` | varchar(50) | Yes | jenis harga HNA: `PRICE_BARU_2026` (= `product_prices.price`, default) / `PRICE_LAMA_2025` (= `regular_price`); daftar di `config/dpl.php` |
+| `price_type` | varchar(50) | Yes | jenis harga HNA: `PRICE_BARU_2026` (= `product_prices.price`, default) / `PRICE_LAMA_2025` (= `regular_price`, hanya product 500 ml); daftar & batas volume di `config/dpl.php` |
 | timestamps | timestamp | Yes | |
 
 No percentage CHECK <= 100 until special commercial cases are validated.

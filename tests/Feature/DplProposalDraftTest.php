@@ -48,7 +48,7 @@ class DplProposalDraftTest extends TestCase
 
         $this->region = SalesRegion::factory()->for(SalesZone::factory()->create(['code' => 'E']), 'zone')->create();
         $this->outlet = Outlet::factory()->create(['area_id' => SalesArea::factory()->for($this->region, 'region')->create()->id, 'bed_count' => 120]);
-        $this->product = Product::factory()->create();
+        $this->product = Product::factory()->create(['volume' => 500]);
         $this->distributor = Distributor::factory()->create();
         $this->distributor->regions()->attach($this->region);
         $this->team = Team::factory()->create(['code' => 'A']);
@@ -338,6 +338,19 @@ class DplProposalDraftTest extends TestCase
             ->assertJsonPath('data.default_price_type', 'PRICE_BARU_2026')
             ->assertJsonPath("data.prices.{$this->product->id}.PRICE_BARU_2026", '100000.0000')
             ->assertJsonPath("data.prices.{$this->product->id}.PRICE_LAMA_2025", '95000.0000');
+    }
+
+    public function test_old_price_type_is_only_for_500_ml_products(): void
+    {
+        $small = Product::factory()->create(['volume' => 250]);
+        $items = [$this->item(['product_id' => $small->id, 'price_type' => 'PRICE_LAMA_2025'])];
+
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => $items]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['items.0.price_type' => 'PRICE_LAMA_2025 hanya untuk product 500 ml.']);
+
+        $items = [$this->item(['product_id' => $small->id, 'price_type' => 'PRICE_BARU_2026'])];
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => $items]))->assertCreated();
     }
 
     public function test_minimum_order_is_required(): void

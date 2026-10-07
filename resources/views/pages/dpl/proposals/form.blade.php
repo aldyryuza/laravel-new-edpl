@@ -139,7 +139,9 @@
                             <select class="form-select" id="item-product" name="product_id" required>
                                 <option value="">Pilih product</option>
                                 @foreach ($products as $product)
-                                    <option value="{{ $product->id }}">{{ $product->name }} ({{ $product->code }})</option>
+                                    <option value="{{ $product->id }}" data-volume="{{ $product->volume !== null ? (float) $product->volume : '' }}">
+                                        {{ $product->name }} ({{ $product->code }})
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
@@ -156,7 +158,8 @@
                             <label for="item-price-type" class="form-label">Jenis Harga <span class="text-danger">*</span></label>
                             <select class="form-select" id="item-price-type" name="price_type">
                                 @foreach ($priceTypes as $priceType)
-                                    <option value="{{ $priceType }}">{{ $priceType }}</option>
+                                    {{-- data-volumes kosong = boleh untuk semua product. --}}
+                                    <option value="{{ $priceType }}" data-volumes="{{ json_encode(config("dpl.price_type_volumes.{$priceType}")) }}">{{ $priceType }}</option>
                                 @endforeach
                             </select>
                         </div>

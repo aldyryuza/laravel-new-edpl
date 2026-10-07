@@ -167,10 +167,21 @@ class DplProposalRequest extends FormRequest
     private function validateItemRules(Validator $validator): void
     {
         $seen = [];
+        $volumes = Product::query()
+            ->whereKey(collect($this->input('items', []))->pluck('product_id')->filter()->map(fn ($id) => (int) $id)->unique()->all())
+            ->pluck('volume', 'id');
 
         foreach ($this->input('items', []) as $index => $item) {
             if (! is_array($item)) {
                 continue;
+            }
+
+            $priceType = $item['price_type'] ?? null;
+
+            if (is_string($priceType) && isset($item['product_id']) && $volumes->has((int) $item['product_id'])
+                && ! DplPricing::allowsVolume($priceType, $volumes->get((int) $item['product_id']))) {
+                $allowed = implode('/', config("dpl.price_type_volumes.{$priceType}"));
+                $validator->errors()->add("items.{$index}.price_type", "{$priceType} hanya untuk product {$allowed} ml.");
             }
 
             if (filter_var($item['is_direct_delivery'] ?? false, FILTER_VALIDATE_BOOL) && filter_var($item['is_factory_pickup'] ?? false, FILTER_VALIDATE_BOOL)) {
