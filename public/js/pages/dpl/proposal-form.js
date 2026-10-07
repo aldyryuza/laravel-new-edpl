@@ -7,7 +7,8 @@
  *
  * Aturan item (juga ditegakkan server):
  * - Product dipilih lewat group (1L/500ml/250ml/100ml/25ml dari volume, IV CAT WING/IV CAT PEN dari master Product).
- *   Memilih group otomatis memilih semua product di group (bisa dihapus sebagian); satu product = satu item
+ *   Memilih group otomatis memilih semua product di group (bisa dihapus sebagian); "Tampilkan semua product"
+ *   menampilkan semua product tanpa terpilih (cari & pilih sendiri). Satu product = satu item
  *   dengan distributor & syarat yang sama. Edit item hanya mengubah syarat, bukan product.
  * - HNA = harga product yang berlaku pada Date Start sesuai jenis harga item (GET api/dpl/proposals/pricing),
  *   default PRICE_BARU_2026 (price), bisa diganti PRICE_LAMA_2025 (regular_price, hanya product 500 ml).
@@ -48,6 +49,7 @@ $(function () {
     /** Product per group: [{id, label, group, volume}] */
     const PRODUCTS = JSON.parse(document.getElementById('dpl-products').textContent);
     const productById = Object.fromEntries(PRODUCTS.map(product => [product.id, product]));
+    const ALL_GROUPS = '__all__';
 
     /** Item di browser: { id, product_id, distributor_id, ..., labels: {product, distributor, bonus} } */
     let items = [];
@@ -160,10 +162,14 @@ $(function () {
 
     // ---- Group & product ----
 
-    /** Isi pilihan product dengan product di group; `selected` = id yang dipilih (default semua). */
-    function setProductOptions(group, selected = null) {
-        const options = PRODUCTS.filter(product => product.group === group);
-        const selectedIds = (selected || options.map(product => product.id)).map(String);
+    /**
+     * Isi pilihan product sesuai group. Group tertentu: semua product di group otomatis terpilih.
+     * ALL_GROUPS ("Tampilkan semua product"): semua product ditampilkan tanpa ada yang terpilih, user mencari sendiri.
+     */
+    function setProductOptions(group) {
+        const all = group === ALL_GROUPS;
+        const options = all ? PRODUCTS : PRODUCTS.filter(product => product.group === group);
+        const selectedIds = all ? [] : options.map(product => String(product.id));
 
         $products.empty();
         options.forEach(product => $products.append(new Option(product.label, product.id, false, selectedIds.includes(String(product.id)))));

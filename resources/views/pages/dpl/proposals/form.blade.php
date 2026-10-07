@@ -138,6 +138,8 @@
                             <label for="item-group" class="form-label">Group Product <span class="text-danger">*</span></label>
                             <select class="form-select" id="item-group" name="product_group" required>
                                 <option value="">Pilih group</option>
+                                {{-- Semua product: tidak ada yang terpilih otomatis, cari & pilih sendiri. --}}
+                                <option value="__all__">Tampilkan semua product</option>
                                 @foreach ($productGroups as $group)
                                     <option value="{{ $group }}">{{ $group }}</option>
                                 @endforeach
@@ -152,7 +154,7 @@
                                 </div>
                             </div>
                             <select class="form-select" id="item-product" name="product_id" multiple></select>
-                            <div class="form-text">Semua product di group otomatis terpilih. Untuk satu product: Kosongkan lalu pilih. Satu product = satu item.</div>
+                            <div class="form-text">Group tertentu: semua product di group otomatis terpilih. "Tampilkan semua product": cari & pilih sendiri. Satu product = satu item.</div>
                         </div>
                         <div class="col-md-8">
                             <label for="item-distributor" class="form-label">Distributor <span class="text-danger">*</span></label>
