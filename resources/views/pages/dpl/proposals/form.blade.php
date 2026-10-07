@@ -187,7 +187,8 @@
                         </div>
                         <div class="col-md-6" data-product-mode="single">
                             <label for="item-hna-disc" class="form-label">HNA - Discount On</label>
-                            <input type="text" class="form-control text-end" id="item-hna-disc" readonly placeholder="Pilih product" />
+                            <input type="text" class="form-control text-end" id="item-hna-disc" inputmode="numeric" placeholder="Pilih product" />
+                            <div class="form-text" id="item-hna-disc-info">Bisa diubah: Discount Share Principle ON menyesuaikan.</div>
                         </div>
                         <div class="col-md-6" data-product-mode="single">
                             <label for="item-hna-ppn-disc" class="form-label">HNA+PPN - Discount On</label>

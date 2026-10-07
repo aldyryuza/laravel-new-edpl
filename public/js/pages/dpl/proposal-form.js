@@ -14,6 +14,8 @@
  *   default PRICE_BARU_2026 (price), bisa diganti PRICE_LAMA_2025 (regular_price, hanya product 500 ml).
  *   HNA - Disc On = HNA × (1 − (Principle ON + Distributor ON)%), HNA+PPN - Disc On = HNA × (1 + PPN%) × (1 − ...),
  *   dibulatkan ke rupiah (desimal >= 0,5 ke atas, < 0,5 ke bawah).
+ * - Mode Satuan: HNA - Disc On bisa diketik; Discount Share Principle ON dihitung balik
+ *   = (1 − target / HNA) × 100 − Distributor ON (4 desimal, tidak boleh negatif).
  * - Minimum order wajib diisi.
  * - Discount Share Principle OFF diisi -> Buyer reward dicentang.
  * - Direct -> Logistic Fee wajib (boleh 0); Ambil Dari Pabrik -> Logistic Fee 0; keduanya tidak boleh bersamaan.
@@ -200,8 +202,11 @@ $(function () {
         $products.trigger('change');
     }
 
-    /** Mode Satuan: tampilkan HNA - Disc On dan HNA+PPN - Disc On product terpilih. */
-    function updateItemPrices() {
+    /**
+     * Mode Satuan: tampilkan HNA - Disc On dan HNA+PPN - Disc On product terpilih.
+     * keepHnaDisc = jangan timpa HNA - Disc On (sedang diketik user).
+     */
+    function updateItemPrices(keepHnaDisc = false) {
         const $info = $('#item-price-info');
         const productId = productMode() === 'single' ? $single.val() : null;
 
@@ -215,7 +220,10 @@ $(function () {
         const hna = hnaOf(productId, priceType);
         const result = prices(productId, priceType, valueOrNull('principle_discount_on'), valueOrNull('distributor_discount_on'));
 
-        $('#item-hna-disc').val(formatRupiah(result.hnaDisc));
+        if (keepHnaDisc !== true) {
+            $('#item-hna-disc').val(formatRupiah(result.hnaDisc));
+            $('#item-hna-disc-info').removeClass('text-danger').text('Bisa diubah: Discount Share Principle ON menyesuaikan.');
+        }
         $('#item-hna-ppn-disc').val(formatRupiah(result.hnaPpnDisc));
 
         if (hna === null) {
@@ -260,8 +268,44 @@ $(function () {
         updateItemPrices();
     });
     $itemForm.on('change', '[name="product_mode"]', applyProductMode);
-    $priceType.on('change', updateItemPrices);
-    $itemForm.on('input', '[name="principle_discount_on"], [name="distributor_discount_on"]', updateItemPrices);
+    $priceType.on('change', () => updateItemPrices());
+    $itemForm.on('input', '[name="principle_discount_on"], [name="distributor_discount_on"]', () => updateItemPrices());
+
+    /** Angka format Indonesia (85.000 / 85000 / 85000,5) -> number; null bila kosong/tidak valid. */
+    function parseRupiah(text) {
+        const normalized = String(text).trim().replace(/\./g, '').replace(',', '.');
+        return normalized === '' || Number.isNaN(Number(normalized)) ? null : Number(normalized);
+    }
+
+    /**
+     * HNA - Disc On diubah -> Discount Share Principle ON dihitung balik:
+     * Principle ON = (1 − target / HNA) × 100 − Distributor ON, dibulatkan 4 desimal (presisi kolom).
+     */
+    $('#item-hna-disc').on('input', function () {
+        const $info = $('#item-hna-disc-info');
+        const productId = $single.val();
+        const hna = productId ? hnaOf(productId, $priceType.val()) : null;
+        const target = parseRupiah($(this).val());
+
+        $info.removeClass('text-danger').text('Bisa diubah: Discount Share Principle ON menyesuaikan.');
+
+        if (hna === null || hna === 0 || target === null) {
+            return;
+        }
+
+        const principleOn = Math.round(((1 - target / hna) * 100 - (Number(valueOrNull('distributor_discount_on')) || 0)) * 10000) / 10000;
+
+        if (principleOn < 0) {
+            $info.addClass('text-danger').text('Melebihi harga setelah Discount Share Distributor ON; Principle ON tidak bisa negatif.');
+            return;
+        }
+
+        $itemForm.find('[name="principle_discount_on"]').val(principleOn);
+        updateItemPrices(true);
+    });
+
+    // Setelah selesai mengetik, tampilkan ulang hasil hitung (format rupiah, sesuai diskon yang tersimpan).
+    $('#item-hna-disc').on('change', () => updateItemPrices());
 
     // ---- Aturan otomatis item ----
 
