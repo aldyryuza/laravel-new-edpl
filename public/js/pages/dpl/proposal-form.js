@@ -311,8 +311,9 @@ $(function () {
             $group.val(product ? product.group : '');
             $products.empty().append(new Option(item.labels.product, item.product_id, true, true)).trigger('change');
         } else {
-            $group.val('');
-            $products.empty().trigger('change');
+            // Item baru: default "Tampilkan semua product" (tidak ada product terpilih, cari & pilih sendiri).
+            $group.val(ALL_GROUPS);
+            setProductOptions(ALL_GROUPS);
         }
 
         applyDeliveryMode();
