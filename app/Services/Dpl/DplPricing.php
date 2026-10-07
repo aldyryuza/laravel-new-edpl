@@ -6,22 +6,39 @@ use App\Models\Dpl\CommercialParameter;
 use App\Models\Dpl\ProductPrice;
 
 /**
- * Harga acuan item DPL: HNA = product_prices.price yang berlaku pada Date Start DPL, dan PPN dari
- * parameter komersial PPN_PERCENT. Nilai turunan (HNA - Disc On, HNA+PPN - Disc On) dihitung untuk tampilan:
- * HNA × (1 + PPN%) × (1 − (Disc Prinsipal On + Disc Distributor On)%).
+ * Harga acuan item DPL: HNA = harga product yang berlaku pada Date Start DPL, kolomnya sesuai jenis harga
+ * item (config dpl.price_types, mis. PRICE_BARU_2026 = price, PRICE_LAMA_2025 = regular_price), dan PPN dari
+ * parameter komersial PPN_PERCENT. Nilai turunan untuk tampilan (dibulatkan ke rupiah, setengah ke atas):
+ * HNA × (1 + PPN%) × (1 − (Disc Principle ON + Disc Distributor ON)%).
  */
 class DplPricing
 {
     public const PPN_PARAMETER = 'PPN_PERCENT';
 
     /**
-     * HNA per product yang berlaku pada tanggal tersebut. Bila ada beberapa harga berlaku, dipakai yang valid_from terbaru.
+     * @return array<string, string> kode jenis harga => kolom product_prices
+     */
+    public static function priceTypes(): array
+    {
+        return config('dpl.price_types');
+    }
+
+    public static function defaultPriceType(): string
+    {
+        return config('dpl.default_price_type');
+    }
+
+    /**
+     * Harga per product yang berlaku pada tanggal tersebut, per jenis harga. Bila ada beberapa baris berlaku,
+     * dipakai yang valid_from terbaru.
      *
      * @param  array<int, int>|null  $productIds  null = semua product
-     * @return array<int, string> product_id => harga (string desimal)
+     * @return array<int, array<string, string|null>> product_id => [kode jenis harga => harga (string desimal) atau null]
      */
-    public function hnaOn(string $date, ?array $productIds = null): array
+    public function pricesOn(string $date, ?array $productIds = null): array
     {
+        $types = self::priceTypes();
+
         return ProductPrice::query()
             ->where('is_active', true)
             ->where(fn ($query) => $query->whereNull('valid_from')->orWhere('valid_from', '<=', $date))
@@ -30,9 +47,11 @@ class DplPricing
             ->orderBy('product_id')
             ->orderByRaw('valid_from DESC NULLS LAST')
             ->orderByDesc('id')
-            ->get(['product_id', 'price'])
+            ->get(['product_id', ...array_unique(array_values($types))])
             ->unique('product_id')
-            ->mapWithKeys(fn (ProductPrice $price) => [$price->product_id => $price->price])
+            ->mapWithKeys(fn (ProductPrice $price) => [
+                $price->product_id => array_map(fn (string $column) => $price->{$column}, $types),
+            ])
             ->all();
     }
 

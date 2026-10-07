@@ -83,7 +83,9 @@ class DplProposalDraftTest extends TestCase
                 'distributor_id' => $this->distributor->id,
                 'minimum_order' => 200,
                 'principle_discount_on' => '10.5',
+                // Harga nego & konversi bonus tidak lagi diinput: diabaikan.
                 'negotiated_price' => '125000',
+                'is_bonus_conversion' => true,
                 'is_direct_delivery' => true,
                 'logistic_fee' => '15000',
             ]],
@@ -109,7 +111,9 @@ class DplProposalDraftTest extends TestCase
         $this->assertSame(200, $item->minimum_order);
         $this->assertSame('10.5000', $item->terms->principle_discount_on);
         $this->assertSame('0.0000', $item->terms->principle_discount_off);
-        $this->assertSame('125000.0000', $item->terms->negotiated_price);
+        $this->assertNull($item->terms->negotiated_price);
+        $this->assertFalse($item->is_bonus_conversion);
+        $this->assertSame('PRICE_BARU_2026', $item->terms->price_type);
 
         $this->assertDatabaseHas(DplStatusHistory::class, [
             'dpl_proposal_id' => $response->json('data.id'),
@@ -205,8 +209,8 @@ class DplProposalDraftTest extends TestCase
             'outlet_id' => null,
             'proposal_type' => 'CLEARANCE',
             'items' => [
-                ['id' => $existing->id, 'product_id' => $this->product->id, 'distributor_id' => $this->distributor->id, 'negotiated_price' => '99000'],
-                ['product_id' => $otherProduct->id, 'distributor_id' => $this->distributor->id],
+                ['id' => $existing->id, 'product_id' => $this->product->id, 'distributor_id' => $this->distributor->id, 'minimum_order' => 300, 'margin' => '7.5'],
+                ['product_id' => $otherProduct->id, 'distributor_id' => $this->distributor->id, 'minimum_order' => 100],
             ],
         ]);
 
@@ -215,7 +219,8 @@ class DplProposalDraftTest extends TestCase
             ->assertJsonPath('data.proposal_type', 'CLEARANCE')
             ->assertJsonPath('data.outlet_id', $this->outlet->id)
             ->assertJsonCount(2, 'data.items');
-        $this->assertSame('99000.0000', $existing->fresh()->terms->negotiated_price);
+        $this->assertSame('7.5000', $existing->fresh()->terms->margin);
+        $this->assertSame(300, $existing->fresh()->minimum_order);
 
         // Item yang tidak dikirim dihapus (soft delete).
         $this->actingAs($this->proposer)->putJson("/api/dpl/proposals/{$id}", $this->payload(['items' => []]))->assertOk();
@@ -265,7 +270,7 @@ class DplProposalDraftTest extends TestCase
      */
     private function item(array $overrides = []): array
     {
-        return ['product_id' => $this->product->id, 'distributor_id' => $this->distributor->id, ...$overrides];
+        return ['product_id' => $this->product->id, 'distributor_id' => $this->distributor->id, 'minimum_order' => 200, ...$overrides];
     }
 
     public function test_same_product_cannot_appear_twice_for_one_distributor(): void
@@ -308,19 +313,37 @@ class DplProposalDraftTest extends TestCase
         DplItem::factory()->create(['is_direct_delivery' => true, 'is_factory_pickup' => true]);
     }
 
-    public function test_hna_snapshot_uses_price_valid_on_date_start_and_pricing_endpoint(): void
+    public function test_hna_snapshot_uses_price_type_valid_on_date_start_and_pricing_endpoint(): void
     {
-        ProductPrice::factory()->for($this->product)->create(['price' => '100000', 'valid_from' => '2026-01-01', 'valid_until' => '2026-10-31']);
-        ProductPrice::factory()->for($this->product)->create(['price' => '110000', 'valid_from' => '2026-11-01']);
+        ProductPrice::factory()->for($this->product)->create(['price' => '100000', 'regular_price' => '95000', 'valid_from' => '2026-01-01', 'valid_until' => '2026-10-31']);
+        ProductPrice::factory()->for($this->product)->create(['price' => '110000', 'regular_price' => '100000', 'valid_from' => '2026-11-01']);
         CommercialParameter::factory()->create(['code' => 'PPN_PERCENT', 'value' => CommercialParameter::wrapValue('number', '11')]);
 
         $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['date_start' => '2026-11-05']))
             ->assertCreated()->assertJsonPath('data.items.0.terms.base_price', '110000.0000');
 
+        // PRICE_LAMA_2025 = regular_price.
+        $items = [$this->item(['price_type' => 'PRICE_LAMA_2025'])];
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['date_start' => '2026-11-05', 'items' => $items]))
+            ->assertCreated()
+            ->assertJsonPath('data.items.0.terms.price_type', 'PRICE_LAMA_2025')
+            ->assertJsonPath('data.items.0.terms.base_price', '100000.0000');
+
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item(['price_type' => 'PRICE_X'])]]))
+            ->assertUnprocessable()->assertJsonValidationErrors('items.0.price_type');
+
         $this->actingAs($this->proposer)->getJson('/api/dpl/proposals/pricing?date=2026-10-20')
             ->assertOk()
             ->assertJsonPath('data.ppn_percent', '11')
-            ->assertJsonPath("data.hna.{$this->product->id}", '100000.0000');
+            ->assertJsonPath('data.default_price_type', 'PRICE_BARU_2026')
+            ->assertJsonPath("data.prices.{$this->product->id}.PRICE_BARU_2026", '100000.0000')
+            ->assertJsonPath("data.prices.{$this->product->id}.PRICE_LAMA_2025", '95000.0000');
+    }
+
+    public function test_minimum_order_is_required(): void
+    {
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item(['minimum_order' => null])]]))
+            ->assertUnprocessable()->assertJsonValidationErrors('items.0.minimum_order');
     }
 
     public function test_end_date_cannot_be_backdated(): void

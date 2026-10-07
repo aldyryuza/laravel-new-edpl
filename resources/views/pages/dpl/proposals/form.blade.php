@@ -103,9 +103,9 @@
                             <th class="text-end">Min. Order</th>
                             <th class="text-end">Principle On/Off (%)</th>
                             <th class="text-end">Distributor On/Off (%)</th>
+                            <th>Jenis Harga</th>
                             <th class="text-end">HNA - Disc On</th>
                             <th class="text-end">HNA+PPN - Disc On</th>
-                            <th class="text-end">Harga Nego</th>
                             <th>Pengiriman</th>
                             <th>Bonus</th>
                             <th class="text-end">Aksi</th>
@@ -152,11 +152,19 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <label for="item-price-type" class="form-label">Jenis Harga <span class="text-danger">*</span></label>
+                            <select class="form-select" id="item-price-type" name="price_type">
+                                @foreach ($priceTypes as $priceType)
+                                    <option value="{{ $priceType }}">{{ $priceType }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
                             <label for="item-hna-disc" class="form-label">HNA - Discount On</label>
                             <input type="text" class="form-control text-end" id="item-hna-disc" readonly placeholder="Pilih product" />
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="item-hna-ppn-disc" class="form-label">HNA+PPN - Discount On</label>
                             <input type="text" class="form-control text-end" id="item-hna-ppn-disc" readonly placeholder="Pilih product" />
                             <div class="form-text" id="item-price-info"></div>
@@ -178,10 +186,6 @@
                             <input type="number" class="form-control" id="item-distributor-off" name="distributor_discount_off" min="0" step="0.0001" />
                         </div>
                         <div class="col-md-3">
-                            <label for="item-negotiated" class="form-label">Harga Nego</label>
-                            <input type="number" class="form-control" id="item-negotiated" name="negotiated_price" min="0" step="0.0001" />
-                        </div>
-                        <div class="col-md-3">
                             <label for="item-margin" class="form-label">Margin (%)</label>
                             <input type="number" class="form-control" id="item-margin" name="margin" min="0" step="0.0001" />
                         </div>
@@ -190,8 +194,8 @@
                             <input type="number" class="form-control" id="item-logistic" name="logistic_support" min="0" step="0.0001" />
                         </div>
                         <div class="col-md-3">
-                            <label for="item-minimum" class="form-label">Minimum Order</label>
-                            <input type="number" class="form-control" id="item-minimum" name="minimum_order" min="0" step="1" />
+                            <label for="item-minimum" class="form-label">Minimum Order <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="item-minimum" name="minimum_order" min="0" step="1" required />
                         </div>
                         <div class="col-md-6">
                             <label for="item-bonus" class="form-label">Skema Bonus</label>
@@ -222,7 +226,6 @@
                             <label class="form-label d-block">Opsi</label>
                             @foreach ([
                                 'is_buyer_reward' => 'Buyer reward',
-                                'is_bonus_conversion' => 'Konversi bonus',
                                 'is_support_satoria' => 'Support Satoria',
                                 'is_returnable' => 'Bisa retur',
                             ] as $flag => $label)

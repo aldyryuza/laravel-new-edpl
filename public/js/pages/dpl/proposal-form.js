@@ -6,8 +6,11 @@
  * Item dikelola di browser (tabel + modal) dan dikirim bersama header sebagai JSON.
  *
  * Aturan item (juga ditegakkan server):
- * - HNA = harga product yang berlaku pada Date Start (GET api/dpl/proposals/pricing);
- *   HNA - Disc On = HNA × (1 − (Principle ON + Distributor ON)%), HNA+PPN - Disc On = HNA × (1 + PPN%) × (1 − ...).
+ * - HNA = harga product yang berlaku pada Date Start sesuai jenis harga item (GET api/dpl/proposals/pricing),
+ *   default PRICE_BARU_2026 (price), bisa diganti PRICE_LAMA_2025 (regular_price);
+ *   HNA - Disc On = HNA × (1 − (Principle ON + Distributor ON)%), HNA+PPN - Disc On = HNA × (1 + PPN%) × (1 − ...),
+ *   dibulatkan ke rupiah (desimal >= 0,5 ke atas, < 0,5 ke bawah).
+ * - Minimum order wajib diisi.
  * - Discount Share Principle OFF diisi -> Buyer reward dicentang.
  * - Direct -> Logistic Fee wajib (boleh 0); Ambil Dari Pabrik -> Logistic Fee 0; keduanya tidak boleh bersamaan.
  * - Satu product hanya sekali per distributor.
@@ -29,23 +32,31 @@ $(function () {
     const $logisticFee = $('#item-logistic-fee');
     const COLUMNS = 12;
 
-    const FLAGS = ['is_direct_delivery', 'is_factory_pickup', 'is_buyer_reward', 'is_bonus_conversion', 'is_support_satoria', 'is_returnable'];
+    const FLAGS = ['is_direct_delivery', 'is_factory_pickup', 'is_buyer_reward', 'is_support_satoria', 'is_returnable'];
     const TERMS = [
         'principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off',
-        'negotiated_price', 'margin', 'logistic_fee', 'logistic_support'
+        'margin', 'logistic_fee', 'logistic_support'
     ];
+    const $priceType = $('#item-price-type');
+    const defaultPriceType = $priceType.find('option').first().val();
 
     /** Item di browser: { id, product_id, distributor_id, ..., labels: {product, distributor, bonus} } */
     let items = [];
     let editingIndex = null;
     let editable = canSave && !proposalId;
-    /** Harga acuan untuk Date Start saat ini: { ppn: number|null, hna: {product_id: number} } */
-    let pricing = { date: null, ppn: null, hna: {} };
+    /** Harga acuan untuk Date Start saat ini: { ppn: number|null, prices: {product_id: {jenis_harga: number|null}} } */
+    let pricing = { date: null, ppn: null, prices: {} };
 
     const muted = text => `<span class="text-body-secondary">${text}</span>`;
     const isBlank = value => value === null || value === undefined || value === '';
     const number = value => (isBlank(value) ? muted('-') : App.escape(String(Number(value))));
-    const money = value => (value === null ? muted('-') : App.escape(value.toLocaleString('id-ID', { maximumFractionDigits: 2 })));
+    /**
+     * Bulatkan ke rupiah: desimal >= 0,5 ke atas, < 0,5 ke bawah (nilai selalu positif).
+     * toFixed(6) dulu agar galat float (mis. 2,4999999 dari 2,5) tidak membulatkan ke bawah.
+     */
+    const rupiah = value => (value === null ? null : Math.round(Number(value.toFixed(6))));
+    const formatRupiah = value => (value === null ? '-' : value.toLocaleString('id-ID', { maximumFractionDigits: 0 }));
+    const money = value => (value === null ? muted('-') : App.escape(formatRupiah(value)));
 
     initSelect2('#item-product, #item-distributor, #item-bonus');
 
@@ -98,7 +109,10 @@ $(function () {
                 pricing = {
                     date,
                     ppn: isBlank(res.data.ppn_percent) ? null : Number(res.data.ppn_percent),
-                    hna: Object.fromEntries(Object.entries(res.data.hna).map(([id, price]) => [id, Number(price)]))
+                    prices: Object.fromEntries(Object.entries(res.data.prices).map(([id, byType]) => [
+                        id,
+                        Object.fromEntries(Object.entries(byType).map(([type, price]) => [type, isBlank(price) ? null : Number(price)]))
+                    ]))
                 };
                 renderItems();
                 updateItemPrices();
@@ -107,18 +121,23 @@ $(function () {
     }
 
     /** @returns {{hnaDisc: number|null, hnaPpnDisc: number|null}} */
-    function prices(productId, principleOn, distributorOn) {
-        const hna = pricing.hna[productId];
+    function hnaOf(productId, priceType) {
+        const price = pricing.prices[productId]?.[priceType || defaultPriceType];
+        return price === undefined ? null : price;
+    }
 
-        if (hna === undefined) {
+    function prices(productId, priceType, principleOn, distributorOn) {
+        const hna = hnaOf(productId, priceType);
+
+        if (hna === null) {
             return { hnaDisc: null, hnaPpnDisc: null };
         }
 
         const factor = 1 - ((Number(principleOn) || 0) + (Number(distributorOn) || 0)) / 100;
 
         return {
-            hnaDisc: hna * factor,
-            hnaPpnDisc: pricing.ppn === null ? null : hna * (1 + pricing.ppn / 100) * factor
+            hnaDisc: rupiah(hna * factor),
+            hnaPpnDisc: pricing.ppn === null ? null : rupiah(hna * (1 + pricing.ppn / 100) * factor)
         };
     }
 
@@ -132,23 +151,24 @@ $(function () {
             return;
         }
 
-        const result = prices(productId, valueOrNull('principle_discount_on'), valueOrNull('distributor_discount_on'));
-        const format = value => (value === null ? '-' : value.toLocaleString('id-ID', { maximumFractionDigits: 2 }));
+        const priceType = $priceType.val();
+        const hna = hnaOf(productId, priceType);
+        const result = prices(productId, priceType, valueOrNull('principle_discount_on'), valueOrNull('distributor_discount_on'));
 
-        $('#item-hna-disc').val(format(result.hnaDisc));
-        $('#item-hna-ppn-disc').val(format(result.hnaPpnDisc));
+        $('#item-hna-disc').val(formatRupiah(result.hnaDisc));
+        $('#item-hna-ppn-disc').val(formatRupiah(result.hnaPpnDisc));
 
-        if (pricing.hna[productId] === undefined) {
-            $info.text(`Harga product belum ada untuk Date Start ${pricing.date || ''}.`);
+        if (hna === null) {
+            $info.text(`Harga ${priceType} belum ada untuk Date Start ${pricing.date || ''}.`);
         } else if (pricing.ppn === null) {
             $info.text('Parameter komersial PPN_PERCENT belum diatur.');
         } else {
-            $info.text(`HNA ${format(pricing.hna[productId])}, PPN ${pricing.ppn}%.`);
+            $info.text(`HNA ${hna.toLocaleString('id-ID', { maximumFractionDigits: 4 })}, PPN ${pricing.ppn}%.`);
         }
     }
 
     $form.on('change', '[name="date_start"]', loadPricing);
-    $('#item-product').on('change', updateItemPrices);
+    $('#item-product, #item-price-type').on('change', updateItemPrices);
     $itemForm.on('input', '[name="principle_discount_on"], [name="distributor_discount_on"]', updateItemPrices);
 
     // ---- Aturan otomatis item ----
@@ -211,7 +231,7 @@ $(function () {
         }
 
         $itemsBody.html(items.map((item, index) => {
-            const result = prices(item.product_id, item.principle_discount_on, item.distributor_discount_on);
+            const result = prices(item.product_id, item.price_type, item.principle_discount_on, item.distributor_discount_on);
 
             return `
             <tr data-index="${index}">
@@ -221,9 +241,9 @@ $(function () {
                 <td class="text-end">${number(item.minimum_order)}</td>
                 <td class="text-end">${number(item.principle_discount_on)} / ${number(item.principle_discount_off)}</td>
                 <td class="text-end">${number(item.distributor_discount_on)} / ${number(item.distributor_discount_off)}</td>
+                <td>${App.escape(item.price_type || defaultPriceType)}</td>
                 <td class="text-end">${money(result.hnaDisc)}</td>
                 <td class="text-end">${money(result.hnaPpnDisc)}</td>
-                <td class="text-end">${number(item.negotiated_price)}</td>
                 <td>${deliveryLabel(item)}</td>
                 <td>${item.labels.bonus ? App.escape(item.labels.bonus) : muted('-')}</td>
                 <td class="text-end text-nowrap">${editable ? `
@@ -249,6 +269,7 @@ $(function () {
         $itemForm.find('[name="remark"]').val(item?.remark ?? '');
         TERMS.forEach(field => $itemForm.find(`[name="${field}"]`).val(item && !isBlank(item[field]) ? Number(item[field]) : ''));
         FLAGS.forEach(flag => $itemForm.find(`[name="${flag}"]`).prop('checked', Boolean(item?.[flag])));
+        $priceType.val(item?.price_type || defaultPriceType);
         selectValue($('#item-product'), item?.product_id, item?.labels.product);
         applyDeliveryMode();
 
@@ -279,6 +300,9 @@ $(function () {
             && other.product_id === productId && other.distributor_id === distributorId)) {
             errors.product_id = 'Product ini sudah ada untuk distributor yang sama.';
         }
+        if (isBlank(valueOrNull('minimum_order'))) {
+            errors.minimum_order = 'Minimum order wajib diisi.';
+        }
         if ($direct.is(':checked') && isBlank($logisticFee.val())) {
             errors.logistic_fee = 'Logistic fee wajib diisi (boleh 0) untuk item Direct.';
         }
@@ -293,6 +317,7 @@ $(function () {
             distributor_id: distributorId,
             bonus_scheme_id: valueOrNull('bonus_scheme_id') ? Number(valueOrNull('bonus_scheme_id')) : null,
             minimum_order: valueOrNull('minimum_order'),
+            price_type: $priceType.val(),
             remark: valueOrNull('remark'),
             labels: {
                 product: $('#item-product option:selected').text(),
@@ -418,6 +443,7 @@ $(function () {
                 distributor_id: item.distributor_id,
                 bonus_scheme_id: item.bonus_scheme_id,
                 minimum_order: item.minimum_order,
+                price_type: item.terms?.price_type || defaultPriceType,
                 remark: item.remark,
                 labels: {
                     product: item.product ? `${item.product.name} (${item.product.code})` : `#${item.product_id}`,

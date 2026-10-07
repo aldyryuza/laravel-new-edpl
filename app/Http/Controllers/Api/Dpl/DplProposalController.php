@@ -109,7 +109,8 @@ class DplProposalController extends Controller implements HasMiddleware
     }
 
     /**
-     * HNA per product yang berlaku pada `date` (Date Start) dan PPN aktif, untuk tampilan HNA - Disc On / HNA+PPN - Disc On.
+     * Harga per product per jenis harga yang berlaku pada `date` (Date Start) dan PPN aktif, untuk tampilan
+     * HNA - Disc On / HNA+PPN - Disc On.
      */
     public function pricing(Request $request, DplPricing $pricing): JsonResponse
     {
@@ -118,7 +119,11 @@ class DplProposalController extends Controller implements HasMiddleware
         return response()->json([
             'success' => true,
             'message' => 'Data berhasil diambil',
-            'data' => ['ppn_percent' => $pricing->ppnPercent(), 'hna' => (object) $pricing->hnaOn($date)],
+            'data' => [
+                'ppn_percent' => $pricing->ppnPercent(),
+                'default_price_type' => DplPricing::defaultPriceType(),
+                'prices' => (object) $pricing->pricesOn($date),
+            ],
         ]);
     }
 

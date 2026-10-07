@@ -8,6 +8,7 @@ use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
 use App\Models\Product;
 use App\Services\Dpl\DplDraftService;
+use App\Services\Dpl\DplPricing;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
@@ -65,12 +66,11 @@ class DplProposalRequest extends FormRequest
             'items.*.id' => ['nullable', 'integer'],
             'items.*.product_id' => ['required', 'integer', Rule::exists(Product::class, 'id')->where('is_active', true)],
             'items.*.distributor_id' => ['required', 'integer'],
-            'items.*.minimum_order' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
+            'items.*.minimum_order' => ['required', 'integer', 'min:0', 'max:2147483647'],
             'items.*.bonus_scheme_id' => ['nullable', 'integer', Rule::exists(BonusScheme::class, 'id')->where('is_active', true)],
             'items.*.is_direct_delivery' => ['boolean'],
             'items.*.is_factory_pickup' => ['boolean'],
             'items.*.is_buyer_reward' => ['boolean'],
-            'items.*.is_bonus_conversion' => ['boolean'],
             'items.*.is_support_satoria' => ['boolean'],
             'items.*.is_returnable' => ['boolean'],
             'items.*.remark' => ['nullable', 'string', 'max:2000'],
@@ -78,7 +78,7 @@ class DplProposalRequest extends FormRequest
             'items.*.principle_discount_off' => $percent,
             'items.*.distributor_discount_on' => $percent,
             'items.*.distributor_discount_off' => $percent,
-            'items.*.negotiated_price' => $amount,
+            'items.*.price_type' => ['nullable', Rule::in(array_keys(DplPricing::priceTypes()))],
             'items.*.margin' => $percent,
             // Logistic fee wajib (boleh 0) untuk item Direct.
             'items.*.logistic_fee' => ['nullable', 'required_if_accepted:items.*.is_direct_delivery', 'numeric', 'min:0', 'max:'.self::MAX_AMOUNT],
@@ -277,7 +277,7 @@ class DplProposalRequest extends FormRequest
             'items.*.principle_discount_off' => 'Discount Share Principle OFF',
             'items.*.distributor_discount_on' => 'Discount Share Distributor ON',
             'items.*.distributor_discount_off' => 'Discount Share Distributor OFF',
-            'items.*.negotiated_price' => 'harga nego',
+            'items.*.price_type' => 'jenis harga',
             'items.*.margin' => 'margin',
             'items.*.logistic_fee' => 'logistic fee',
             'items.*.logistic_support' => 'logistic support',

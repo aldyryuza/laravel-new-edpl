@@ -614,7 +614,7 @@ UNIQUE `(period, zone_code)`. Dinaikkan atomik dengan `INSERT ... ON CONFLICT DO
 | `is_direct_delivery` | boolean | No | default false; Direct -> `logistic_fee` wajib (boleh 0) |
 | `is_factory_pickup` | boolean | No | default false; Ambil Dari Pabrik -> `logistic_fee` 0. CHECK `NOT (is_direct_delivery AND is_factory_pickup)` |
 | `is_buyer_reward` | boolean | No | default false |
-| `is_bonus_conversion` | boolean | No | default false |
+| `is_bonus_conversion` | boolean | No | default false; tidak lagi diinput dari form DPL (user 2026-10-07) |
 | `is_support_satoria` | boolean | No | default false |
 | `is_returnable` | boolean | No | default false |
 | `remark` | text | Yes | |
@@ -638,15 +638,15 @@ Current commercial terms, one row per DPL item.
 | `principle_discount_off` | numeric(10,4) | No | default 0 |
 | `distributor_discount_on` | numeric(10,4) | No | default 0 |
 | `distributor_discount_off` | numeric(10,4) | No | default 0 |
-| `negotiated_price` | numeric(18,4) | Yes | |
+| `negotiated_price` | numeric(18,4) | Yes | tidak lagi diinput dari form DPL (user 2026-10-07) |
 | `margin` | numeric(10,4) | Yes | |
 | `logistic_fee` | numeric(18,4) | Yes | retained only if transaction really stores input/result; not sourced from legacy `dpl_logistic` |
 | `logistic_support` | numeric(18,4) | Yes | |
-| `base_price` | numeric(18,4) | Yes | snapshot HNA = `product_prices.price` yang berlaku pada Date Start, disimpan setiap draft disimpan |
+| `base_price` | numeric(18,4) | Yes | snapshot HNA pada Date Start sesuai `price_type`, disimpan setiap draft disimpan |
 | `final_price` | numeric(18,4) | Yes | snapshot/result if needed |
 | `effective_discount` | numeric(10,4) | Yes | |
 | `calculator_percentage` | numeric(10,4) | Yes | |
-| `price_type` | varchar(50) | Yes | |
+| `price_type` | varchar(50) | Yes | jenis harga HNA: `PRICE_BARU_2026` (= `product_prices.price`, default) / `PRICE_LAMA_2025` (= `regular_price`); daftar di `config/dpl.php` |
 | timestamps | timestamp | Yes | |
 
 No percentage CHECK <= 100 until special commercial cases are validated.

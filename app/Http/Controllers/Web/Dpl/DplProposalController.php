@@ -7,6 +7,7 @@ use App\Models\Distributor;
 use App\Models\Dpl\BonusScheme;
 use App\Models\Dpl\DplProposal;
 use App\Models\Product;
+use App\Services\Dpl\DplPricing;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
@@ -48,6 +49,8 @@ class DplProposalController extends Controller
         return view('pages.dpl.proposals.form', [
             'proposal' => $proposal,
             'today' => now(config('dpl.timezone'))->toDateString(),
+            // Default jenis harga ditaruh pertama.
+            'priceTypes' => array_values(array_unique([DplPricing::defaultPriceType(), ...array_keys(DplPricing::priceTypes())])),
             'teams' => $user->effectiveTeams(),
             'products' => Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name', 'volume']),
             'distributors' => Distributor::query()->visibleTo($user)->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),

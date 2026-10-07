@@ -25,4 +25,21 @@ return [
 
     'timezone' => env('DPL_TIMEZONE', 'Asia/Jakarta'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Jenis harga HNA item DPL
+    |--------------------------------------------------------------------------
+    |
+    | Kode jenis harga => kolom product_prices yang dipakai sebagai HNA. Disimpan di
+    | dpl_item_terms.price_type. Item baru memakai default_price_type, tapi bisa diganti per item.
+    |
+    */
+
+    'price_types' => [
+        'PRICE_BARU_2026' => 'price',
+        'PRICE_LAMA_2025' => 'regular_price',
+    ],
+
+    'default_price_type' => 'PRICE_BARU_2026',
+
 ];
