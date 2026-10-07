@@ -9,6 +9,7 @@ use App\Http\Controllers\Web\DistributorController;
 use App\Http\Controllers\Web\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Web\Dpl\BonusSchemeController;
 use App\Http\Controllers\Web\Dpl\CommercialParameterController;
+use App\Http\Controllers\Web\Dpl\DplProposalController;
 use App\Http\Controllers\Web\Dpl\ProductPriceController;
 use App\Http\Controllers\Web\Dpl\ProductPriceOverrideController;
 use App\Http\Controllers\Web\ExampleController;
@@ -108,6 +109,11 @@ Route::middleware('auth')->group(function () {
 
     // E-DPL (schema dpl)
     Route::prefix('dpl')->name('dpl.')->group(function () {
+        // Pengajuan DPL
+        Route::get('/proposals', [DplProposalController::class, 'index'])->middleware('can:dpl-proposals.read')->name('proposals.index');
+        Route::get('/proposals/create', [DplProposalController::class, 'create'])->middleware('can:dpl-proposals.create')->name('proposals.create');
+        Route::get('/proposals/{proposal}', [DplProposalController::class, 'show'])->middleware('can:dpl-proposals.read')->name('proposals.show');
+
         Route::get('/approver-assignments', [ApproverAssignmentController::class, 'index'])
             ->middleware('can:approver-assignments.read')
             ->name('approver-assignments.index');

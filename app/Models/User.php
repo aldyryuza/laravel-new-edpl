@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -134,6 +135,20 @@ class User extends Authenticatable
     public function regionScope(): RegionScope
     {
         return $this->regionScopeCache ??= RegionScope::forUser($this);
+    }
+
+    /**
+     * Team aktif dari penugasan wilayah yang berlaku hari ini (dipakai sebagai team DPL yang dibuat user).
+     *
+     * @return Collection<int, Team>
+     */
+    public function effectiveTeams(): Collection
+    {
+        return Team::query()
+            ->where('is_active', true)
+            ->whereIn('id', $this->orgAssignments()->effective()->whereNotNull('team_id')->select('team_id'))
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
     }
 
     /**

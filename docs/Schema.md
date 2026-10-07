@@ -587,6 +587,20 @@ WHERE program_status = 'ACTIVE'
 
 This enforces max one ACTIVE DPL per outlet + team.
 
+### `dpl_number_sequences`
+
+Counter nomor DPL per periode + zona (BR-027).
+
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `period` | char(4) | No | `YYMM`, mis. `2610` |
+| `zone_code` | varchar(10) | No | `sales_zones.code` (snapshot, tanpa FK) |
+| `last_number` | integer | No | CHECK `> 0` |
+| timestamps | timestamp | Yes | |
+
+UNIQUE `(period, zone_code)`. Dinaikkan atomik dengan `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` di dalam transaksi pembuatan draft. Periode memakai zona waktu `config('dpl.timezone')` (default Asia/Jakarta).
+
 ### `dpl_items`
 
 | Column | Type | Nullable | Constraint/Note |

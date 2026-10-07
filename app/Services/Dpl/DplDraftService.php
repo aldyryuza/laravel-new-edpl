@@ -1,0 +1,129 @@
+<?php
+
+namespace App\Services\Dpl;
+
+use App\Models\Dpl\DplItem;
+use App\Models\Dpl\DplProposal;
+use App\Models\Dpl\DplStatusHistory;
+use App\Models\Outlet;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Buat, ubah, dan hapus draft DPL beserta item dan commercial terms-nya.
+ *
+ * Nomor DPL dibuat saat draft dibuat (zona dari outlet -> area -> region -> zona). Outlet dan team
+ * tidak bisa diganti setelah draft dibuat karena sudah menentukan nomor dan aturan 1 DPL aktif per outlet + team.
+ * Nilai hasil kalkulator (final_price, effective_discount, calculator_percentage) belum diisi.
+ */
+class DplDraftService
+{
+    /** Kolom dpl_item_terms yang diinput user. */
+    public const TERM_FIELDS = [
+        'principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off',
+        'negotiated_price', 'margin', 'logistic_support',
+    ];
+
+    /** Diskon wajib terisi di DB (default 0). */
+    private const DISCOUNT_FIELDS = ['principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off'];
+
+    /** Kolom dpl_items yang diinput user. */
+    public const ITEM_FIELDS = [
+        'product_id', 'distributor_id', 'minimum_order', 'bonus_scheme_id', 'is_direct_delivery', 'is_buyer_reward',
+        'is_bonus_conversion', 'is_support_satoria', 'is_returnable', 'remark',
+    ];
+
+    public function __construct(private DplNumberGenerator $numberGenerator) {}
+
+    /**
+     * @param  array<string, mixed>  $header  proposal_type, date_offer, date_start, date_end, is_contract, description
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    public function create(User $user, Outlet $outlet, string $teamCode, array $header, array $items): DplProposal
+    {
+        return DB::transaction(function () use ($user, $outlet, $teamCode, $header, $items): DplProposal {
+            $zoneCode = $outlet->area->region->zone->code;
+
+            $proposal = DplProposal::query()->create([
+                ...$header,
+                'dpl_number' => $this->numberGenerator->next($zoneCode, now(config('dpl.timezone'))),
+                'outlet_id' => $outlet->id,
+                'team_code' => $teamCode,
+                'created_by_user_id' => $user->id,
+                'bed_count_snapshot' => $outlet->bed_count,
+                'proposal_status' => DplProposal::STATUS_DRAFT,
+                'program_status' => DplProposal::PROGRAM_INACTIVE,
+            ]);
+
+            DplStatusHistory::query()->create([
+                'dpl_proposal_id' => $proposal->id,
+                'status_type' => DplStatusHistory::TYPE_PROPOSAL,
+                'old_status' => null,
+                'new_status' => DplProposal::STATUS_DRAFT,
+                'changed_by_user_id' => $user->id,
+            ]);
+
+            $this->syncItems($proposal, $items);
+
+            return $proposal;
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $header
+     * @param  array<int, array<string, mixed>>  $items  item dengan `id` diperbarui, tanpa `id` dibuat, yang tidak dikirim dihapus
+     */
+    public function update(DplProposal $proposal, array $header, array $items): DplProposal
+    {
+        return DB::transaction(function () use ($proposal, $header, $items): DplProposal {
+            $proposal->update([...$header, 'bed_count_snapshot' => $proposal->outlet->bed_count]);
+            $this->syncItems($proposal, $items);
+
+            return $proposal;
+        });
+    }
+
+    /**
+     * Draft dihapus (soft delete). Nomor DPL-nya tidak dipakai ulang.
+     */
+    public function delete(DplProposal $proposal): void
+    {
+        $proposal->delete();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function syncItems(DplProposal $proposal, array $items): void
+    {
+        $existing = $proposal->items()->get()->keyBy('id');
+        $keptIds = [];
+
+        foreach ($items as $input) {
+            $item = isset($input['id']) ? $existing->get((int) $input['id']) : null;
+            $item ??= new DplItem(['dpl_proposal_id' => $proposal->id]);
+
+            $item->fill(array_intersect_key($input, array_flip(self::ITEM_FIELDS)))->save();
+            $item->terms()->updateOrCreate([], $this->terms($input));
+            $keptIds[] = $item->id;
+        }
+
+        $existing->except($keptIds)->each(fn (DplItem $item) => $item->delete());
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    private function terms(array $input): array
+    {
+        $terms = [];
+
+        foreach (self::TERM_FIELDS as $field) {
+            $value = $input[$field] ?? null;
+            $terms[$field] = $value === null && in_array($field, self::DISCOUNT_FIELDS, true) ? 0 : $value;
+        }
+
+        return $terms;
+    }
+}

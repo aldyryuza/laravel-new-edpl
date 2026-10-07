@@ -6,7 +6,9 @@ use App\Models\Outlet;
 use App\Models\User;
 use Database\Factories\Dpl\DplProposalFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -65,14 +67,33 @@ class DplProposal extends Model
     protected function casts(): array
     {
         return [
-            'date_offer' => 'date',
-            'date_start' => 'date',
-            'date_end' => 'date',
+            'date_offer' => 'date:Y-m-d',
+            'date_start' => 'date:Y-m-d',
+            'date_end' => 'date:Y-m-d',
             'is_contract' => 'boolean',
             'bed_count_snapshot' => 'integer',
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
         ];
+    }
+
+    /**
+     * DPL yang outlet-nya berada di wilayah user (lihat App\Support\RegionScope).
+     *
+     * @param  Builder<DplProposal>  $query
+     */
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): void
+    {
+        $query->whereHas('outlet', fn (Builder $outlet) => $user->regionScope()->applyToOutlets($outlet));
+    }
+
+    /**
+     * Draft hanya bisa diubah/dihapus oleh pembuatnya.
+     */
+    public function isEditableDraftOf(User $user): bool
+    {
+        return $this->proposal_status === self::STATUS_DRAFT && $this->created_by_user_id === $user->id;
     }
 
     /**

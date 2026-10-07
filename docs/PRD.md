@@ -347,6 +347,8 @@ Sistem harus:
 | BR-024 | NIK adalah unique business identifier user dan mapping key legacy; internal FK menggunakan `users.id` | Rebuild decision | Confirmed |
 | BR-025 | Future JWT menggunakan stable opaque subject (`users.uuid`); NIK boleh menjadi additional claim | Rebuild decision | Planned |
 | BR-026 | Satu role + scope approval boleh memiliki lebih dari satu approver aktif (mis. 2 RM dalam satu region); cukup salah satu yang approve/reject | User confirmation | Confirmed |
+| BR-027 | Nomor DPL `{YYMM}-SAI-{kode zona}-{urut 4 digit}` (mis. `2610-SAI-E-0039`); urutan per zona, mulai lagi dari 0001 setiap bulan; nomor dibuat saat draft dibuat (draft yang dihapus meninggalkan lubang); zona dari outlet -> area -> region -> zona | User confirmation | Confirmed |
+| BR-028 | Team DPL diambil dari team pada penugasan Wilayah User pembuat; bila user punya lebih dari satu team, dipilih saat membuat draft | User confirmation | Confirmed |
 
 ## 9. Workflow
 
