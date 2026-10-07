@@ -134,27 +134,65 @@
                 </div>
                 <div class="modal-body">
                     <div class="row g-4">
-                        <div class="col-md-4">
+                        <div class="col-12" id="item-mode-group">
+                            <label class="form-label d-block">Pilih Product</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="product_mode" id="item-mode-single" value="single" checked />
+                                <label class="form-check-label" for="item-mode-single">Satuan</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="product_mode" id="item-mode-group-radio" value="group" />
+                                <label class="form-check-label" for="item-mode-group-radio">Group</label>
+                            </div>
+                        </div>
+
+                        {{-- Mode Satuan: satu product, harga langsung tampil. --}}
+                        <div class="col-md-8" data-product-mode="single">
+                            <label for="item-product-single" class="form-label">Product <span class="text-danger">*</span></label>
+                            <select class="form-select" id="item-product-single" name="product_single">
+                                <option value="">Cari product</option>
+                            </select>
+                        </div>
+
+                        {{-- Mode Group: semua product di group otomatis terpilih, harga tampil di tabel setelah disimpan. --}}
+                        <div class="col-md-4 d-none" data-product-mode="group">
                             <label for="item-group" class="form-label">Group Product <span class="text-danger">*</span></label>
-                            <select class="form-select" id="item-group" name="product_group" required>
+                            <select class="form-select" id="item-group" name="product_group">
                                 <option value="">Pilih group</option>
-                                {{-- Semua product: tidak ada yang terpilih otomatis, cari & pilih sendiri. --}}
-                                <option value="__all__">Tampilkan semua product</option>
                                 @foreach ($productGroups as $group)
                                     <option value="{{ $group }}">{{ $group }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-8 d-none" data-product-mode="group">
                             <div class="d-flex justify-content-between align-items-center">
                                 <label for="item-product" class="form-label">Product <span class="text-danger">*</span></label>
-                                <div class="d-flex gap-1 mb-1" id="item-product-actions">
+                                <div class="d-flex gap-1 mb-1">
                                     <button type="button" class="btn btn-xs btn-label-primary" id="btn-select-all-products">Pilih semua</button>
                                     <button type="button" class="btn btn-xs btn-label-secondary" id="btn-clear-products">Kosongkan</button>
                                 </div>
                             </div>
                             <select class="form-select" id="item-product" name="product_id" multiple></select>
-                            <div class="form-text">Group tertentu: semua product di group otomatis terpilih. "Tampilkan semua product": cari & pilih sendiri. Satu product = satu item.</div>
+                            <div class="form-text">Semua product di group otomatis terpilih. Satu product = satu item; harga tampil di tabel setelah disimpan.</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="item-price-type" class="form-label">Jenis Harga <span class="text-danger">*</span></label>
+                            <select class="form-select" id="item-price-type" name="price_type">
+                                @foreach ($priceTypes as $priceType)
+                                    {{-- data-volumes kosong = boleh untuk semua product. --}}
+                                    <option value="{{ $priceType }}" data-volumes="{{ json_encode(config("dpl.price_type_volumes.{$priceType}")) }}">{{ $priceType }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6" data-product-mode="single">
+                            <label for="item-hna-disc" class="form-label">HNA - Discount On</label>
+                            <input type="text" class="form-control text-end" id="item-hna-disc" readonly placeholder="Pilih product" />
+                        </div>
+                        <div class="col-md-6" data-product-mode="single">
+                            <label for="item-hna-ppn-disc" class="form-label">HNA+PPN - Discount On</label>
+                            <input type="text" class="form-control text-end" id="item-hna-ppn-disc" readonly placeholder="Pilih product" />
+                            <div class="form-text" id="item-price-info"></div>
                         </div>
                         <div class="col-md-8">
                             <label for="item-distributor" class="form-label">Distributor <span class="text-danger">*</span></label>
@@ -162,15 +200,6 @@
                                 <option value="">Pilih distributor</option>
                                 @foreach ($distributors as $distributor)
                                     <option value="{{ $distributor->id }}">{{ $distributor->name }} ({{ $distributor->code }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="item-price-type" class="form-label">Jenis Harga <span class="text-danger">*</span></label>
-                            <select class="form-select" id="item-price-type" name="price_type">
-                                @foreach ($priceTypes as $priceType)
-                                    {{-- data-volumes kosong = boleh untuk semua product. --}}
-                                    <option value="{{ $priceType }}" data-volumes="{{ json_encode(config("dpl.price_type_volumes.{$priceType}")) }}">{{ $priceType }}</option>
                                 @endforeach
                             </select>
                         </div>

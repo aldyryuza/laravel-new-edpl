@@ -6,14 +6,14 @@
  * Item dikelola di browser (tabel + modal) dan dikirim bersama header sebagai JSON.
  *
  * Aturan item (juga ditegakkan server):
- * - Product dipilih lewat group (1L/500ml/250ml/100ml/25ml dari volume, IV CAT WING/IV CAT PEN dari master Product).
- *   Memilih group otomatis memilih semua product di group (bisa dihapus sebagian); "Tampilkan semua product"
- *   menampilkan semua product tanpa terpilih (cari & pilih sendiri). Satu product = satu item
+ * - Pilih Product (radio): Satuan (default) = satu product dicari, HNA langsung tampil di modal;
+ *   Group (1L/500ml/250ml/100ml/25ml dari volume, IV CAT WING/IV CAT PEN dari master Product) = semua product di
+ *   group otomatis terpilih (Pilih semua/Kosongkan), HNA tampil di tabel setelah disimpan. Satu product = satu item
  *   dengan distributor & syarat yang sama. Edit item hanya mengubah syarat, bukan product.
  * - HNA = harga product yang berlaku pada Date Start sesuai jenis harga item (GET api/dpl/proposals/pricing),
  *   default PRICE_BARU_2026 (price), bisa diganti PRICE_LAMA_2025 (regular_price, hanya product 500 ml).
  *   HNA - Disc On = HNA × (1 − (Principle ON + Distributor ON)%), HNA+PPN - Disc On = HNA × (1 + PPN%) × (1 − ...),
- *   dibulatkan ke rupiah (desimal >= 0,5 ke atas, < 0,5 ke bawah). Hanya tampil di tabel item, tidak di modal.
+ *   dibulatkan ke rupiah (desimal >= 0,5 ke atas, < 0,5 ke bawah).
  * - Minimum order wajib diisi.
  * - Discount Share Principle OFF diisi -> Buyer reward dicentang.
  * - Direct -> Logistic Fee wajib (boleh 0); Ambil Dari Pabrik -> Logistic Fee 0; keduanya tidak boleh bersamaan.
@@ -33,6 +33,7 @@ $(function () {
     const $itemsBody = $('#items-table tbody');
     const $group = $('#item-group');
     const $products = $('#item-product');
+    const $single = $('#item-product-single');
     const $direct = $('#item-is_direct_delivery');
     const $pickup = $('#item-is_factory_pickup');
     const $logisticFee = $('#item-logistic-fee');
@@ -49,7 +50,6 @@ $(function () {
     /** Product per group: [{id, label, group, volume}] */
     const PRODUCTS = JSON.parse(document.getElementById('dpl-products').textContent);
     const productById = Object.fromEntries(PRODUCTS.map(product => [product.id, product]));
-    const ALL_GROUPS = '__all__';
 
     /** Item di browser: { id, product_id, distributor_id, ..., labels: {product, distributor, bonus} } */
     let items = [];
@@ -70,6 +70,13 @@ $(function () {
     const money = value => (value === null ? muted('-') : App.escape(formatRupiah(value)));
 
     initSelect2('#item-distributor, #item-bonus');
+
+    PRODUCTS.forEach(product => $single.append(new Option(product.label, product.id)));
+    $single.wrap('<div class="position-relative"></div>').select2({
+        dropdownParent: $single.parent(),
+        placeholder: 'Cari product',
+        width: '100%'
+    });
 
     $products.wrap('<div class="position-relative"></div>').select2({
         dropdownParent: $products.parent(),
@@ -133,6 +140,7 @@ $(function () {
                     ]))
                 };
                 renderItems();
+                updateItemPrices();
             })
             .fail(xhr => App.handleError(xhr));
     }
@@ -162,23 +170,66 @@ $(function () {
 
     // ---- Group & product ----
 
-    /**
-     * Isi pilihan product sesuai group. Group tertentu: semua product di group otomatis terpilih.
-     * ALL_GROUPS ("Tampilkan semua product"): semua product ditampilkan tanpa ada yang terpilih, user mencari sendiri.
-     */
+    const productMode = () => $itemForm.find('[name="product_mode"]:checked').val();
+
+    /** Product terpilih sesuai mode (Satuan: satu, Group: banyak). */
+    function selectedProductIds() {
+        if (productMode() === 'single') {
+            return $single.val() ? [Number($single.val())] : [];
+        }
+
+        return ($products.val() || []).map(Number);
+    }
+
+    function applyProductMode() {
+        const mode = productMode();
+
+        $itemForm.find('[data-product-mode]').each(function () {
+            $(this).toggleClass('d-none', $(this).data('product-mode') !== mode);
+        });
+        applyPriceTypeVolumes();
+        updateItemPrices();
+    }
+
+    /** Isi pilihan product dengan product di group; semua otomatis terpilih. */
     function setProductOptions(group) {
-        const all = group === ALL_GROUPS;
-        const options = all ? PRODUCTS : PRODUCTS.filter(product => product.group === group);
-        const selectedIds = all ? [] : options.map(product => String(product.id));
+        const options = PRODUCTS.filter(product => product.group === group);
 
         $products.empty();
-        options.forEach(product => $products.append(new Option(product.label, product.id, false, selectedIds.includes(String(product.id)))));
+        options.forEach(product => $products.append(new Option(product.label, product.id, true, true)));
         $products.trigger('change');
+    }
+
+    /** Mode Satuan: tampilkan HNA - Disc On dan HNA+PPN - Disc On product terpilih. */
+    function updateItemPrices() {
+        const $info = $('#item-price-info');
+        const productId = productMode() === 'single' ? $single.val() : null;
+
+        if (!productId) {
+            $('#item-hna-disc, #item-hna-ppn-disc').val('');
+            $info.text('');
+            return;
+        }
+
+        const priceType = $priceType.val();
+        const hna = hnaOf(productId, priceType);
+        const result = prices(productId, priceType, valueOrNull('principle_discount_on'), valueOrNull('distributor_discount_on'));
+
+        $('#item-hna-disc').val(formatRupiah(result.hnaDisc));
+        $('#item-hna-ppn-disc').val(formatRupiah(result.hnaPpnDisc));
+
+        if (hna === null) {
+            $info.text(`Harga ${priceType} belum ada untuk Date Start ${pricing.date || ''}.`);
+        } else if (pricing.ppn === null) {
+            $info.text('Parameter komersial PPN_PERCENT belum diatur.');
+        } else {
+            $info.text(`HNA ${hna.toLocaleString('id-ID', { maximumFractionDigits: 4 })}, PPN ${pricing.ppn}%.`);
+        }
     }
 
     /** Nonaktifkan jenis harga yang tidak berlaku untuk semua product terpilih (mis. PRICE_LAMA_2025 hanya 500 ml). */
     function applyPriceTypeVolumes() {
-        const volumes = ($products.val() || []).map(id => productById[id]?.volume ?? null);
+        const volumes = selectedProductIds().map(id => productById[id]?.volume ?? null);
 
         $priceType.find('option').each(function () {
             const allowedVolumes = $(this).data('volumes');
@@ -204,6 +255,13 @@ $(function () {
         $products.select2('open');
     });
     $products.on('change', applyPriceTypeVolumes);
+    $single.on('change', () => {
+        applyPriceTypeVolumes();
+        updateItemPrices();
+    });
+    $itemForm.on('change', '[name="product_mode"]', applyProductMode);
+    $priceType.on('change', updateItemPrices);
+    $itemForm.on('input', '[name="principle_discount_on"], [name="distributor_discount_on"]', updateItemPrices);
 
     // ---- Aturan otomatis item ----
 
@@ -305,22 +363,18 @@ $(function () {
         FLAGS.forEach(flag => $itemForm.find(`[name="${flag}"]`).prop('checked', Boolean(item?.[flag])));
         $priceType.val(item?.price_type || defaultPriceType);
 
-        if (item) {
-            // Item tersimpan: product tetap (hapus & tambah ulang untuk ganti product).
-            const product = productById[item.product_id];
-            $group.val(product ? product.group : '');
-            $products.empty().append(new Option(item.labels.product, item.product_id, true, true)).trigger('change');
-        } else {
-            // Item baru: default "Tampilkan semua product" (tidak ada product terpilih, cari & pilih sendiri).
-            $group.val(ALL_GROUPS);
-            setProductOptions(ALL_GROUPS);
-        }
-
+        // Default mode Satuan; item tersimpan selalu tampil sebagai satuan dan product-nya tetap
+        // (hapus & tambah ulang untuk ganti product).
+        $('#item-mode-single').prop('checked', true);
+        $group.val('');
+        $products.empty().trigger('change');
+        selectValue($single, item?.product_id, item?.labels.product);
+        applyProductMode();
         applyDeliveryMode();
 
         $itemForm.find('input, select, textarea').not('[readonly]').prop('disabled', !editable);
-        $group.add($products).prop('disabled', !editable || item !== null);
-        $('#item-product-actions').toggleClass('d-none', !editable || item !== null);
+        $single.add($itemForm.find('[name="product_mode"]')).prop('disabled', !editable || item !== null);
+        $('#item-mode-group').toggleClass('d-none', item !== null);
         $itemForm.find('[type="submit"]').toggleClass('d-none', !editable);
         itemModal.show();
     }
@@ -333,15 +387,17 @@ $(function () {
     $itemForm.on('submit', function (event) {
         event.preventDefault();
 
-        const productIds = ($products.val() || []).map(Number);
+        const productIds = selectedProductIds();
+        const groupMode = productMode() === 'group';
+        const productField = groupMode ? 'product_id' : 'product_single';
         const distributorId = Number(valueOrNull('distributor_id'));
         const errors = {};
 
-        if (editingIndex === null && !$group.val()) {
+        if (editingIndex === null && groupMode && !$group.val()) {
             errors.product_group = 'Group product wajib dipilih.';
         }
         if (productIds.length === 0) {
-            errors.product_id = 'Pilih minimal satu product.';
+            errors[productField] = groupMode ? 'Pilih minimal satu product.' : 'Product wajib dipilih.';
         }
         if (!distributorId) {
             errors.distributor_id = 'Distributor wajib dipilih.';
@@ -352,7 +408,7 @@ $(function () {
 
         if (distributorId && duplicates.length) {
             const names = duplicates.map(id => productById[id]?.label || `#${id}`).join(', ');
-            errors.product_id = `Sudah ada untuk distributor yang sama: ${names}.`;
+            errors[productField] = `Sudah ada untuk distributor yang sama: ${names}.`;
         }
         if (isBlank(valueOrNull('minimum_order'))) {
             errors.minimum_order = 'Minimum order wajib diisi.';
@@ -381,7 +437,7 @@ $(function () {
         }
 
         const labels = productId => ({
-            product: productById[productId]?.label || $products.find(`option[value="${productId}"]`).text(),
+            product: productById[productId]?.label || $single.find(`option[value="${productId}"]`).text() || `#${productId}`,
             distributor: $('#item-distributor option:selected').text(),
             bonus: shared.bonus_scheme_id ? $('#item-bonus option:selected').text() : null
         });
