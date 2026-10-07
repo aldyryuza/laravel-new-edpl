@@ -44,6 +44,7 @@ class DistributorController extends Controller implements HasMiddleware
     public function datatable(Request $request): JsonResponse
     {
         $query = Distributor::query()
+            ->visibleTo($request->user())
             ->select([
                 'distributors.id', 'distributors.code', 'distributors.name', 'distributors.group_code', 'distributors.city_id',
                 'distributors.address', 'distributors.phone', 'distributors.fax', 'distributors.email', 'distributors.npwp',
@@ -76,6 +77,7 @@ class DistributorController extends Controller implements HasMiddleware
     /**
      * Pilihan distributor untuk select2 (pencarian di server, maks. 20 hasil), mis. pilihan induk.
      * `exclude_id` mengeluarkan distributor yang sedang diedit; hierarki melingkar tetap dicek saat simpan.
+     * Tidak dibatasi wilayah: induk (kantor pusat) bisa berada di region lain dari cabangnya.
      */
     public function options(Request $request): JsonResponse
     {
@@ -112,8 +114,10 @@ class DistributorController extends Controller implements HasMiddleware
         ], 201);
     }
 
-    public function show(Distributor $distributor): JsonResponse
+    public function show(Request $request, Distributor $distributor): JsonResponse
     {
+        $this->ensureVisible($request, $distributor);
+
         return response()->json([
             'success' => true,
             'message' => 'Data berhasil diambil',
@@ -123,6 +127,8 @@ class DistributorController extends Controller implements HasMiddleware
 
     public function update(DistributorRequest $request, Distributor $distributor, DistributorService $distributorService): JsonResponse
     {
+        $this->ensureVisible($request, $distributor);
+
         $distributorService->save($distributor, $request->distributorAttributes(), $request->regionIds());
 
         return response()->json([
@@ -133,10 +139,12 @@ class DistributorController extends Controller implements HasMiddleware
     }
 
     /**
-     * Import Excel (upsert berdasarkan kode). Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
+     * Import Excel (upsert berdasarkan kode), hanya untuk user Nasional karena bisa menyentuh semua wilayah. Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
      */
     public function import(ExcelImportRequest $request, DistributorImportService $importService): JsonResponse
     {
+        abort_unless($request->user()->regionScope()->isNational(), 403, 'Import distributor hanya untuk user dengan wilayah Nasional.');
+
         $result = $importService->import($request->file('file'));
 
         return response()->json([
@@ -150,13 +158,23 @@ class DistributorController extends Controller implements HasMiddleware
      * Pemetaan region ikut dihapus (tidak bermakna tanpa distributor). Distributor yang punya cabang
      * atau sudah dipakai DPL/surat keluar dijaga FK RESTRICT sehingga penghapusan dibatalkan.
      */
-    public function destroy(Distributor $distributor): JsonResponse
+    public function destroy(Request $request, Distributor $distributor): JsonResponse
     {
+        $this->ensureVisible($request, $distributor);
+
         return $this->deleteOrReject(
             $distributor,
             'Distributor berhasil dihapus',
             'Distributor masih punya cabang atau sudah dipakai data lain (mis. DPL). Nonaktifkan distributor ini sebagai gantinya.',
             fn () => $distributor->regions()->detach(),
         );
+    }
+
+    /**
+     * Distributor di luar wilayah user diperlakukan seperti tidak ada (404).
+     */
+    private function ensureVisible(Request $request, Distributor $distributor): void
+    {
+        abort_unless(Distributor::query()->visibleTo($request->user())->whereKey($distributor->getKey())->exists(), 404);
     }
 }

@@ -23,12 +23,17 @@ class OutletRequest extends FormRequest
      */
     public function rules(): array
     {
+        $scope = $this->user()->regionScope();
+
         return [
             'code' => ['required', 'string', 'max:30', Rule::unique('outlets', 'code')->ignore($this->route('outlet'))],
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:2000'],
             'city_id' => ['nullable', 'integer', Rule::exists('cities', 'id')],
-            'area_id' => ['nullable', 'integer', Rule::exists('sales_areas', 'id')],
+            // User non-Nasional wajib memilih area di wilayahnya agar outlet tetap terlihat olehnya.
+            'area_id' => $scope->isNational()
+                ? ['nullable', 'integer', Rule::exists('sales_areas', 'id')]
+                : ['required', 'integer', Rule::in($scope->areaIds())],
             'outlet_category_id' => ['nullable', 'integer', Rule::exists('outlet_categories', 'id')],
             'ownership_type_id' => ['nullable', 'integer', Rule::exists('ownership_types', 'id')],
             'outlet_group_id' => ['nullable', 'integer', Rule::exists('outlet_groups', 'id')],

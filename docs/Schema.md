@@ -22,7 +22,7 @@
 - Historical DPL/approval tidak boleh terhapus karena cascade dari master data.
 - `activity_log` (Spatie) tetap menjadi audit teknis/data. Business history menggunakan tabel domain.
 - PostgreSQL schema dipisahkan **per sistem**:
-  - `public`: master bersama lintas sistem (CRM/EBU/E-DPL) — identity & access (`users`, `roles`, `user_has_roles`, `menus`, `role_menu_accesses`, `activity_log`), organization (`sales_*`, `user_org_assignments`, `user_area_scopes`, `user_visibility_edges`), outlet master, `products`, `distributors`, `distributor_regions`, serta tabel framework (cache, jobs, sessions, pulse, migrations).
+  - `public`: master bersama lintas sistem (CRM/EBU/E-DPL) — identity & access (`users`, `roles`, `user_has_roles`, `menus`, `role_menu_accesses`, `activity_log`), organization (`sales_*`, `teams`, `user_org_assignments`, `user_area_scopes`, `user_visibility_edges`), outlet master, `products`, `distributors`, `distributor_regions`, serta tabel framework (cache, jobs, sessions, pulse, migrations).
   - `dpl`: transaksi dan aturan milik E-DPL — Commercial, DPL core, Approval, dan Documents (lihat bagian 3).
   - Sistem berikutnya (EBU/CRM) memakai schema sendiri untuk transaksinya.
 - Tabel schema sistem ditulis qualified (`dpl.dpl_proposals`) di migration/model/query; nama tabel tidak berubah saat dipindah schema.
@@ -107,7 +107,7 @@ erDiagram
 
 | Domain | Tables |
 |---|---|
-| Identity/Organization | `sales_zones`, `sales_regions`, `sales_areas`, `user_org_assignments`, `user_area_scopes`, `user_visibility_edges` |
+| Identity/Organization | `sales_zones`, `sales_regions`, `sales_areas`, `teams`, `user_org_assignments`, `user_area_scopes`, `user_visibility_edges` |
 | Wilayah administratif | `provinces`, `cities` |
 | Outlet master | `outlet_categories`, `ownership_types`, `outlet_groups`, `outlet_group_members`, `outlets` |
 | Product/Distributor master | `products`, `distributors`, `distributor_regions` |
@@ -187,28 +187,53 @@ Index: `zone_id`.
 
 Index: `region_id`.
 
+### `teams`
+
+Master team sales. Dipakai pada `user_org_assignments.team_id`.
+
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `code` | varchar(20) | No | UNIQUE |
+| `name` | varchar(100) | No | |
+| `is_active` | boolean | No | default true |
+| timestamps | timestamp | Yes | |
+
 ### `user_org_assignments`
 
-Menyimpan organization scope user secara generic dan historis.
+Wilayah & team user secara historis. Menentukan outlet/distributor yang terlihat user (`App\Support\RegionScope`).
 
 | Column | Type | Nullable | Constraint/Note |
 |---|---|---:|---|
 | `id` | bigint | No | PK |
 | `user_id` | bigint | No | FK `users.id`, RESTRICT |
+| `zone_id` | bigint | Yes | FK `sales_zones.id`, RESTRICT |
+| `region_id` | bigint | Yes | FK `sales_regions.id`, RESTRICT |
 | `area_id` | bigint | Yes | FK `sales_areas.id`, RESTRICT |
-| `team_code` | varchar(20) | Yes | `A`, `B`, atau code yang dikonfirmasi |
+| `team_id` | bigint | Yes | FK `teams.id`, RESTRICT |
 | `valid_from` | date | Yes | |
 | `valid_until` | date | Yes | `>= valid_from` jika keduanya terisi |
 | `is_active` | boolean | No | default true |
 | timestamps | timestamp | Yes | |
 
-Indexes: `user_id`, `area_id`, `(user_id, is_active)`.
+Indexes: `user_id`, `zone_id`, `region_id`, `area_id`, `team_id`, `(user_id, is_active)`.
 
-Catatan: role tetap menggunakan `user_has_roles`; jangan duplikasi role ke tabel ini.
+CHECK: `num_nonnulls(zone_id, region_id, area_id) <= 1` — paling banyak satu level wilayah per baris.
+
+Aturan visibility (penugasan aktif dan berlaku hari ini):
+
+- zona/region/area semua kosong = **Nasional**: melihat semua outlet & distributor.
+- Zona: semua region & area di zona tersebut. Region: semua area di region tersebut. Area: area itu saja.
+- Outlet terlihat bila `outlets.area_id` tercakup. Distributor terlihat bila salah satu region di `distributor_regions` tercakup; untuk penugasan area, yang dipakai region dari area tersebut.
+- User boleh punya beberapa penugasan (digabung). User tanpa penugasan aktif tidak melihat outlet/distributor.
+- Import Excel outlet/distributor hanya untuk user Nasional. User non-Nasional wajib memilih area/region di wilayahnya saat simpan; region distributor di luar wilayahnya dipertahankan.
+- Penugasan aktif yang sama (user + wilayah + team) dengan periode bertumpang tindih ditolak.
+
+Catatan: role tetap menggunakan `user_has_roles`; jangan duplikasi role ke tabel ini. `dpl_proposals.team_code` tetap snapshot varchar (tidak FK ke `teams`).
 
 ### `user_area_scopes`
 
-Scope visibility eksplisit.
+Scope visibility eksplisit. Belum dipakai aplikasi: pembatasan wilayah saat ini memakai `user_org_assignments` (zona/region/area/Nasional).
 
 | Column | Type | Nullable | Constraint/Note |
 |---|---|---:|---|
@@ -1106,6 +1131,7 @@ Suggested dependency order:
 sales_zones
 sales_regions
 sales_areas
+teams
 user_org_assignments
 user_area_scopes
 user_visibility_edges

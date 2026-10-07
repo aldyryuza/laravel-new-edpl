@@ -21,7 +21,9 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SalesAreaController;
 use App\Http\Controllers\Api\SalesRegionController;
 use App\Http\Controllers\Api\SalesZoneController;
+use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\UserOrgAssignmentController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -61,6 +63,10 @@ Route::apiResource('sales-regions', SalesRegionController::class)->except('index
 Route::get('sales-areas/datatable', [SalesAreaController::class, 'datatable'])->name('sales-areas.datatable');
 Route::post('sales-areas/import', [SalesAreaController::class, 'import'])->name('sales-areas.import');
 Route::apiResource('sales-areas', SalesAreaController::class)->except('index');
+Route::get('teams/datatable', [TeamController::class, 'datatable'])->name('teams.datatable');
+Route::apiResource('teams', TeamController::class)->only(['store', 'update', 'destroy']);
+Route::get('user-assignments/datatable', [UserOrgAssignmentController::class, 'datatable'])->name('user-assignments.datatable');
+Route::apiResource('user-assignments', UserOrgAssignmentController::class)->only(['store', 'update', 'destroy']);
 
 // Wilayah administratif (schema public)
 Route::get('provinces/datatable', [ProvinceController::class, 'datatable'])->name('provinces.datatable');

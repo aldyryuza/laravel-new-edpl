@@ -5,8 +5,8 @@
 @section('content')
     <x-page-header title="Outlet" :breadcrumbs="[['label' => 'Master Outlet']]">
         <x-slot:actions>
-            {{-- Import membuat sekaligus memperbarui data: butuh hak create + update. --}}
-            @if (auth()->user()->can('outlets.create') && auth()->user()->can('outlets.update'))
+            {{-- Import membuat sekaligus memperbarui data: butuh hak create + update dan wilayah Nasional. --}}
+            @if ($canImport && auth()->user()->can('outlets.create') && auth()->user()->can('outlets.update'))
                 <button type="button" class="btn btn-label-success" data-bs-toggle="modal" data-bs-target="#excel-import-modal">
                     <i class="icon-base bx bx-upload me-1"></i> Import Excel
                 </button>
@@ -198,7 +198,7 @@
         </div>
     </div>
 
-    @if (auth()->user()->can('outlets.create') && auth()->user()->can('outlets.update'))
+    @if ($canImport && auth()->user()->can('outlets.create') && auth()->user()->can('outlets.update'))
         <x-excel-import-modal title="Import Outlet dari Excel" upload-path="api/outlets/import"
             :template-url="route('outlets.import-template')"
             columns="kode, nama, alamat, kode_kota, kode_area, kode_kategori, kode_kepemilikan, jumlah_bed, kode_grup, crm_id, latitude, longitude, aktif" />

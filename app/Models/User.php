@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Support\AuditLog;
+use App\Support\RegionScope;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -46,6 +48,11 @@ class User extends Authenticatable
      * dari session; null = belum memilih / tidak punya role = tanpa hak akses.
      */
     protected ?Role $activeRole = null;
+
+    /**
+     * Wilayah yang boleh diakses, di-cache per instance (per request).
+     */
+    protected ?RegionScope $regionScopeCache = null;
 
     /**
      * Password/remember_token sengaja tidak dicatat; ganti password dicatat terpisah.
@@ -109,6 +116,32 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Penugasan wilayah & team (historis).
+     *
+     * @return HasMany<UserOrgAssignment, $this>
+     */
+    public function orgAssignments(): HasMany
+    {
+        return $this->hasMany(UserOrgAssignment::class);
+    }
+
+    /**
+     * Wilayah (zona/region/area/nasional) yang boleh diakses user untuk data outlet & distributor.
+     */
+    public function regionScope(): RegionScope
+    {
+        return $this->regionScopeCache ??= RegionScope::forUser($this);
+    }
+
+    /**
+     * Kosongkan cache wilayah, misalnya setelah penugasan user diubah.
+     */
+    public function flushRegionScope(): void
+    {
+        $this->regionScopeCache = null;
     }
 
     /**

@@ -6,11 +6,12 @@ use App\Models\Menu;
 use App\Models\Role;
 use App\Models\RoleMenuAccess;
 use App\Models\User;
+use App\Models\UserOrgAssignment;
 use Illuminate\Database\Seeder;
 
 /**
  * Data awal akses: menu bawaan, role Administrator (akses penuh ke semua menu),
- * dan satu user administrator.
+ * dan satu user administrator dengan wilayah Nasional.
  *
  * Idempotent: aman dijalankan ulang, tidak menimpa password user yang sudah ada.
  */
@@ -42,6 +43,12 @@ class AccessControlSeeder extends Seeder
         );
 
         $admin->roles()->syncWithoutDetaching([$administrator->id]);
+
+        // Wilayah Nasional agar admin melihat seluruh outlet/distributor.
+        UserOrgAssignment::query()->firstOrCreate(
+            ['user_id' => $admin->id, 'zone_id' => null, 'region_id' => null, 'area_id' => null, 'team_id' => null],
+            ['is_active' => true],
+        );
     }
 
     private function seedMenus(): void
@@ -56,6 +63,8 @@ class AccessControlSeeder extends Seeder
                 ['code' => 'approver-assignments', 'title' => 'Approver DPL', 'icon' => 'bx bx-user-check', 'route' => 'dpl.approver-assignments.index', 'sort_order' => 4],
                 ['code' => 'provinces', 'title' => 'Provinsi', 'icon' => 'bx bx-flag', 'route' => 'provinces.index', 'sort_order' => 5],
                 ['code' => 'cities', 'title' => 'Kota/Kabupaten', 'icon' => 'bx bx-buildings', 'route' => 'cities.index', 'sort_order' => 6],
+                ['code' => 'teams', 'title' => 'Team', 'icon' => 'bx bx-group', 'route' => 'teams.index', 'sort_order' => 7],
+                ['code' => 'user-assignments', 'title' => 'Wilayah User', 'icon' => 'bx bx-map-pin', 'route' => 'user-assignments.index', 'sort_order' => 8],
             ]],
             ['code' => 'master-outlet', 'title' => 'Master Outlet', 'icon' => 'bx bx-buildings', 'route' => null, 'sort_order' => 11, 'children' => [
                 ['code' => 'outlets', 'title' => 'Outlet', 'icon' => 'bx bx-building-house', 'route' => 'outlets.index', 'sort_order' => 1],

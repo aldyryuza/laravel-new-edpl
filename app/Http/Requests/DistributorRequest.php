@@ -26,6 +26,8 @@ class DistributorRequest extends FormRequest
      */
     public function rules(): array
     {
+        $scope = $this->user()->regionScope();
+
         return [
             'code' => ['required', 'string', 'max:30', Rule::unique('distributors', 'code')->ignore($this->route('distributor'))],
             'name' => ['required', 'string', 'max:255'],
@@ -41,8 +43,11 @@ class DistributorRequest extends FormRequest
             'meeting_radius_meters' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'is_branch' => ['required', 'boolean'],
             'parent_distributor_id' => ['nullable', 'integer', Rule::exists('distributors', 'id')],
-            'region_ids' => ['array'],
-            'region_ids.*' => ['integer', 'distinct', Rule::exists('sales_regions', 'id')],
+            // User non-Nasional wajib memilih minimal satu region di wilayahnya.
+            'region_ids' => $scope->isNational() ? ['array'] : ['required', 'array', 'min:1'],
+            'region_ids.*' => $scope->isNational()
+                ? ['integer', 'distinct', Rule::exists('sales_regions', 'id')]
+                : ['integer', 'distinct', Rule::in($scope->regionIds())],
             'netsuite_id' => ['nullable', 'string', 'max:255'],
             'is_active' => ['required', 'boolean'],
         ];
@@ -83,11 +88,29 @@ class DistributorRequest extends FormRequest
     }
 
     /**
+     * Region terpilih. Untuk user non-Nasional, region distributor yang berada di luar wilayahnya
+     * dipertahankan (tidak terlihat di form sehingga tidak boleh ikut terhapus).
+     *
      * @return array<int, int>
      */
     public function regionIds(): array
     {
-        return array_map('intval', $this->validated('region_ids', []));
+        $regionIds = array_map('intval', $this->validated('region_ids', []));
+        $scope = $this->user()->regionScope();
+
+        /** @var Distributor|null $distributor */
+        $distributor = $this->route('distributor');
+
+        if ($scope->isNational() || ! $distributor instanceof Distributor) {
+            return $regionIds;
+        }
+
+        $outOfScope = $distributor->regions()->pluck('sales_regions.id')
+            ->map(fn ($id): int => (int) $id)
+            ->diff($scope->regionIds())
+            ->all();
+
+        return array_values(array_unique([...$regionIds, ...$outOfScope]));
     }
 
     /**

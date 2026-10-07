@@ -103,7 +103,7 @@ class AuditLogTest extends TestCase
         activity(AuditLog::AUTH)->causedBy($budi)->log('Login');
         activity(AuditLog::SECURITY)->log('Rate limit terlampaui');
 
-        $reader = $this->userWithAccess(['audit-log' => ['read']]);
+        $reader = $this->userWithAccess(['audit-log' => ['read']], national: false);
         $columns = ['created_at', 'log_name', 'description'];
 
         $this->actingAs($reader)

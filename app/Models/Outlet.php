@@ -6,6 +6,8 @@ use App\Models\Dpl\DplProposal;
 use App\Support\AuditLog;
 use Database\Factories\OutletFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,6 +48,17 @@ class Outlet extends Model
             'longitude' => 'decimal:7',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Outlet di wilayah user (area tercakup); user Nasional melihat semua, tanpa penugasan tidak melihat apa pun.
+     *
+     * @param  Builder<Outlet>  $query
+     */
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): void
+    {
+        $user->regionScope()->applyToOutlets($query);
     }
 
     /**

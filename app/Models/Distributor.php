@@ -6,6 +6,8 @@ use App\Models\Dpl\DistributorBranchHead;
 use App\Support\AuditLog;
 use Database\Factories\DistributorFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -48,6 +50,17 @@ class Distributor extends Model
             'is_branch' => 'boolean',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Distributor yang region-nya masuk wilayah user; user Nasional melihat semua, tanpa penugasan tidak melihat apa pun.
+     *
+     * @param  Builder<Distributor>  $query
+     */
+    #[Scope]
+    protected function visibleTo(Builder $query, User $user): void
+    {
+        $user->regionScope()->applyToDistributors($query);
     }
 
     /**

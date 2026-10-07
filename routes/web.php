@@ -24,7 +24,9 @@ use App\Http\Controllers\Web\RoleController;
 use App\Http\Controllers\Web\SalesAreaController;
 use App\Http\Controllers\Web\SalesRegionController;
 use App\Http\Controllers\Web\SalesZoneController;
+use App\Http\Controllers\Web\TeamController;
 use App\Http\Controllers\Web\UserController;
+use App\Http\Controllers\Web\UserOrgAssignmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -71,6 +73,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/sales-areas/import-template', [SalesAreaController::class, 'template'])
         ->middleware(['can:sales-areas.create', 'throttle:export'])
         ->name('sales-areas.import-template');
+    Route::get('/teams', [TeamController::class, 'index'])->middleware('can:teams.read')->name('teams.index');
+    Route::get('/user-assignments', [UserOrgAssignmentController::class, 'index'])->middleware('can:user-assignments.read')->name('user-assignments.index');
 
     // Wilayah administratif (schema public)
     Route::get('/provinces', [ProvinceController::class, 'index'])->middleware('can:provinces.read')->name('provinces.index');

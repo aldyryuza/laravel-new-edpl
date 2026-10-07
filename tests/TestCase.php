@@ -5,6 +5,7 @@ namespace Tests;
 use App\Models\Menu;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UserOrgAssignment;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
@@ -44,8 +45,9 @@ abstract class TestCase extends BaseTestCase
      * Menu dibuat jika kode menu belum ada.
      *
      * @param  array<string, array<int, string>>  $access  contoh: ['users' => ['read', 'create']]
+     * @param  bool  $national  beri wilayah Nasional (melihat semua outlet/distributor)
      */
-    protected function userWithAccess(array $access): User
+    protected function userWithAccess(array $access, bool $national = true): User
     {
         $role = Role::factory()->create();
 
@@ -60,6 +62,10 @@ abstract class TestCase extends BaseTestCase
 
         $user = User::factory()->create();
         $user->roles()->attach($role);
+
+        if ($national) {
+            UserOrgAssignment::factory()->national()->for($user)->create();
+        }
 
         return $user;
     }

@@ -52,6 +52,7 @@ class OutletController extends Controller implements HasMiddleware
     public function datatable(Request $request): JsonResponse
     {
         $query = Outlet::query()
+            ->visibleTo($request->user())
             ->select([
                 'outlets.id', 'outlets.code', 'outlets.name', 'outlets.address', 'outlets.city_id', 'outlets.area_id', 'outlets.outlet_category_id',
                 'outlets.ownership_type_id', 'outlets.bed_count', 'outlets.crm_id', 'outlets.latitude', 'outlets.longitude', 'outlets.is_active',
@@ -90,8 +91,10 @@ class OutletController extends Controller implements HasMiddleware
         ], 201);
     }
 
-    public function show(Outlet $outlet): JsonResponse
+    public function show(Request $request, Outlet $outlet): JsonResponse
     {
+        $this->ensureVisible($request, $outlet);
+
         return response()->json([
             'success' => true,
             'message' => 'Data berhasil diambil',
@@ -101,6 +104,8 @@ class OutletController extends Controller implements HasMiddleware
 
     public function update(OutletRequest $request, Outlet $outlet, OutletService $outletService): JsonResponse
     {
+        $this->ensureVisible($request, $outlet);
+
         $outletService->save($outlet, $request->outletAttributes(), $request->groupId());
 
         return response()->json([
@@ -111,10 +116,12 @@ class OutletController extends Controller implements HasMiddleware
     }
 
     /**
-     * Import Excel (upsert berdasarkan kode). Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
+     * Import Excel (upsert berdasarkan kode), hanya untuk user Nasional karena bisa menyentuh semua wilayah. Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
      */
     public function import(ExcelImportRequest $request, OutletImportService $importService): JsonResponse
     {
+        abort_unless($request->user()->regionScope()->isNational(), 403, 'Import outlet hanya untuk user dengan wilayah Nasional.');
+
         $result = $importService->import($request->file('file'));
 
         return response()->json([
@@ -128,13 +135,23 @@ class OutletController extends Controller implements HasMiddleware
      * Histori keanggotaan group ikut dihapus (tidak bermakna tanpa outlet). Outlet yang sudah dipakai
      * DPL dijaga FK RESTRICT sehingga seluruh penghapusan dibatalkan.
      */
-    public function destroy(Outlet $outlet): JsonResponse
+    public function destroy(Request $request, Outlet $outlet): JsonResponse
     {
+        $this->ensureVisible($request, $outlet);
+
         return $this->deleteOrReject(
             $outlet,
             'Outlet berhasil dihapus',
             'Outlet sudah dipakai pada data lain (mis. DPL). Nonaktifkan outlet ini sebagai gantinya.',
             fn () => $outlet->groupMemberships()->delete(),
         );
+    }
+
+    /**
+     * Outlet di luar wilayah user diperlakukan seperti tidak ada (404).
+     */
+    private function ensureVisible(Request $request, Outlet $outlet): void
+    {
+        abort_unless(Outlet::query()->visibleTo($request->user())->whereKey($outlet->getKey())->exists(), 404);
     }
 }

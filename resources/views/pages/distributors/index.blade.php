@@ -5,8 +5,8 @@
 @section('content')
     <x-page-header title="Distributor" :breadcrumbs="[['label' => 'Master Produk & Distributor']]">
         <x-slot:actions>
-            {{-- Import membuat sekaligus memperbarui data: butuh hak create + update. --}}
-            @if (auth()->user()->can('distributors.create') && auth()->user()->can('distributors.update'))
+            {{-- Import membuat sekaligus memperbarui data: butuh hak create + update dan wilayah Nasional. --}}
+            @if ($canImport && auth()->user()->can('distributors.create') && auth()->user()->can('distributors.update'))
                 <button type="button" class="btn btn-label-success" data-bs-toggle="modal" data-bs-target="#excel-import-modal">
                     <i class="icon-base bx bx-upload me-1"></i> Import Excel
                 </button>
@@ -179,7 +179,7 @@
         </div>
     </div>
 
-    @if (auth()->user()->can('distributors.create') && auth()->user()->can('distributors.update'))
+    @if ($canImport && auth()->user()->can('distributors.create') && auth()->user()->can('distributors.update'))
         <x-excel-import-modal title="Import Distributor dari Excel" upload-path="api/distributors/import"
             :template-url="route('distributors.import-template')"
             columns="kode, nama, grup_distributor, kode_kota, alamat, telepon, fax, email, npwp, latitude, longitude, radius_meter, cabang, kode_induk, kode_region, netsuite_id, aktif" />
