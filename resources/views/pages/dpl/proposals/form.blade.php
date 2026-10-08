@@ -206,19 +206,19 @@
                         </div>
                         <div class="col-md-3">
                             <label for="item-principle-on" class="form-label">Discount Share Principle ON (%)</label>
-                            <input type="number" class="form-control" id="item-principle-on" name="principle_discount_on" min="0" step="0.0001" />
+                            <input type="number" class="form-control" id="item-principle-on" name="principle_discount_on" min="0" step="0.1" />
                         </div>
                         <div class="col-md-3">
                             <label for="item-principle-off" class="form-label">Discount Share Principle OFF (%)</label>
-                            <input type="number" class="form-control" id="item-principle-off" name="principle_discount_off" min="0" step="0.0001" />
+                            <input type="number" class="form-control" id="item-principle-off" name="principle_discount_off" min="0" step="0.1" />
                         </div>
                         <div class="col-md-3">
                             <label for="item-distributor-on" class="form-label">Discount Share Distributor ON (%)</label>
-                            <input type="number" class="form-control" id="item-distributor-on" name="distributor_discount_on" min="0" step="0.0001" />
+                            <input type="number" class="form-control" id="item-distributor-on" name="distributor_discount_on" min="0" step="0.1" />
                         </div>
                         <div class="col-md-3">
                             <label for="item-distributor-off" class="form-label">Discount Share Distributor OFF (%)</label>
-                            <input type="number" class="form-control" id="item-distributor-off" name="distributor_discount_off" min="0" step="0.0001" />
+                            <input type="number" class="form-control" id="item-distributor-off" name="distributor_discount_off" min="0" step="0.1" />
                         </div>
                         <div class="col-md-3">
                             <label for="item-margin" class="form-label">Margin (%)</label>
