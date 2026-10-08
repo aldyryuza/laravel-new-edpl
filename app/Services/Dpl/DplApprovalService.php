@@ -344,6 +344,43 @@ class DplApprovalService
     }
 
     /**
+     * Rincian item yang ditolak di instance aktif (terbaru dulu): level, penolak (atau otomatis), alasan, waktu.
+     *
+     * @return array<int, array{dpl_item_id: int, role: string|null, rejected_by: string|null, auto: bool, reason: string|null, rejected_at: string|null}>
+     */
+    public function rejections(DplProposal $proposal): array
+    {
+        if ($proposal->proposal_status !== DplProposal::STATUS_REJECTED) {
+            return [];
+        }
+
+        $instance = $this->currentInstance($proposal);
+
+        if ($instance === null) {
+            return [];
+        }
+
+        return ApprovalAction::query()
+            ->whereIn('step_instance_id', $instance->steps->pluck('id'))
+            ->whereIn('action', [ApprovalAction::REJECT, ApprovalAction::AUTO_REJECT])
+            ->whereIn('dpl_item_id', $this->statesOf($instance)->where('status', ApprovalItemState::STATUS_REJECTED)->pluck('dpl_item_id'))
+            ->with(['actor:id,name', 'stepInstance.workflowStep.role:id,name'])
+            ->orderByDesc('id')
+            ->get()
+            ->unique('dpl_item_id')
+            ->map(fn (ApprovalAction $action) => [
+                'dpl_item_id' => $action->dpl_item_id,
+                'role' => $action->stepInstance->workflowStep->role?->name,
+                'rejected_by' => $action->action === ApprovalAction::AUTO_REJECT ? null : $action->actor?->name,
+                'auto' => $action->action === ApprovalAction::AUTO_REJECT,
+                'reason' => $action->reason,
+                'rejected_at' => $action->created_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * Nama role step yang masih menunggu (urut sequence) untuk DPL dalam approval, mis. ['NSM', 'GM', 'SMD', 'DMD'].
      *
      * @return array<int, string>

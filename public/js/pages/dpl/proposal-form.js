@@ -942,6 +942,31 @@ $(function () {
         });
     });
 
+    // ---- Penolakan (siapa & alasan) ----
+
+    function renderRejections(proposal) {
+        const rejections = proposal.rejections || [];
+        const $box = $('#proposal-rejections');
+
+        if (rejections.length === 0) {
+            $box.addClass('d-none').empty();
+            return;
+        }
+
+        const rows = rejections.map(rejection => {
+            const item = items.find(candidate => candidate.id === rejection.dpl_item_id);
+            const who = rejection.auto ? 'Otomatis (batas kalkulator)' : `${rejection.role || ''} — ${rejection.rejected_by || '-'}`;
+
+            return `<li class="mb-1"><strong>Item ${App.escape(itemNumber(rejection.dpl_item_id))}</strong>`
+                + (item ? ` ${App.escape(item.labels.product)}` : '')
+                + `<br><span class="small">Ditolak oleh ${App.escape(who)}`
+                + (rejection.rejected_at ? `, ${App.escape(formatDateTime(rejection.rejected_at))}` : '')
+                + `</span><br>Alasan: ${App.escape(rejection.reason || '-')}</li>`;
+        }).join('');
+
+        $box.removeClass('d-none').html(`<div class="fw-medium mb-2"><i class="icon-base bx bx-x-circle me-1"></i>DPL ditolak</div><ul class="mb-0 ps-4">${rows}</ul>`);
+    }
+
     // ---- Make a Copy (amendment) / Duplicate (renewal) & asal-usul ----
 
     const RELATION_LABELS = { AMENDMENT: 'Amendment (Make a Copy)', RENEWAL: 'Renewal (Duplicate)' };
@@ -1371,6 +1396,7 @@ $(function () {
         loadApproval(proposal);
         renderOpenPanel(proposal);
         renderRelations(proposal);
+        renderRejections(proposal);
     }
 
     if (proposalId) {

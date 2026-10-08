@@ -179,7 +179,13 @@ class DplApprovalTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('reason');
 
         $this->actingAs($this->approvers['RM'])->postJson("/api/dpl/proposals/{$proposal->id}/reject", ['item_ids' => [$first], 'reason' => 'Diskon terlalu besar'])
-            ->assertOk()->assertJsonPath('data.proposal_status', DplProposal::STATUS_REJECTED);
+            ->assertOk()
+            ->assertJsonPath('data.proposal_status', DplProposal::STATUS_REJECTED)
+            ->assertJsonPath('data.rejections.0.dpl_item_id', $first)
+            ->assertJsonPath('data.rejections.0.role', 'RM')
+            ->assertJsonPath('data.rejections.0.rejected_by', $this->approvers['RM']->name)
+            ->assertJsonPath('data.rejections.0.reason', 'Diskon terlalu besar')
+            ->assertJsonPath('data.rejections.0.auto', false);
 
         $this->approve('RM', $proposal, [$second])->assertUnprocessable();
         $this->assertSame(DplProposal::PROGRAM_INACTIVE, $proposal->fresh()->program_status);
@@ -189,7 +195,11 @@ class DplApprovalTest extends TestCase
     {
         // Principle ON 10 + margin 25 = 35 > batas Tim A 30.
         $proposal = $this->draft(['25']);
-        $this->submit($proposal)->assertOk()->assertJsonPath('data.proposal_status', DplProposal::STATUS_REJECTED);
+        $this->submit($proposal)->assertOk()
+            ->assertJsonPath('data.proposal_status', DplProposal::STATUS_REJECTED)
+            ->assertJsonPath('data.rejections.0.auto', true)
+            ->assertJsonPath('data.rejections.0.rejected_by', null)
+            ->assertJsonPath('data.rejections.0.reason', 'Total discount is more than 30%');
         $this->assertSame(
             ['Total discount is more than 30%'],
             ApprovalItemState::query()->distinct()->pluck('reject_reason')->all(),

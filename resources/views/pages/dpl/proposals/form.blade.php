@@ -40,6 +40,8 @@
                 </div>
             </div>
             <div class="card-body">
+                {{-- Item yang ditolak: level, penolak, waktu, alasan. --}}
+                <div class="alert alert-danger d-none" id="proposal-rejections" role="alert"></div>
                 {{-- Asal-usul (amendment / renewal dari DPL lain) dan DPL turunan. --}}
                 <div class="alert alert-info d-none" id="proposal-relation" role="alert"></div>
                 <div class="row g-4">

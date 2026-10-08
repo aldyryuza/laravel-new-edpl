@@ -34,6 +34,15 @@ $(function () {
         ACTIVE: ['success', 'Aktif'], EXPIRED: ['secondary', 'Expired'], SUPERSEDED: ['dark', 'Superseded']
     };
 
+    /** Penolakan terbaru: "Ditolak RM (Nama): alasan" (+ jumlah item lain yang ditolak). */
+    function renderRejection(rejections) {
+        const last = rejections[0];
+        const who = last.auto ? 'otomatis' : `${last.role || ''}${last.rejected_by ? ` (${last.rejected_by})` : ''}`;
+        const more = rejections.length > 1 ? ` (+${rejections.length - 1} item lain)` : '';
+
+        return `<div class="small text-danger mt-1">Ditolak ${App.escape(who)}: ${App.escape(last.reason || '-')}${more}</div>`;
+    }
+
     const table = $('#proposals-table').DataTable({
         serverSide: true,
         processing: true,
@@ -73,6 +82,7 @@ $(function () {
                     + (row.waiting_roles && row.waiting_roles.length
                         ? `<div class="small text-body-secondary mt-1">Menunggu Acc ${App.escape(row.waiting_roles.join(', '))}</div>`
                         : '')
+                    + (row.rejections && row.rejections.length ? renderRejection(row.rejections) : '')
             },
             { data: 'creator', orderable: false, searchable: false, render: user => user ? App.escape(user.name) : '-' },
             { data: null, orderable: false, searchable: false, className: 'text-end text-nowrap', render: renderActions }
