@@ -107,6 +107,18 @@
                             <label for="product-netsuite" class="form-label">NetSuite ID</label>
                             <input type="text" class="form-control" id="product-netsuite" name="netsuite_id" maxlength="255" />
                         </div>
+                        <div class="col-md-6">
+                            <label for="product-calculator-limit" class="form-label">Batas Kalkulator DPL Khusus (%)</label>
+                            <input type="number" class="form-control" id="product-calculator-limit" name="calculator_limit" min="0" step="0.0001" />
+                            <div class="form-text">Kosong = ikut batas team.</div>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-center">
+                            <input type="hidden" name="is_team_b_product" value="0" />
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="product-team-b" name="is_team_b_product" value="1" />
+                                <label class="form-check-label" for="product-team-b">Produk tim B (dijual tim A memakai batas Tim B)</label>
+                            </div>
+                        </div>
                         <div class="col-12 d-flex gap-6">
                             <input type="hidden" name="is_branded" value="0" />
                             <div class="form-check form-switch">

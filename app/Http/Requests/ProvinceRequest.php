@@ -26,6 +26,8 @@ class ProvinceRequest extends FormRequest
         return [
             'code' => ['required', 'string', 'max:10', Rule::unique('provinces', 'code')->ignore($this->route('province'))],
             'name' => ['required', 'string', 'max:100'],
+            // Margin DPL Direct ke outlet Instansi: Jawa vs luar Jawa.
+            'is_java' => ['sometimes', 'boolean'],
             'is_active' => ['required', 'boolean'],
         ];
     }
@@ -35,6 +37,6 @@ class ProvinceRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['code' => 'kode', 'name' => 'nama', 'is_active' => 'status aktif'];
+        return ['code' => 'kode', 'name' => 'nama', 'is_java' => 'Pulau Jawa', 'is_active' => 'status aktif'];
     }
 }

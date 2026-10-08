@@ -14,7 +14,7 @@ use Spatie\Activitylog\Support\LogOptions;
 /**
  * Master provinsi. Kode = kode wilayah BPS tanpa titik (mis. "82").
  */
-#[Fillable(['code', 'name', 'is_active'])]
+#[Fillable(['code', 'name', 'is_java', 'is_active'])]
 class Province extends Model
 {
     /** @use HasFactory<ProvinceFactory> */
@@ -22,7 +22,7 @@ class Province extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return AuditLog::dataOptions(['code', 'name', 'is_active'], fn () => "Provinsi {$this->name} ({$this->code})");
+        return AuditLog::dataOptions(['code', 'name', 'is_java', 'is_active'], fn () => "Provinsi {$this->name} ({$this->code})");
     }
 
     /**
@@ -33,6 +33,7 @@ class Province extends Model
     protected function casts(): array
     {
         return [
+            'is_java' => 'boolean',
             'is_active' => 'boolean',
         ];
     }

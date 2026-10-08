@@ -27,6 +27,8 @@ class CityRequest extends FormRequest
             'code' => ['required', 'string', 'max:10', Rule::unique('cities', 'code')->ignore($this->route('city'))],
             'name' => ['required', 'string', 'max:100'],
             'province_id' => ['required', 'integer', Rule::exists('provinces', 'id')],
+            // Logistic fee DPL (%) untuk distributor di kota ini.
+            'logistic_fee' => ['nullable', 'numeric', 'min:0', 'max:999999.9999', 'decimal:0,4'],
             'is_active' => ['required', 'boolean'],
         ];
     }
@@ -36,6 +38,6 @@ class CityRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['code' => 'kode', 'name' => 'nama', 'province_id' => 'provinsi', 'is_active' => 'status aktif'];
+        return ['code' => 'kode', 'name' => 'nama', 'province_id' => 'provinsi', 'logistic_fee' => 'logistic fee', 'is_active' => 'status aktif'];
     }
 }

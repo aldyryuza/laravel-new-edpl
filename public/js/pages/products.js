@@ -31,7 +31,14 @@ $(function () {
             { data: 'code', name: 'code', render: App.escape },
             { data: 'name', name: 'name', render: App.escape },
             { data: 'volume', name: 'volume', searchable: false, className: 'text-nowrap', render: formatVolume },
-            { data: 'product_group', orderable: false, searchable: false, render: value => value ? App.escape(value) : muted('-') },
+            {
+                data: 'product_group',
+                orderable: false,
+                searchable: false,
+                render: (value, type, row) => (value ? App.escape(value) : muted('-'))
+                    + (row.is_team_b_product ? ' <span class="badge bg-label-warning">Tim B</span>' : '')
+                    + (row.calculator_limit !== null ? ` <span class="badge bg-label-info">batas ${App.escape(String(Number(row.calculator_limit)))}%</span>` : '')
+            },
             {
                 data: 'is_branded',
                 name: 'is_branded',
@@ -86,6 +93,8 @@ $(function () {
             $form.find('[name="name"]').val(product.name);
             $form.find('[name="volume"]').val(product.volume === null ? '' : Number(product.volume));
             $form.find('[name="product_group"]').val(product.product_group || '');
+            $form.find('[name="calculator_limit"]').val(product.calculator_limit === null ? '' : Number(product.calculator_limit));
+            $('#product-team-b').prop('checked', product.is_team_b_product);
             $form.find('[name="netsuite_id"]').val(product.netsuite_id);
             $('#product-branded').prop('checked', product.is_branded);
             $('#product-active').prop('checked', product.is_active);

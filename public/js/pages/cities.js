@@ -25,6 +25,13 @@ $(function () {
             { data: 'code', name: 'code', render: App.escape },
             { data: 'name', name: 'name', render: App.escape },
             { data: 'province', orderable: false, searchable: false, render: province => province ? App.escape(province.name) : '-' },
+            {
+                data: 'logistic_fee',
+                orderable: false,
+                searchable: false,
+                className: 'text-end',
+                render: fee => fee === null ? '-' : `${App.escape(String(Number(fee)))}%`
+            },
             { data: 'is_active', name: 'is_active', searchable: false, render: renderStatus },
             { data: null, orderable: false, searchable: false, className: 'text-end text-nowrap', render: renderActions }
         ],
@@ -71,6 +78,7 @@ $(function () {
             $form.find('[name="code"]').val(city.code);
             $form.find('[name="name"]').val(city.name);
             $form.find('[name="province_id"]').val(city.province_id);
+            $form.find('[name="logistic_fee"]').val(city.logistic_fee === null ? '' : Number(city.logistic_fee));
             $('#city-active').prop('checked', city.is_active);
         } else if ($filterProvince.val()) {
             $form.find('[name="province_id"]').val($filterProvince.val());

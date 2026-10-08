@@ -104,6 +104,7 @@ Route::prefix('dpl')->name('dpl.')->group(function () {
     Route::get('proposals/outlet-options', [DplProposalController::class, 'outletOptions'])->name('proposals.outlet-options');
     Route::get('proposals/pricing', [DplProposalController::class, 'pricing'])->name('proposals.pricing');
     Route::post('proposals/calculate', [DplProposalController::class, 'calculate'])->name('proposals.calculate');
+    Route::get('proposals/item-defaults', [DplProposalController::class, 'itemDefaults'])->name('proposals.item-defaults');
     Route::apiResource('proposals', DplProposalController::class)->except('index');
 
     Route::get('approver-assignments/datatable', [ApproverAssignmentController::class, 'datatable'])->name('approver-assignments.datatable');

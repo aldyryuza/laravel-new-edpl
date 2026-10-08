@@ -60,6 +60,7 @@
                         <th>Kota</th>
                         <th>Induk</th>
                         <th>Region</th>
+                        <th>Margin A / B</th>
                         <th>Cabang</th>
                         <th>Status</th>
                         <th class="text-end">Aksi</th>
@@ -153,6 +154,22 @@
                         <div class="col-md-4">
                             <label for="distributor-radius" class="form-label">Radius Meeting (meter)</label>
                             <input type="number" class="form-control" id="distributor-radius" name="meeting_radius_meters" min="0" max="100000" step="1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="distributor-margin" class="form-label">Margin DPL (%)</label>
+                            <input type="number" class="form-control" id="distributor-margin" name="margin" min="0" step="0.0001" />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="distributor-margin-team-b" class="form-label">Margin Tim B (%)</label>
+                            <input type="number" class="form-control" id="distributor-margin-team-b" name="margin_team_b" min="0" step="0.0001" />
+                            <div class="form-text">Kosong = pakai Margin DPL.</div>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-center">
+                            <input type="hidden" name="is_special_case_margin" value="0" />
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="distributor-special-margin" name="is_special_case_margin" value="1" />
+                                <label class="form-check-label" for="distributor-special-margin">Punya margin khusus per outlet</label>
+                            </div>
                         </div>
                         <div class="col-12">
                             <x-location-picker prefix="distributor" label="Lokasi (monthly meeting CRM)" height="260" />

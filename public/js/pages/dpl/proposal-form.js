@@ -19,6 +19,8 @@
  * - Discount (Principle/Distributor ON/OFF) ditampilkan 2 angka di belakang koma; kosong = 0 (default 0.00).
  * - Total Diskon kalkulator dihitung server (POST api/dpl/proposals/calculate, sama dengan yang disimpan);
  *   item di atas batas team ditandai merah ("Total discount is more than X%").
+ * - Margin & Logistic Fee terisi otomatis dari server (GET api/dpl/proposals/item-defaults) saat product, distributor,
+ *   Direct, atau Ambil Dari Pabrik berubah; tetap bisa diubah user.
  * - Minimum order per bulan wajib diisi.
  * - Discount Share Principle OFF diisi -> Buyer reward dicentang.
  * - Direct -> Logistic Fee wajib (boleh 0); Ambil Dari Pabrik -> Logistic Fee 0; keduanya tidak boleh bersamaan.
@@ -369,7 +371,11 @@ $(function () {
     let modalTimer = null;
 
     const currentTeam = () => teamCode || $('#proposal-team').val() || null;
-    const calculatorInput = item => Object.fromEntries(CALCULATOR_FIELDS.map(field => [field, item[field] ?? null]));
+    // product_id ikut dikirim: batas kalkulator bisa khusus per product.
+    const calculatorInput = item => ({
+        ...Object.fromEntries(CALCULATOR_FIELDS.map(field => [field, item[field] ?? null])),
+        product_id: item.product_id ?? null
+    });
 
     function calculate(itemsToCalculate) {
         return $.ajax({
@@ -435,6 +441,7 @@ $(function () {
                 const $input = $itemForm.find(`[name="${field}"]`);
                 item[field] = $input.is(':checkbox') ? $input.is(':checked') : valueOrNull(field);
             });
+            item.product_id = selectedProductIds()[0] ?? null;
 
             modalRequest?.abort();
             modalRequest = calculate([item])
@@ -456,6 +463,54 @@ $(function () {
         recalcItems();
         updateItemCalculator();
     });
+
+    // ---- Nilai awal Margin & Logistic Fee (GET api/dpl/proposals/item-defaults) ----
+
+    /** Diisi true selama modal dibuka supaya nilai item tersimpan tidak tertimpa. */
+    let loadingItem = false;
+    let defaultsRequest = null;
+    let outletId = null;
+
+    function loadItemDefaults() {
+        const groupMode = productMode() === 'group';
+        const productId = selectedProductIds()[0];
+        const distributorId = valueOrNull('distributor_id');
+
+        if (loadingItem || !editable || !productId || !distributorId || !currentTeam()) {
+            return;
+        }
+
+        defaultsRequest?.abort();
+        defaultsRequest = $.get(App.url('api/dpl/proposals/item-defaults'), {
+            product_id: productId,
+            distributor_id: distributorId,
+            outlet_id: outletId || $('#proposal-outlet').val() || '',
+            team_code: currentTeam(),
+            is_direct_delivery: $direct.is(':checked') ? 1 : 0,
+            is_factory_pickup: $pickup.is(':checked') ? 1 : 0,
+            group_mode: groupMode ? 1 : 0
+        })
+            .done(res => {
+                const result = res.data;
+
+                $itemForm.find('[name="margin"]').val(isBlank(result.margin) ? '' : Number(result.margin));
+                $('#item-margin-source').text(`Otomatis: ${result.margin_source}${isBlank(result.margin) ? ' (belum diatur)' : ''}. Bisa diubah.`);
+
+                if ($direct.is(':checked') && !$pickup.is(':checked')) {
+                    $logisticFee.val(isBlank(result.logistic_fee) ? '' : Number(result.logistic_fee));
+                }
+                $('#item-logistic-source').text($direct.is(':checked') || $pickup.is(':checked')
+                    ? `Otomatis: ${result.logistic_source}. Bisa diubah.` : '');
+
+                updateItemCalculator();
+            })
+            .fail((xhr, status) => (status === 'abort' ? null : App.handleError(xhr)));
+    }
+
+    $single.add($products).add('#item-distributor').on('change', loadItemDefaults);
+    $single.add($products).on('change', updateItemCalculator);
+    $direct.add($pickup).on('change', loadItemDefaults);
+    $itemForm.on('change', '[name="product_mode"]', loadItemDefaults);
 
     // ---- Tabel & modal item ----
 
@@ -511,8 +566,10 @@ $(function () {
         editingIndex = index;
         const item = index === null ? null : items[index];
 
+        loadingItem = true;
         $itemForm[0].reset();
         App.clearErrors($itemForm);
+        $('#item-margin-source, #item-logistic-source').text('');
         $('#item-modal-title').text(item ? (editable ? `Edit Item #${index + 1}` : `Item #${index + 1}`) : 'Tambah Item');
 
         selectValue($('#item-distributor'), item?.distributor_id, item?.labels.distributor);
@@ -541,6 +598,7 @@ $(function () {
         $single.add($itemForm.find('[name="product_mode"]')).prop('disabled', !editable || item !== null);
         $('#item-mode-group').toggleClass('d-none', item !== null);
         $itemForm.find('[type="submit"]').toggleClass('d-none', !editable);
+        loadingItem = false;
         itemModal.show();
     }
 
@@ -706,6 +764,7 @@ $(function () {
             + (proposal.outlet.area ? ` - ${proposal.outlet.area.name}` : ''));
         $('#proposal-team-text').val(proposal.team_code);
         teamCode = proposal.team_code;
+        outletId = proposal.outlet_id;
         $('#proposal-offer').val(proposal.date_offer);
         $form.find('[name="proposal_type"]').val(proposal.proposal_type);
         $form.find('[name="date_start"]').val(proposal.date_start);

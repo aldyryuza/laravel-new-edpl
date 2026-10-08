@@ -35,7 +35,7 @@ class ProvinceController extends Controller implements HasMiddleware
     public function datatable(): JsonResponse
     {
         $query = Province::query()
-            ->select(['provinces.id', 'provinces.code', 'provinces.name', 'provinces.is_active'])
+            ->select(['provinces.id', 'provinces.code', 'provinces.name', 'provinces.is_java', 'provinces.is_active'])
             ->withCount('cities');
 
         return DataTables::eloquent($query)

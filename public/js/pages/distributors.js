@@ -93,6 +93,17 @@ $(function () {
                     ? regions.map(region => `<span class="badge bg-label-primary me-1">${App.escape(region.code)}</span>`).join('')
                     : muted('-')
             },
+            {
+                data: 'margin',
+                orderable: false,
+                searchable: false,
+                className: 'text-nowrap',
+                render: (margin, type, row) => {
+                    const format = value => (value === null ? '-' : App.escape(String(Number(value))));
+                    return `${format(margin)} / ${format(row.margin_team_b)}`
+                        + (row.is_special_case_margin ? ' <span class="badge bg-label-warning">outlet</span>' : '');
+                }
+            },
             { data: 'branches_count', orderable: false, searchable: false },
             { data: 'is_active', name: 'is_active', searchable: false, render: renderStatus },
             { data: null, orderable: false, searchable: false, className: 'text-end text-nowrap', render: renderActions }
@@ -139,8 +150,9 @@ $(function () {
         if (distributor) {
             [
                 'code', 'name', 'group_code', 'netsuite_id', 'address', 'phone', 'fax', 'email', 'npwp',
-                'latitude', 'longitude', 'meeting_radius_meters'
+                'latitude', 'longitude', 'meeting_radius_meters', 'margin', 'margin_team_b'
             ].forEach(field => $form.find(`[name="${field}"]`).val(distributor[field] ?? ''));
+            $('#distributor-special-margin').prop('checked', distributor.is_special_case_margin);
             $('#distributor-branch').prop('checked', distributor.is_branch);
             $('#distributor-active').prop('checked', distributor.is_active);
         }

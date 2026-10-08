@@ -40,7 +40,7 @@ class CityController extends Controller implements HasMiddleware
     public function datatable(Request $request): JsonResponse
     {
         $query = City::query()
-            ->select(['cities.id', 'cities.code', 'cities.name', 'cities.province_id', 'cities.is_active'])
+            ->select(['cities.id', 'cities.code', 'cities.name', 'cities.province_id', 'cities.logistic_fee', 'cities.is_active'])
             ->with('province:id,code,name')
             ->when($request->integer('province_id'), fn (Builder $query, int $provinceId) => $query->where('province_id', $provinceId));
 

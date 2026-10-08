@@ -29,6 +29,7 @@
                         <th>Kode</th>
                         <th>Nama</th>
                         <th>Jumlah Kota</th>
+                        <th>Pulau Jawa</th>
                         <th>Status</th>
                         <th class="text-end">Aksi</th>
                     </tr>
@@ -55,6 +56,11 @@
                     <div class="mb-4">
                         <label for="province-name" class="form-label">Nama <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="province-name" name="name" maxlength="100" required />
+                    </div>
+                    <input type="hidden" name="is_java" value="0" />
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="province-java" name="is_java" value="1" />
+                        <label class="form-check-label" for="province-java">Pulau Jawa (margin DPL Direct outlet Instansi)</label>
                     </div>
                     <input type="hidden" name="is_active" value="0" />
                     <div class="form-check form-switch">

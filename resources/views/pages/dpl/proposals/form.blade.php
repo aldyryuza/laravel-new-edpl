@@ -224,6 +224,7 @@
                         <div class="col-md-3">
                             <label for="item-margin" class="form-label">Margin (%)</label>
                             <input type="number" class="form-control" id="item-margin" name="margin" min="0" step="0.0001" />
+                            <div class="form-text" id="item-margin-source"></div>
                         </div>
                         <div class="col-md-3">
                             <label for="item-logistic" class="form-label">Logistic Support (%)</label>
@@ -257,6 +258,7 @@
                         <div class="col-md-6 d-none" id="item-logistic-fee-group">
                             <label for="item-logistic-fee" class="form-label">Logistic Fee (%) <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="item-logistic-fee" name="logistic_fee" min="0" step="0.0001" />
+                            <div class="form-text" id="item-logistic-source"></div>
                         </div>
                         <div class="col-12">
                             <label class="form-label d-block">Opsi</label>

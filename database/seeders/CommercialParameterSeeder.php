@@ -27,6 +27,29 @@ class CommercialParameterSeeder extends Seeder
             ],
         );
 
+        // Aturan margin & logistic fee item DPL (legacy addDplItem.js / FunctionHelper; user confirmation 2026-10-08).
+        $itemDefaults = [
+            'KFTD_DISTRIBUTOR_GROUP' => ['text', 'KFTD', 'Kode grup distributor KFTD (margin Direct khusus)'],
+            'INSTANSI_CATEGORY_CODE' => ['text', 'INSTANSI', 'Kode kategori outlet Instansi/Dinkes'],
+            'DIRECT_MARGIN_KFTD_INSTANSI' => ['number', '9', 'Margin Direct distributor KFTD ke outlet Instansi (%)'],
+            'DIRECT_MARGIN_KFTD_OTHER' => ['number', '11', 'Margin Direct distributor KFTD ke outlet lain (%)'],
+            'DIRECT_MARGIN_INSTANSI_JAVA' => ['number', '3', 'Margin Direct distributor non-KFTD ke outlet Instansi, provinsi Jawa (%)'],
+            'DIRECT_MARGIN_INSTANSI_OUTSIDE_JAVA' => ['number', '5', 'Margin Direct distributor non-KFTD ke outlet Instansi, luar Jawa (%)'],
+            'OUTLET_MARGIN_EXCLUDED_TEAMS' => ['text', 'B', 'Team yang tidak memakai margin khusus outlet (pisahkan koma)'],
+            'SMALL_VOLUME_ML' => ['number', '25', 'Volume product (ml) dengan aturan khusus: tanpa margin khusus outlet, logistic fee dibagi'],
+            'NATIONAL_DISTRIBUTOR_GROUPS' => ['text', 'KFTD,UDC,SDL,PPI', 'Grup distributor nasional (pisahkan koma)'],
+            'NATIONAL_DISTRIBUTOR_LOGISTIC_FEE' => ['number', '6', 'Logistic fee distributor nasional (%)'],
+            'SPECIAL_LOGISTIC_DIVISOR' => ['number', '3', 'Pembagi logistic fee product volume kecil & produk tim B'],
+            'DEFAULT_LOGISTIC_CITY_CODE' => ['text', '3216', 'Kode kota logistic fee bila kota distributor kosong'],
+        ];
+
+        foreach ($itemDefaults as $code => [$type, $value, $description]) {
+            CommercialParameter::query()->firstOrCreate(
+                ['code' => $code],
+                ['value' => CommercialParameter::wrapValue($type, $value), 'description' => $description, 'is_active' => true],
+            );
+        }
+
         // Batas Total Diskon kalkulator per team (legacy FunctionHelper: Tim A 30, Tim B 45).
         foreach (['A' => '30', 'B' => '45'] as $team => $limit) {
             CommercialParameter::query()->firstOrCreate(

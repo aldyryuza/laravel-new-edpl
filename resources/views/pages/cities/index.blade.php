@@ -42,6 +42,7 @@
                         <th>Kode</th>
                         <th>Nama</th>
                         <th>Provinsi</th>
+                        <th class="text-end">Logistic Fee DPL</th>
                         <th>Status</th>
                         <th class="text-end">Aksi</th>
                     </tr>
@@ -79,6 +80,11 @@
                                 </option>
                             @endforeach
                         </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="city-logistic-fee" class="form-label">Logistic Fee DPL (%)</label>
+                        <input type="number" class="form-control" id="city-logistic-fee" name="logistic_fee" min="0" step="0.0001" />
+                        <div class="form-text">Dasar logistic fee item DPL Direct untuk distributor di kota ini.</div>
                     </div>
                     <input type="hidden" name="is_active" value="0" />
                     <div class="form-check form-switch">

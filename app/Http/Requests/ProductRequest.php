@@ -30,6 +30,9 @@ class ProductRequest extends FormRequest
             // Group manual (mis. IV CAT WING); product bervolume 1L/500/250/100/25 ml tidak perlu diisi.
             'product_group' => ['nullable', 'string', Rule::in(config('dpl.product_groups'))],
             'is_branded' => ['required', 'boolean'],
+            // DPL: produk tim B yang dijual tim A (batas kalkulator Tim B) & batas kalkulator khusus (%).
+            'is_team_b_product' => ['sometimes', 'boolean'],
+            'calculator_limit' => ['nullable', 'numeric', 'min:0', 'max:999999.9999', 'decimal:0,4'],
             'netsuite_id' => ['nullable', 'string', 'max:255'],
             'is_active' => ['required', 'boolean'],
         ];
@@ -46,6 +49,8 @@ class ProductRequest extends FormRequest
             'volume' => 'volume',
             'product_group' => 'group product',
             'is_branded' => 'branded',
+            'is_team_b_product' => 'produk tim B',
+            'calculator_limit' => 'batas kalkulator khusus',
             'netsuite_id' => 'NetSuite ID',
             'is_active' => 'status aktif',
         ];

@@ -41,6 +41,10 @@ class DistributorRequest extends FormRequest
             'latitude' => ['nullable', 'required_with:longitude', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'required_with:latitude', 'numeric', 'between:-180,180'],
             'meeting_radius_meters' => ['nullable', 'integer', 'min:0', 'max:100000'],
+            // Margin dasar DPL (%): margin, margin Tim B (kosong = pakai margin), punya margin khusus per outlet.
+            'margin' => ['nullable', 'numeric', 'min:0', 'max:999999.9999', 'decimal:0,4'],
+            'margin_team_b' => ['nullable', 'numeric', 'min:0', 'max:999999.9999', 'decimal:0,4'],
+            'is_special_case_margin' => ['sometimes', 'boolean'],
             'is_branch' => ['required', 'boolean'],
             'parent_distributor_id' => ['nullable', 'integer', Rule::exists('distributors', 'id')],
             // User non-Nasional wajib memilih minimal satu region di wilayahnya.
@@ -127,6 +131,9 @@ class DistributorRequest extends FormRequest
             'phone' => 'telepon',
             'npwp' => 'NPWP',
             'meeting_radius_meters' => 'radius meeting',
+            'margin' => 'margin',
+            'margin_team_b' => 'margin Tim B',
+            'is_special_case_margin' => 'margin khusus outlet',
             'is_branch' => 'cabang',
             'parent_distributor_id' => 'induk',
             'region_ids' => 'region',

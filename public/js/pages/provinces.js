@@ -24,6 +24,7 @@ $(function () {
             { data: 'code', name: 'code', render: App.escape },
             { data: 'name', name: 'name', render: App.escape },
             { data: 'cities_count', orderable: false, searchable: false },
+            { data: 'is_java', orderable: false, searchable: false, render: java => java ? '<span class="badge bg-label-primary">Jawa</span>' : '-' },
             { data: 'is_active', name: 'is_active', searchable: false, render: renderStatus },
             { data: null, orderable: false, searchable: false, className: 'text-end text-nowrap', render: renderActions }
         ],
@@ -67,6 +68,7 @@ $(function () {
         if (province) {
             $form.find('[name="code"]').val(province.code);
             $form.find('[name="name"]').val(province.name);
+            $('#province-java').prop('checked', province.is_java);
             $('#province-active').prop('checked', province.is_active);
         }
 

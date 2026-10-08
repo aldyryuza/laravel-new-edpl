@@ -16,7 +16,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * Master product. Grouping 1L/500/250/100/25 ml ditentukan dari volume; group lain (mis. IV CAT WING,
  * IV CAT PEN) dari kolom product_group (config dpl.product_groups).
  */
-#[Fillable(['code', 'name', 'volume', 'product_group', 'is_branded', 'is_active', 'netsuite_id'])]
+#[Fillable(['code', 'name', 'volume', 'product_group', 'is_team_b_product', 'calculator_limit', 'is_branded', 'is_active', 'netsuite_id'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -25,7 +25,7 @@ class Product extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return AuditLog::dataOptions(
-            ['code', 'name', 'volume', 'product_group', 'is_branded', 'is_active', 'netsuite_id'],
+            ['code', 'name', 'volume', 'product_group', 'is_team_b_product', 'calculator_limit', 'is_branded', 'is_active', 'netsuite_id'],
             fn () => "Product {$this->name} ({$this->code})",
         );
     }
@@ -39,6 +39,8 @@ class Product extends Model
     {
         return [
             'volume' => 'decimal:4',
+            'is_team_b_product' => 'boolean',
+            'calculator_limit' => 'decimal:4',
             'is_branded' => 'boolean',
             'is_active' => 'boolean',
         ];

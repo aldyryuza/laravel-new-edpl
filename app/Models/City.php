@@ -16,7 +16,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * Master kota/kabupaten. Kode = kode wilayah BPS tanpa titik (mis. "8271" = Kota Ternate),
  * sama dengan legacy distributor.city_id.
  */
-#[Fillable(['code', 'name', 'province_id', 'is_active'])]
+#[Fillable(['code', 'name', 'province_id', 'logistic_fee', 'is_active'])]
 class City extends Model
 {
     /** @use HasFactory<CityFactory> */
@@ -24,7 +24,7 @@ class City extends Model
 
     public function getActivitylogOptions(): LogOptions
     {
-        return AuditLog::dataOptions(['code', 'name', 'province_id', 'is_active'], fn () => "Kota {$this->name} ({$this->code})");
+        return AuditLog::dataOptions(['code', 'name', 'province_id', 'logistic_fee', 'is_active'], fn () => "Kota {$this->name} ({$this->code})");
     }
 
     /**
@@ -35,6 +35,7 @@ class City extends Model
     protected function casts(): array
     {
         return [
+            'logistic_fee' => 'decimal:4',
             'is_active' => 'boolean',
         ];
     }

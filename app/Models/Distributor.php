@@ -21,7 +21,7 @@ use Spatie\Activitylog\Support\LogOptions;
  */
 #[Fillable([
     'code', 'name', 'group_code', 'city_id', 'address', 'phone', 'fax', 'email', 'npwp', 'latitude', 'longitude',
-    'meeting_radius_meters', 'is_branch', 'parent_distributor_id', 'is_active', 'netsuite_id',
+    'meeting_radius_meters', 'margin', 'margin_team_b', 'is_special_case_margin', 'is_branch', 'parent_distributor_id', 'is_active', 'netsuite_id',
 ])]
 class Distributor extends Model
 {
@@ -32,7 +32,7 @@ class Distributor extends Model
     {
         return AuditLog::dataOptions([
             'code', 'name', 'group_code', 'city_id', 'address', 'phone', 'fax', 'email', 'npwp', 'latitude', 'longitude',
-            'meeting_radius_meters', 'is_branch', 'parent_distributor_id', 'is_active', 'netsuite_id',
+            'meeting_radius_meters', 'margin', 'margin_team_b', 'is_special_case_margin', 'is_branch', 'parent_distributor_id', 'is_active', 'netsuite_id',
         ], fn () => "Distributor {$this->name} ({$this->code})");
     }
 
@@ -47,6 +47,9 @@ class Distributor extends Model
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'meeting_radius_meters' => 'integer',
+            'margin' => 'decimal:4',
+            'margin_team_b' => 'decimal:4',
+            'is_special_case_margin' => 'boolean',
             'is_branch' => 'boolean',
             'is_active' => 'boolean',
         ];

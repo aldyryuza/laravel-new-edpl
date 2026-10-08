@@ -49,6 +49,7 @@ class DistributorController extends Controller implements HasMiddleware
                 'distributors.id', 'distributors.code', 'distributors.name', 'distributors.group_code', 'distributors.city_id',
                 'distributors.address', 'distributors.phone', 'distributors.fax', 'distributors.email', 'distributors.npwp',
                 'distributors.latitude', 'distributors.longitude', 'distributors.meeting_radius_meters',
+                'distributors.margin', 'distributors.margin_team_b', 'distributors.is_special_case_margin',
                 'distributors.is_branch', 'distributors.parent_distributor_id', 'distributors.netsuite_id', 'distributors.is_active',
             ])
             ->with(self::RELATIONS)

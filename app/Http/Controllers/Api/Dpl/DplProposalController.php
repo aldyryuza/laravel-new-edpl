@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api\Dpl;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dpl\DplProposalRequest;
+use App\Models\Distributor;
 use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
+use App\Models\Product;
 use App\Services\Dpl\DplCalculator;
 use App\Services\Dpl\DplDraftService;
+use App\Services\Dpl\DplItemDefaults;
 use App\Services\Dpl\DplPricing;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -41,7 +44,7 @@ class DplProposalController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing', 'calculate']),
+            new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing', 'calculate', 'itemDefaults']),
             new Middleware('can:dpl-proposals.create', only: ['store', 'outletOptions']),
             new Middleware('can:dpl-proposals.update', only: ['update']),
             new Middleware('can:dpl-proposals.delete', only: ['destroy']),
@@ -146,6 +149,7 @@ class DplProposalController extends Controller implements HasMiddleware
             'items.*.logistic_fee' => $percent,
             'items.*.logistic_support' => $percent,
             'items.*.bonus_scheme_id' => ['nullable', 'integer'],
+            'items.*.product_id' => ['nullable', 'integer'],
             'items.*.is_support_satoria' => ['boolean'],
             'items.*.is_direct_delivery' => ['boolean'],
             'items.*.is_factory_pickup' => ['boolean'],
@@ -155,6 +159,42 @@ class DplProposalController extends Controller implements HasMiddleware
             'success' => true,
             'message' => 'Data berhasil dihitung',
             'data' => $calculator->evaluate($data['items'], $data['team_code']),
+        ]);
+    }
+
+    /**
+     * Nilai awal Margin & Logistic Fee item (DplItemDefaults) untuk mengisi form saat product/distributor/Direct berubah.
+     * Distributor dan outlet harus di wilayah user.
+     */
+    public function itemDefaults(Request $request, DplItemDefaults $defaults): JsonResponse
+    {
+        $data = $request->validate([
+            'product_id' => ['required', 'integer'],
+            'distributor_id' => ['required', 'integer'],
+            'outlet_id' => ['nullable', 'integer'],
+            'team_code' => ['required', 'string', 'max:20'],
+            'is_direct_delivery' => ['boolean'],
+            'is_factory_pickup' => ['boolean'],
+            'group_mode' => ['boolean'],
+        ]);
+
+        $user = $request->user();
+        $product = Product::query()->findOrFail($data['product_id']);
+        $distributor = Distributor::query()->visibleTo($user)->findOrFail($data['distributor_id']);
+        $outlet = isset($data['outlet_id']) ? Outlet::query()->visibleTo($user)->findOrFail($data['outlet_id']) : null;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil diambil',
+            'data' => $defaults->resolve(
+                $product,
+                $distributor,
+                $outlet,
+                $data['team_code'],
+                $request->boolean('is_direct_delivery'),
+                $request->boolean('is_factory_pickup'),
+                $request->boolean('group_mode'),
+            ),
         ]);
     }
 

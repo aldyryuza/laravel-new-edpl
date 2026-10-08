@@ -4,6 +4,7 @@ namespace App\Services\Dpl;
 
 use App\Models\Dpl\BonusScheme;
 use App\Models\Dpl\CommercialParameter;
+use App\Models\Product;
 
 /**
  * Kalkulator DPL (legacy FunctionHelper). Satu-satunya implementasi rumus: form memanggil endpoint
@@ -15,9 +16,9 @@ use App\Models\Dpl\CommercialParameter;
  *                  − (Disc Distributor ON + Disc Distributor OFF) bila Support Satoria dicentang.
  * Tanpa Support, diskon distributor tidak memengaruhi total. Hasil dibulatkan 2 desimal (setengah ke atas).
  *
- * Batas: parameter komersial MAX_DPL_DISCOUNT_TEAM_{kode team} (legacy Tim A 30, Tim B 45).
- * Belum: penyesuaian margin otomatis (Direct/KFTD/DINKES/Jawa), override margin per product,
- * multiplier logistic fee item khusus, batas khusus per product, dan produk tim B yang dijual tim A.
+ * Batas per item (berurutan): batas khusus product (products.calculator_limit) -> produk tim B (is_team_b_product)
+ * memakai batas Tim B -> batas team dari parameter MAX_DPL_DISCOUNT_TEAM_{kode team} (legacy Tim A 30, Tim B 45).
+ * Margin & logistic fee yang dijumlah adalah nilai item (diisi otomatis oleh DplItemDefaults, bisa diubah user).
  *
  * Perhitungan memakai integer satuan 0,0001 agar tidak ada galat float.
  */
@@ -29,16 +30,27 @@ class DplCalculator
     private const SCALE = 10000;
 
     /**
-     * @param  array<int, array<string, mixed>>  $items  terms + flag item (lihat totalDiscount())
+     * @param  array<int, array<string, mixed>>  $items  terms + flag item (lihat totalDiscount()) + product_id (untuk batas)
      * @return array<int, array{total_discount: string, limit: string|null, exceeds_limit: bool}>
      */
     public function evaluate(array $items, string $teamCode): array
     {
-        $limit = $this->limitFor($teamCode);
+        $teamLimit = $this->limitFor($teamCode);
+        $teamBLimit = $this->limitFor('B');
         $bonus = $this->bonusPercents($items);
+        $products = Product::query()
+            ->whereKey(array_values(array_unique(array_filter(array_map(fn (array $item) => (int) ($item['product_id'] ?? 0), $items)))))
+            ->get(['id', 'is_team_b_product', 'calculator_limit'])
+            ->keyBy('id');
 
-        return array_map(function (array $item) use ($limit, $bonus): array {
+        return array_map(function (array $item) use ($teamLimit, $teamBLimit, $bonus, $products): array {
             $total = $this->totalDiscount($item, $bonus[(int) ($item['bonus_scheme_id'] ?? 0)] ?? null);
+            $product = $products->get((int) ($item['product_id'] ?? 0));
+            $limit = match (true) {
+                $product?->calculator_limit !== null => $product->calculator_limit,
+                (bool) $product?->is_team_b_product => $teamBLimit,
+                default => $teamLimit,
+            };
 
             return [
                 'total_discount' => $total,
