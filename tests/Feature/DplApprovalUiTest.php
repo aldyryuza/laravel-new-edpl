@@ -101,6 +101,8 @@ class DplApprovalUiTest extends TestCase
             ->assertOk()
             ->assertSee('id="btn-submit-proposal"', escape: false)
             ->assertSee('id="approval-card"', escape: false)
+            ->assertSee('id="approval-progress-card"', escape: false)
+            ->assertSee('id="approval-timeline"', escape: false)
             ->assertSee('id="approval-modal"', escape: false);
     }
 

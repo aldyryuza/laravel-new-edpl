@@ -148,7 +148,28 @@
     @if ($proposal)
         {{-- Panel approval (dimuat via api/dpl/proposals/{id}/approval bila DPL bukan DRAFT). Di luar form agar
              checkbox tidak ikut dinonaktifkan saat form read-only. Flag hanya UX; server tetap mengecek. --}}
-        <div class="card mt-6 d-none" id="approval-card" data-can-approve="{{ (int) auth()->user()->can('dpl-proposals.approve') }}">
+        {{-- Progress approval (timeline per level) di kiri, matriks approval di kanan. --}}
+        <div class="row g-6 mt-0">
+            <div class="col-xl-4">
+                <div class="card h-100 d-none" id="approval-progress-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Progress Approval</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Item × level approve</span>
+                            <span class="fw-medium" id="approval-progress-percent">0%</span>
+                        </div>
+                        <div class="progress mb-6" style="height: 8px">
+                            <div class="progress-bar" role="progressbar" id="approval-progress-bar" style="width: 0%" aria-valuenow="0"
+                                aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <ul class="timeline mb-0" id="approval-timeline"></ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-8">
+        <div class="card h-100 d-none" id="approval-card" data-can-approve="{{ (int) auth()->user()->can('dpl-proposals.approve') }}">
             <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <div>
                     <h5 class="mb-0">Approval</h5>
@@ -184,6 +205,9 @@
                         <tbody></tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
             </div>
         </div>
 

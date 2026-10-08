@@ -1024,7 +1024,7 @@ $(function () {
 
     function loadApproval(proposal) {
         if (!$approvalCard.length || proposal.proposal_status === 'DRAFT') {
-            $approvalCard.add('#approval-history-card').addClass('d-none');
+            $approvalCard.add('#approval-history-card, #approval-progress-card').addClass('d-none');
             return;
         }
 
@@ -1055,8 +1055,87 @@ $(function () {
         return '<span class="badge bg-label-secondary">Menunggu</span>';
     }
 
+
+    // ---- Progress approval (timeline per level) ----
+
+    /**
+     * Timeline per level: selesai (hijau), ditolak (merah), giliran sekarang (biru; semua gerbang sebelumnya selesai),
+     * belum giliran (abu-abu). Persentase = item × level yang sudah approve / total.
+     */
+    function renderProgress(data) {
+        const $card = $('#approval-progress-card');
+        const steps = data.instance ? data.instance.steps : [];
+
+        if (steps.length === 0) {
+            $card.addClass('d-none');
+            return;
+        }
+
+        const states = steps.flatMap(step => step.item_states);
+        const approvedCount = states.filter(state => state.status === 'APPROVED').length;
+        const percent = states.length ? Math.round(approvedCount * 100 / states.length) : 0;
+
+        $card.removeClass('d-none');
+        $('#approval-progress-percent').text(`${percent}%`);
+        $('#approval-progress-bar').css('width', `${percent}%`).attr('aria-valuenow', percent)
+            .toggleClass('bg-success', percent === 100).toggleClass('bg-danger', data.instance.status === 'REJECTED');
+
+        let gatesPassed = true;
+
+        $('#approval-timeline').html(steps.map((step, index) => {
+            const role = step.workflow_step?.role ? step.workflow_step.role.name : `Step ${step.workflow_step?.sequence ?? ''}`;
+            const assignees = step.assignee_users.map(user => user.name).join(', ') || '-';
+            const decided = step.item_states.filter(state => state.status !== 'PENDING').length;
+            const lastAction = actions => step.actions.find(action => actions.includes(action.action));
+            let kind;
+
+            if (step.status === 'COMPLETED') {
+                kind = 'done';
+            } else if (step.status === 'REJECTED') {
+                kind = 'rejected';
+            } else {
+                kind = gatesPassed ? 'current' : 'waiting';
+            }
+
+            if (step.workflow_step?.is_gate && step.status !== 'COMPLETED') {
+                gatesPassed = false;
+            }
+
+            const views = {
+                done: () => {
+                    const action = lastAction(['APPROVE']);
+                    const actors = [...new Set(step.actions.filter(a => a.action === 'APPROVE' && a.actor).map(a => a.actor.name))];
+                    return ['success', 'bx-check-circle', 'Approved', actors.join(', ') || assignees, action ? formatDateTime(action.created_at) : ''];
+                },
+                rejected: () => {
+                    const action = lastAction(['REJECT', 'AUTO_REJECT']);
+                    const who = action?.action === 'AUTO_REJECT' ? 'Otomatis (batas kalkulator)' : (action?.actor?.name || assignees);
+                    const when = action ? formatDateTime(action.created_at) : '';
+                    return ['danger', 'bx-x-circle', 'Ditolak', who, action?.reason ? `${when} · ${action.reason}` : when];
+                },
+                current: () => ['primary', 'bx-time-five', 'Menunggu review', assignees, `${decided}/${step.item_states.length} item diproses`],
+                waiting: () => ['secondary', 'bx-circle', 'Belum', assignees, 'Menunggu level sebelumnya']
+            };
+            const [color, icon, label, who, note] = views[kind]();
+            const last = index === steps.length - 1;
+
+            return `<li class="timeline-item ps-6 ${last ? 'border-transparent' : 'border-left-dashed'}">
+                <span class="timeline-indicator-advanced timeline-indicator-${color} border-0 shadow-none">
+                    <i class="icon-base bx ${icon}"></i>
+                </span>
+                <div class="timeline-event ps-1 ${last ? 'pb-0' : ''}">
+                    <div class="timeline-header">
+                        <small class="text-${color} text-uppercase fw-medium">${App.escape(role)} · ${App.escape(label)}</small>
+                    </div>
+                    <h6 class="my-1">${App.escape(who)}</h6>
+                    <p class="text-body-secondary small mb-0">${App.escape(note)}</p>
+                </div>
+            </li>`;
+        }).join(''));
+    }
     /** Matriks item × step (urut sequence) + riwayat aksi terbaru di atas. */
     function renderApproval(data) {
+        renderProgress(data);
         const steps = data.instance ? data.instance.steps : [];
         const canAct = canApprove && data.actionable_item_ids.length > 0;
 
