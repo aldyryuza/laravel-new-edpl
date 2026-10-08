@@ -293,12 +293,12 @@ class DplApprovalTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.waiting_roles', ['NSM', 'GM', 'SMD', 'DMD']);
 
-        // Approver: filter "Menunggu Approval Saya" terpilih default; pengaju tidak.
+        // Approver: filter "Giliran Approval Saya" terpilih default; pengaju tidak.
         $this->actingAs($this->approvers['NSM'])->get('/dpl/proposals')
             ->assertOk()
-            ->assertSee('<option value="1" selected>Menunggu Approval Saya</option>', escape: false)
+            ->assertSee('<option value="1" selected>Giliran Approval Saya</option>', escape: false)
             ->assertSee('id="proposal-status-legend"', escape: false);
-        $this->actingAs($this->proposer)->get('/dpl/proposals')->assertOk()->assertDontSee('<option value="1" selected>Menunggu Approval Saya', escape: false);
+        $this->actingAs($this->proposer)->get('/dpl/proposals')->assertOk()->assertDontSee('<option value="1" selected>Giliran Approval Saya', escape: false);
     }
 
     public function test_future_start_activates_on_date_start_and_expires_after_date_end(): void

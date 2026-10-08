@@ -62,7 +62,7 @@ class DplProposalController extends Controller implements HasMiddleware
 
     /**
      * Data tabel (Yajra). Pencarian: nomor DPL, kode/nama outlet. Filter opsional: proposal_status, team_code, mine,
-     * awaiting_me (DPL dalam approval di mana user menjadi kandidat approver step yang masih PENDING).
+     * awaiting_me (hanya DPL yang sekarang giliran user; setelah ia approve tidak tampil lagi).
      * Kolom `awaiting_me`: user (berhak approve) punya item yang bisa ditindak sekarang.
      */
     public function datatable(Request $request, DplApprovalService $approvals): JsonResponse
@@ -82,13 +82,7 @@ class DplProposalController extends Controller implements HasMiddleware
             ->when($request->filled('proposal_status'), fn (Builder $query) => $query->where('proposal_status', $request->input('proposal_status')))
             ->when($request->filled('team_code'), fn (Builder $query) => $query->where('team_code', $request->input('team_code')))
             ->when($request->boolean('mine'), fn (Builder $query) => $query->where('created_by_user_id', $request->user()->id))
-            ->when($request->boolean('awaiting_me'), fn (Builder $query) => $query
-                ->whereIn('proposal_status', [DplProposal::STATUS_IN_APPROVAL, DplProposal::STATUS_PARTIALLY_APPROVED])
-                ->whereHas('approvalInstances', fn (Builder $instance) => $instance
-                    ->where('status', ApprovalInstance::STATUS_IN_PROGRESS)
-                    ->whereHas('steps', fn (Builder $step) => $step
-                        ->where('status', ApprovalStepInstance::STATUS_PENDING)
-                        ->whereHas('assignees', fn (Builder $assignee) => $assignee->where('user_id', $user->id)))));
+            ->when($request->boolean('awaiting_me'), fn (Builder $query) => $query->whereKey($this->awaitingIds($user, $approvals) ?: [0]));
 
         return DataTables::eloquent($query)
             ->whitelist(['dpl_number', 'date_offer', 'date_start', 'date_end', 'proposal_status', 'created_at'])
@@ -464,6 +458,27 @@ class DplProposalController extends Controller implements HasMiddleware
     private function ensureVisible(Request $request, DplProposal $proposal): void
     {
         abort_unless(DplProposal::query()->visibleTo($request->user())->whereKey($proposal->getKey())->exists(), 404);
+    }
+
+    /**
+     * DPL yang sekarang giliran user (ada item yang bisa ia approve/reject saat ini). Kandidat diambil via query
+     * (user approver step PENDING di DPL dalam approval), lalu disaring aturan giliran yang sama dengan tombol approve.
+     *
+     * @return array<int, int>
+     */
+    private function awaitingIds(User $user, DplApprovalService $approvals): array
+    {
+        return DplProposal::query()
+            ->visibleTo($user)
+            ->whereIn('proposal_status', [DplProposal::STATUS_IN_APPROVAL, DplProposal::STATUS_PARTIALLY_APPROVED])
+            ->whereHas('approvalInstances', fn (Builder $instance) => $instance
+                ->where('status', ApprovalInstance::STATUS_IN_PROGRESS)
+                ->whereHas('steps', fn (Builder $step) => $step
+                    ->where('status', ApprovalStepInstance::STATUS_PENDING)
+                    ->whereHas('assignees', fn (Builder $assignee) => $assignee->where('user_id', $user->id))))
+            ->get()
+            ->filter(fn (DplProposal $proposal) => $approvals->actionableStates($proposal, $user)->isNotEmpty())
+            ->modelKeys();
     }
 
     private function canAmend(DplProposal $proposal, User $user): bool

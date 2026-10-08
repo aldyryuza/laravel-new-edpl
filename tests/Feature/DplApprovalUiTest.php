@@ -24,7 +24,7 @@ use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
- * UI approval DPL: tombol Ajukan & panel approval di detail, filter "Menunggu Approval Saya" + flag giliran di daftar,
+ * UI approval DPL: tombol Ajukan & panel approval di detail, filter "Giliran Approval Saya" + flag giliran di daftar,
  * dan master Aturan Approval.
  */
 class DplApprovalUiTest extends TestCase
@@ -130,16 +130,15 @@ class DplApprovalUiTest extends TestCase
     {
         $proposal = $this->submitted();
 
-        // NSM punya step PENDING (masuk filter), tapi baru giliran setelah RM approve.
-        $this->datatable($this->approvers['NSM'], ['awaiting_me' => 1])
-            ->assertJsonPath('recordsFiltered', 1)
-            ->assertJsonPath('data.0.awaiting_me', false);
+        // NSM belum giliran sebelum RM approve: tidak tampil di filter, tapi tetap ada tanpa filter.
+        $this->datatable($this->approvers['NSM'], ['awaiting_me' => 1])->assertJsonPath('recordsFiltered', 0);
+        $this->datatable($this->approvers['NSM'])->assertJsonPath('recordsFiltered', 1)->assertJsonPath('data.0.awaiting_me', false);
 
         $this->actingAs($this->approvers['RM'])->postJson("/api/dpl/proposals/{$proposal->id}/approve", [
             'item_ids' => $proposal->items()->pluck('id')->all(),
         ])->assertOk();
 
-        $this->datatable($this->approvers['NSM'], ['awaiting_me' => 1])->assertJsonPath('data.0.awaiting_me', true);
+        $this->datatable($this->approvers['NSM'], ['awaiting_me' => 1])->assertJsonPath('recordsFiltered', 1)->assertJsonPath('data.0.awaiting_me', true);
         $this->datatable($this->approvers['RM'], ['awaiting_me' => 1])->assertJsonPath('recordsFiltered', 0);
     }
 

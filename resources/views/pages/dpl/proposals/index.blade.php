@@ -50,7 +50,7 @@
                         <label for="filter-awaiting" class="form-label">Approval</label>
                         <select class="form-select" id="filter-awaiting" data-filter="awaiting_me">
                             <option value="">Semua</option>
-                            <option value="1" @selected($defaultAwaitingMe)>Menunggu Approval Saya</option>
+                            <option value="1" @selected($defaultAwaitingMe)>Giliran Approval Saya</option>
                         </select>
                     </div>
                 @endcan
