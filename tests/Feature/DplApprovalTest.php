@@ -338,6 +338,17 @@ class DplApprovalTest extends TestCase
         $this->actingAs($printer)->get("/dpl/proposals/{$proposal->id}")->assertSee('id="btn-export"', escape: false);
     }
 
+    public function test_proposer_defaults_to_own_dpls_filter(): void
+    {
+        $this->actingAs($this->proposer)->get('/dpl/proposals')
+            ->assertOk()
+            ->assertSee('<option value="1" selected>Buatan saya</option>', escape: false);
+
+        $this->actingAs($this->approvers['RM'])->get('/dpl/proposals')
+            ->assertOk()
+            ->assertDontSee('<option value="1" selected>Buatan saya</option>', escape: false);
+    }
+
     public function test_future_start_activates_on_date_start_and_expires_after_date_end(): void
     {
         $proposal = $this->draft(['5'], ['date_start' => '2026-11-01', 'date_end' => '2026-11-30']);

@@ -21,11 +21,14 @@ class DplProposalController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user();
+        $isApprover = app(DplApprovalService::class)->isApprover($user);
 
         return view('pages.dpl.proposals.index', [
             'teams' => $user->effectiveTeams(),
             // Approver (RM–DMD) langsung melihat DPL yang menunggu approval-nya.
-            'defaultAwaitingMe' => $user->can('dpl-proposals.approve') && app(DplApprovalService::class)->isApprover($user),
+            'defaultAwaitingMe' => $user->can('dpl-proposals.approve') && $isApprover,
+            // Pengaju (mis. AM / SPV: boleh buat DPL, bukan approver) langsung melihat DPL buatannya.
+            'defaultMine' => $user->can('dpl-proposals.create') && ! $isApprover,
             'statuses' => [
                 DplProposal::STATUS_DRAFT, DplProposal::STATUS_SUBMITTED, DplProposal::STATUS_IN_APPROVAL,
                 DplProposal::STATUS_PARTIALLY_APPROVED, DplProposal::STATUS_APPROVED, DplProposal::STATUS_REJECTED, DplProposal::STATUS_CANCELLED,

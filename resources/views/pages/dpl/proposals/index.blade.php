@@ -42,7 +42,7 @@
                     <label for="filter-mine" class="form-label">Pembuat</label>
                     <select class="form-select" id="filter-mine" data-filter="mine">
                         <option value="">Semua</option>
-                        <option value="1">Buatan saya</option>
+                        <option value="1" @selected($defaultMine)>Buatan saya</option>
                     </select>
                 </div>
                 @can('dpl-proposals.approve')
