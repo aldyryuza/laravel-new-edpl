@@ -17,6 +17,8 @@
  * - Mode Satuan: HNA - Disc On bisa diketik; Discount Share Principle ON dihitung balik
  *   = (1 − target / HNA) × 100 − Distributor ON (2 desimal, tidak boleh negatif).
  * - Discount (Principle/Distributor ON/OFF) ditampilkan 2 angka di belakang koma; kosong = 0 (default 0.00).
+ * - Total Diskon kalkulator dihitung server (POST api/dpl/proposals/calculate, sama dengan yang disimpan);
+ *   item di atas batas team ditandai merah ("Total discount is more than X%").
  * - Minimum order per bulan wajib diisi.
  * - Discount Share Principle OFF diisi -> Buyer reward dicentang.
  * - Direct -> Logistic Fee wajib (boleh 0); Ambil Dari Pabrik -> Logistic Fee 0; keduanya tidak boleh bersamaan.
@@ -40,7 +42,7 @@ $(function () {
     const $direct = $('#item-is_direct_delivery');
     const $pickup = $('#item-is_factory_pickup');
     const $logisticFee = $('#item-logistic-fee');
-    const COLUMNS = 12;
+    const COLUMNS = 13;
 
     const FLAGS = ['is_direct_delivery', 'is_factory_pickup', 'is_buyer_reward', 'is_support_satoria', 'is_returnable'];
     const TERMS = [
@@ -355,6 +357,106 @@ $(function () {
     $direct.on('change', () => applyDeliveryMode('direct'));
     $pickup.on('change', () => applyDeliveryMode('pickup'));
 
+
+    // ---- Kalkulator (dihitung server: POST api/dpl/proposals/calculate) ----
+
+    const CALCULATOR_FIELDS = [...TERMS, 'bonus_scheme_id', 'is_support_satoria', 'is_direct_delivery', 'is_factory_pickup'];
+    /** Hasil kalkulator per item (index sama dengan `items`). */
+    let calculations = [];
+    let teamCode = null;
+    let tableRequest = null;
+    let modalRequest = null;
+    let modalTimer = null;
+
+    const currentTeam = () => teamCode || $('#proposal-team').val() || null;
+    const calculatorInput = item => Object.fromEntries(CALCULATOR_FIELDS.map(field => [field, item[field] ?? null]));
+
+    function calculate(itemsToCalculate) {
+        return $.ajax({
+            url: App.url('api/dpl/proposals/calculate'),
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ team_code: currentTeam(), items: itemsToCalculate.map(calculatorInput) })
+        });
+    }
+
+    function limitText(result) {
+        return result.limit === null ? 'Batas kalkulator team belum diatur.' : `Batas ${Number(result.limit)}%.`;
+    }
+
+    /** Hitung ulang Total Diskon semua item di tabel. */
+    function recalcItems() {
+        tableRequest?.abort();
+        calculations = [];
+
+        if (items.length === 0 || !currentTeam()) {
+            renderItems();
+            return;
+        }
+
+        tableRequest = calculate(items)
+            .done(res => {
+                calculations = res.data;
+                renderItems();
+            })
+            .fail((xhr, status) => (status === 'abort' ? null : App.handleError(xhr)));
+    }
+
+    function calculatorCell(index) {
+        const result = calculations[index];
+
+        if (!result) {
+            return muted('-');
+        }
+
+        const total = discount(result.total_discount);
+
+        return result.exceeds_limit
+            ? `<span class="badge bg-label-danger" title="Total discount is more than ${App.escape(Number(result.limit))}%">${total}%</span>`
+            : `${total}%`;
+    }
+
+    /** Total Diskon item yang sedang diisi di modal (ditunda 300 ms selama mengetik). */
+    function updateItemCalculator() {
+        clearTimeout(modalTimer);
+        modalTimer = setTimeout(() => {
+            const $total = $('#item-calculator-total');
+            const $box = $('#item-calculator');
+            const $info = $('#item-calculator-info');
+
+            if (!currentTeam()) {
+                $total.text('-');
+                $info.text('Pilih team dulu untuk menghitung.');
+                return;
+            }
+
+            const item = {};
+            CALCULATOR_FIELDS.forEach(field => {
+                const $input = $itemForm.find(`[name="${field}"]`);
+                item[field] = $input.is(':checkbox') ? $input.is(':checked') : valueOrNull(field);
+            });
+
+            modalRequest?.abort();
+            modalRequest = calculate([item])
+                .done(res => {
+                    const result = res.data[0];
+
+                    $total.text(`${Number(result.total_discount).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`);
+                    $box.toggleClass('alert-danger', result.exceeds_limit).toggleClass('alert-secondary', !result.exceeds_limit);
+                    $info.toggleClass('text-danger', result.exceeds_limit).text(result.exceeds_limit
+                        ? `Total discount is more than ${Number(result.limit)}%: item ini akan ditolak otomatis.`
+                        : limitText(result));
+                })
+                .fail((xhr, status) => (status === 'abort' ? null : App.handleError(xhr)));
+        }, 300);
+    }
+
+    $itemForm.on('input change', CALCULATOR_FIELDS.map(field => `[name="${field}"]`).join(', '), updateItemCalculator);
+    $('#proposal-team').on('change', () => {
+        recalcItems();
+        updateItemCalculator();
+    });
+
     // ---- Tabel & modal item ----
 
     function setEditable(state) {
@@ -393,6 +495,7 @@ $(function () {
                 <td>${App.escape(item.price_type || defaultPriceType)}</td>
                 <td class="text-end">${money(result.hnaDisc)}</td>
                 <td class="text-end">${money(result.hnaPpnDisc)}</td>
+                <td class="text-end">${calculatorCell(index)}</td>
                 <td>${deliveryLabel(item)}</td>
                 <td>${item.labels.bonus ? App.escape(item.labels.bonus) : muted('-')}</td>
                 <td class="text-end text-nowrap">${editable ? `
@@ -431,6 +534,8 @@ $(function () {
         selectValue($single, item?.product_id, item?.labels.product);
         applyProductMode();
         applyDeliveryMode();
+        $('#item-calculator-total').text('-');
+        updateItemCalculator();
 
         $itemForm.find('input, select, textarea').not('[readonly]').prop('disabled', !editable);
         $single.add($itemForm.find('[name="product_mode"]')).prop('disabled', !editable || item !== null);
@@ -510,7 +615,7 @@ $(function () {
         }
 
         itemModal.hide();
-        renderItems();
+        recalcItems();
     });
 
     $('#btn-add-item').on('click', () => openItem());
@@ -521,7 +626,7 @@ $(function () {
 
     $itemsBody.on('click', '.btn-remove-item', function () {
         items.splice($(this).closest('tr').data('index'), 1);
-        renderItems();
+        recalcItems();
     });
 
     // ---- Simpan ----
@@ -600,6 +705,7 @@ $(function () {
         $('#proposal-outlet-text').val(`${proposal.outlet.name} (${proposal.outlet.code})`
             + (proposal.outlet.area ? ` - ${proposal.outlet.area.name}` : ''));
         $('#proposal-team-text').val(proposal.team_code);
+        teamCode = proposal.team_code;
         $('#proposal-offer').val(proposal.date_offer);
         $form.find('[name="proposal_type"]').val(proposal.proposal_type);
         $form.find('[name="date_start"]').val(proposal.date_start);
@@ -629,6 +735,7 @@ $(function () {
         });
 
         setEditable(canSave && proposal.can_edit);
+        recalcItems();
         loadPricing();
     }
 

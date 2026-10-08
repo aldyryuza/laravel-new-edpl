@@ -21,10 +21,8 @@ use Illuminate\Validation\Validator;
  */
 class DplProposalRequest extends FormRequest
 {
-    /** Batas kolom numeric(10,4) dan numeric(18,4). */
+    /** Batas kolom numeric(10,4) untuk nilai persen. */
     private const MAX_PERCENT = 999999.9999;
-
-    private const MAX_AMOUNT = 99999999999999.9999;
 
     /**
      * Hak akses menu dicek oleh middleware `can:dpl-proposals.*` di controller. Untuk ubah draft,
@@ -46,7 +44,6 @@ class DplProposalRequest extends FormRequest
     {
         $creating = $this->route('proposal') === null;
         $today = CarbonImmutable::now(config('dpl.timezone'))->toDateString();
-        $amount = ['nullable', 'numeric', 'min:0', 'max:'.self::MAX_AMOUNT];
         $percent = ['nullable', 'numeric', 'min:0', 'max:'.self::MAX_PERCENT];
 
         return [
@@ -81,8 +78,9 @@ class DplProposalRequest extends FormRequest
             'items.*.price_type' => ['nullable', Rule::in(array_keys(DplPricing::priceTypes()))],
             'items.*.margin' => $percent,
             // Logistic fee wajib (boleh 0) untuk item Direct.
-            'items.*.logistic_fee' => ['nullable', 'required_if_accepted:items.*.is_direct_delivery', 'numeric', 'min:0', 'max:'.self::MAX_AMOUNT],
-            'items.*.logistic_support' => $amount,
+            'items.*.logistic_fee' => ['nullable', 'required_if_accepted:items.*.is_direct_delivery', 'numeric', 'min:0', 'max:'.self::MAX_PERCENT],
+            // Logistic fee & logistic support dalam % (ikut dijumlah di Total Diskon kalkulator).
+            'items.*.logistic_support' => $percent,
         ];
     }
 

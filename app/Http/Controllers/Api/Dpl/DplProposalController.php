@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Dpl\DplProposalRequest;
 use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
+use App\Services\Dpl\DplCalculator;
 use App\Services\Dpl\DplDraftService;
 use App\Services\Dpl\DplPricing;
 use Illuminate\Database\Eloquent\Builder;
@@ -40,7 +41,7 @@ class DplProposalController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing']),
+            new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing', 'calculate']),
             new Middleware('can:dpl-proposals.create', only: ['store', 'outletOptions']),
             new Middleware('can:dpl-proposals.update', only: ['update']),
             new Middleware('can:dpl-proposals.delete', only: ['destroy']),
@@ -124,6 +125,36 @@ class DplProposalController extends Controller implements HasMiddleware
                 'default_price_type' => DplPricing::defaultPriceType(),
                 'prices' => (object) $pricing->pricesOn($date),
             ],
+        ]);
+    }
+
+    /**
+     * Hitung Total Diskon kalkulator untuk item di form (tanpa menyimpan). Rumus sama persis dengan yang disimpan
+     * saat draft disimpan (DplCalculator), supaya angka di form = angka untuk auto reject.
+     */
+    public function calculate(Request $request, DplCalculator $calculator): JsonResponse
+    {
+        $percent = ['nullable', 'numeric'];
+        $data = $request->validate([
+            'team_code' => ['required', 'string', 'max:20'],
+            'items' => ['present', 'array', 'max:500'],
+            'items.*.principle_discount_on' => $percent,
+            'items.*.principle_discount_off' => $percent,
+            'items.*.distributor_discount_on' => $percent,
+            'items.*.distributor_discount_off' => $percent,
+            'items.*.margin' => $percent,
+            'items.*.logistic_fee' => $percent,
+            'items.*.logistic_support' => $percent,
+            'items.*.bonus_scheme_id' => ['nullable', 'integer'],
+            'items.*.is_support_satoria' => ['boolean'],
+            'items.*.is_direct_delivery' => ['boolean'],
+            'items.*.is_factory_pickup' => ['boolean'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil dihitung',
+            'data' => $calculator->evaluate($data['items'], $data['team_code']),
         ]);
     }
 

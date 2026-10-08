@@ -492,7 +492,9 @@ Struktur mengikuti legacy `dpl_bonus` (user confirmation, migration `2026_10_06_
 Initial conceptual parameters, seed only after business review:
 
 ```text
-MAX_DPL_DISCOUNT = 35
+MAX_DPL_DISCOUNT_TEAM_A = 30   (di-seed, legacy FunctionHelper)
+MAX_DPL_DISCOUNT_TEAM_B = 45   (di-seed)
+PPN_PERCENT = 11               (di-seed)
 MIN_MONTHLY_ORDER = 200
 MAX_PROGRAM_MONTHS = 12
 ```
@@ -641,12 +643,12 @@ Current commercial terms, one row per DPL item.
 | `distributor_discount_off` | numeric(10,4) | No | default 0 |
 | `negotiated_price` | numeric(18,4) | Yes | tidak lagi diinput dari form DPL (user 2026-10-07) |
 | `margin` | numeric(10,4) | Yes | |
-| `logistic_fee` | numeric(18,4) | Yes | retained only if transaction really stores input/result; not sourced from legacy `dpl_logistic` |
-| `logistic_support` | numeric(18,4) | Yes | |
+| `logistic_fee` | numeric(18,4) | Yes | dalam %; hanya item Direct (Ambil Dari Pabrik = 0); not sourced from legacy `dpl_logistic` |
+| `logistic_support` | numeric(18,4) | Yes | dalam % |
 | `base_price` | numeric(18,4) | Yes | snapshot HNA pada Date Start sesuai `price_type`, disimpan setiap draft disimpan |
 | `final_price` | numeric(18,4) | Yes | snapshot/result if needed |
 | `effective_discount` | numeric(10,4) | Yes | |
-| `calculator_percentage` | numeric(10,4) | Yes | |
+| `calculator_percentage` | numeric(10,4) | Yes | Total Diskon kalkulator (2 desimal), dihitung `App\Services\Dpl\DplCalculator` setiap draft disimpan |
 | `price_type` | varchar(50) | Yes | jenis harga HNA: `PRICE_BARU_2026` (= `product_prices.price`, default) / `PRICE_LAMA_2025` (= `regular_price`, hanya product 500 ml); daftar & batas volume di `config/dpl.php` |
 | timestamps | timestamp | Yes | |
 

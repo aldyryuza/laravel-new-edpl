@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\DB;
  * tidak bisa diganti setelah draft dibuat karena sudah menentukan nomor dan aturan 1 DPL aktif per outlet + team.
  * base_price menyimpan snapshot HNA (harga product yang berlaku pada Date Start, sesuai jenis harga item / price_type)
  * setiap kali draft disimpan. Harga nego dan konversi bonus tidak lagi diinput (kolom lama dibiarkan).
- * Nilai hasil kalkulator (final_price, effective_discount, calculator_percentage) belum diisi.
+ * calculator_percentage = Total Diskon kalkulator (DplCalculator), dihitung ulang setiap draft disimpan.
+ * final_price dan effective_discount belum diisi (rumusnya belum ada).
  */
 class DplDraftService
 {
@@ -35,7 +36,11 @@ class DplDraftService
         'is_support_satoria', 'is_returnable', 'remark',
     ];
 
-    public function __construct(private DplNumberGenerator $numberGenerator, private DplPricing $pricing) {}
+    public function __construct(
+        private DplNumberGenerator $numberGenerator,
+        private DplPricing $pricing,
+        private DplCalculator $calculator,
+    ) {}
 
     /**
      * Tanggal penawaran otomatis hari ini (zona waktu config('dpl.timezone')) dan tidak bisa diubah.
@@ -106,7 +111,9 @@ class DplDraftService
         $keptIds = [];
         $prices = $this->pricing->pricesOn($proposal->date_start->toDateString(), array_map(fn (array $item) => (int) $item['product_id'], $items));
 
-        foreach ($items as $input) {
+        $calculations = $this->calculator->evaluate($items, $proposal->team_code);
+
+        foreach ($items as $index => $input) {
             $item = isset($input['id']) ? $existing->get((int) $input['id']) : null;
             $item ??= new DplItem(['dpl_proposal_id' => $proposal->id]);
 
@@ -114,7 +121,12 @@ class DplDraftService
             // base_price = snapshot HNA (jenis harga item) pada Date Start; null bila harga belum ada.
             $terms = $this->terms($input);
             $terms['price_type'] ??= DplPricing::defaultPriceType();
-            $item->terms()->updateOrCreate([], [...$terms, 'base_price' => $prices[$item->product_id][$terms['price_type']] ?? null]);
+            $item->terms()->updateOrCreate([], [
+                ...$terms,
+                'base_price' => $prices[$item->product_id][$terms['price_type']] ?? null,
+                // Total Diskon kalkulator (lihat DplCalculator).
+                'calculator_percentage' => $calculations[$index]['total_discount'],
+            ]);
             $keptIds[] = $item->id;
         }
 

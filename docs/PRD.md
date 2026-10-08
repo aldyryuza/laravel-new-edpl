@@ -330,7 +330,8 @@ Sistem harus:
 | BR-007 | Date Start tidak boleh backdated | Legacy E-DPL | Confirmed |
 | BR-008 | Maksimum masa program legacy adalah satu tahun dari Date Start | Legacy E-DPL | Confirmed |
 | BR-009 | Minimal order produk per bulan 200 botol untuk memperoleh discount SAI; order di bawah itu tidak otomatis berarti data tidak boleh disimpan | Legacy E-DPL | Confirmed |
-| BR-010 | Legacy calculator di atas 35% membutuhkan exception/override process | Legacy E-DPL | Confirmed |
+| BR-010 | Item dengan Total Diskon kalkulator di atas batas ditolak otomatis ("Total discount is more than X%") / butuh override. Batas per team dari parameter `MAX_DPL_DISCOUNT_TEAM_{kode team}`: Tim A 30, Tim B 45 (legacy FunctionHelper; menggantikan angka 35 sebelumnya) | Legacy E-DPL (kode) | Confirmed |
+| BR-038 | Total Diskon kalkulator = Disc Principle ON + OFF + Bonus (`total_discount` skema bonus) + Logistic Fee (%, hanya item Direct) + Margin + Logistic Support (%); bila Support Satoria dicentang dikurangi (Disc Distributor ON + OFF), tanpa Support diskon distributor tidak berpengaruh; dibulatkan 2 desimal. Rumus hanya di server (form memanggil API) | Legacy E-DPL + user confirmation (Support = versi JS) | Confirmed; penyesuaian margin otomatis, override margin per product, multiplier logistic item khusus, batas khusus per product, produk tim B dijual tim A masih pending |
 | BR-011 | Threshold commercial harus configurable dan tidak di-hardcode di schema/controller | Rebuild decision | Confirmed |
 | BR-012 | Maksimal satu DPL ACTIVE per outlet + team; Tim A dan Tim B dapat masing-masing active pada outlet yang sama | Legacy E-DPL + user confirmation | Confirmed |
 | BR-013 | Make a Copy dipetakan sebagai AMENDMENT; hanya dari active DPL dan periode tidak berubah | Legacy E-DPL | Confirmed |

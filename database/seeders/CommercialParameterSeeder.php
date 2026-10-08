@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Dpl\CommercialParameter;
+use App\Services\Dpl\DplCalculator;
 use App\Services\Dpl\DplPricing;
 use Illuminate\Database\Seeder;
 
@@ -25,5 +26,17 @@ class CommercialParameterSeeder extends Seeder
                 'is_active' => true,
             ],
         );
+
+        // Batas Total Diskon kalkulator per team (legacy FunctionHelper: Tim A 30, Tim B 45).
+        foreach (['A' => '30', 'B' => '45'] as $team => $limit) {
+            CommercialParameter::query()->firstOrCreate(
+                ['code' => DplCalculator::LIMIT_PARAMETER_PREFIX.$team],
+                [
+                    'value' => CommercialParameter::wrapValue(CommercialParameter::TYPE_NUMBER, $limit),
+                    'description' => "Batas Total Diskon kalkulator DPL Tim {$team} (%); item di atas batas ditolak otomatis",
+                    'is_active' => true,
+                ],
+            );
+        }
     }
 }
