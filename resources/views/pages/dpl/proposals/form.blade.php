@@ -1,4 +1,4 @@
-@extends('layouts.app', ['vendors' => ['select2', 'sweetalert2']])
+@extends('layouts.app', ['vendors' => ['datatables', 'select2', 'sweetalert2']])
 
 @section('title', $proposal ? "DPL {$proposal->dpl_number}" : 'Buat DPL')
 
@@ -150,33 +150,54 @@
              checkbox tidak ikut dinonaktifkan saat form read-only. Flag hanya UX; server tetap mengecek. --}}
         <div class="card mt-6 d-none" id="approval-card" data-can-approve="{{ (int) auth()->user()->can('dpl-proposals.approve') }}">
             <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <h5 class="mb-0">Approval</h5>
-                <div class="d-flex flex-wrap gap-2 d-none" id="approval-actions">
-                    <button type="button" class="btn btn-sm btn-success" data-approval-action="approve" data-approval-scope="selected">
-                        <i class="icon-base bx bx-check me-1"></i> Approve Terpilih
-                    </button>
-                    <button type="button" class="btn btn-sm btn-danger" data-approval-action="reject" data-approval-scope="selected">
-                        <i class="icon-base bx bx-x me-1"></i> Reject Terpilih
-                    </button>
-                    <button type="button" class="btn btn-sm btn-label-success" data-approval-action="approve" data-approval-scope="all">
-                        <i class="icon-base bx bx-check-double me-1"></i> Approve Semua
-                    </button>
-                    <button type="button" class="btn btn-sm btn-label-danger" data-approval-action="reject" data-approval-scope="all">
-                        <i class="icon-base bx bx-block me-1"></i> Reject Semua
+                <div>
+                    <h5 class="mb-0">Approval</h5>
+                    <div class="small text-body-secondary" id="approval-waiting"></div>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="d-flex flex-wrap gap-2 d-none" id="approval-actions">
+                        <button type="button" class="btn btn-sm btn-success" data-approval-action="approve" data-approval-scope="selected">
+                            <i class="icon-base bx bx-check me-1"></i> Approve Terpilih
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger" data-approval-action="reject" data-approval-scope="selected">
+                            <i class="icon-base bx bx-x me-1"></i> Reject Terpilih
+                        </button>
+                        <button type="button" class="btn btn-sm btn-label-success" data-approval-action="approve" data-approval-scope="all">
+                            <i class="icon-base bx bx-check-double me-1"></i> Approve Semua
+                        </button>
+                        <button type="button" class="btn btn-sm btn-label-danger" data-approval-action="reject" data-approval-scope="all">
+                            <i class="icon-base bx bx-block me-1"></i> Reject Semua
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-icon btn-text-secondary" data-bs-toggle="collapse" data-bs-target="#approval-body"
+                        aria-expanded="true" aria-controls="approval-body" title="Tampilkan / sembunyikan">
+                        <i class="icon-base bx bx-chevron-down"></i>
                     </button>
                 </div>
             </div>
-            {{-- Item ditolak otomatis: pengaju bisa minta Open, reviewer (GM) bisa membuka / menolak permintaan. --}}
-            <div class="alert alert-warning m-4 d-none" id="approval-open" role="alert"></div>
-            <div class="table-responsive">
-                <table class="table table-sm table-bordered mb-0" id="approval-matrix">
-                    <thead></thead>
-                    <tbody></tbody>
-                </table>
+            <div class="collapse show" id="approval-body">
+                {{-- Item ditolak otomatis: pengaju bisa minta Open, reviewer (GM) bisa membuka / menolak permintaan. --}}
+                <div class="alert alert-warning mx-4 d-none" id="approval-open" role="alert"></div>
+                <div class="card-datatable table-responsive">
+                    <table class="table table-sm table-bordered" id="approval-matrix">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
-            <div class="card-body">
-                <h6 class="mb-3">Riwayat Approval</h6>
-                <div class="table-responsive">
+        </div>
+
+        {{-- Riwayat approval: default disembunyikan agar tidak memakan tempat. --}}
+        <div class="card mt-6 d-none" id="approval-history-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Riwayat Approval <span class="badge bg-label-secondary ms-1" id="approval-history-count">0</span></h5>
+                <button type="button" class="btn btn-sm btn-label-secondary" data-bs-toggle="collapse" data-bs-target="#approval-history-body"
+                    aria-expanded="false" aria-controls="approval-history-body">
+                    <i class="icon-base bx bx-history me-1"></i> Tampilkan / sembunyikan
+                </button>
+            </div>
+            <div class="collapse" id="approval-history-body">
+                <div class="card-datatable table-responsive">
                     <table class="table table-sm" id="approval-history">
                         <thead>
                             <tr>

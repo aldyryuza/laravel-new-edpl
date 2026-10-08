@@ -954,8 +954,13 @@ $(function () {
     let savedPayload = null;
 
     function showStatus(proposal) {
+        const labels = {
+            DRAFT: 'Draft', SUBMITTED: 'Diajukan', IN_APPROVAL: 'Menunggu Approval', PARTIALLY_APPROVED: 'Approve Sebagian',
+            APPROVED: 'Approved', REJECTED: 'Ditolak', CANCELLED: 'Dibatalkan'
+        };
+
         $('#proposal-status')
-            .text(proposal.proposal_status)
+            .text(labels[proposal.proposal_status] || proposal.proposal_status)
             .attr('class', `badge bg-label-${STATUS_COLORS[proposal.proposal_status] || 'secondary'}`);
 
         const program = PROGRAM_BADGES[proposal.program_status];
@@ -996,6 +1001,8 @@ $(function () {
     // ---- Panel approval ----
 
     const $approvalCard = $('#approval-card');
+    let matrixTable = null;
+    let historyTable = null;
     const canApprove = $approvalCard.data('can-approve') === 1;
     const $approvalForm = $('#approval-form');
     const approvalModal = $approvalForm.length ? bootstrap.Modal.getOrCreateInstance(document.getElementById('approval-modal')) : null;
@@ -1017,9 +1024,14 @@ $(function () {
 
     function loadApproval(proposal) {
         if (!$approvalCard.length || proposal.proposal_status === 'DRAFT') {
-            $approvalCard.addClass('d-none');
+            $approvalCard.add('#approval-history-card').addClass('d-none');
             return;
         }
+
+        // Level yang belum selesai, mis. "Menunggu Acc NSM, GM, SMD, DMD".
+        $('#approval-waiting').text(proposal.waiting_roles && proposal.waiting_roles.length
+            ? `Menunggu Acc ${proposal.waiting_roles.join(', ')}`
+            : '');
 
         approvalRequest?.abort();
         approvalRequest = $.get(App.url(`api/dpl/proposals/${proposalId}/approval`))
@@ -1055,6 +1067,12 @@ $(function () {
         const states = steps.map(step => Object.fromEntries(step.item_states.map(state => [state.dpl_item_id, state])));
         const stepName = step => (step.workflow_step?.role ? step.workflow_step.role.name : `Step ${step.workflow_step?.sequence ?? ''}`);
 
+        // Kolom step bisa berubah, jadi DataTable dibuat ulang setiap render.
+        matrixTable?.destroy();
+        historyTable?.destroy();
+        $('#approval-matrix tbody, #approval-history tbody').empty();
+        $('#approval-history-card').removeClass('d-none');
+
         $('#approval-matrix thead').html(`<tr>
             ${canAct ? '<th class="text-center"><input type="checkbox" class="form-check-input" id="approval-check-all" title="Pilih semua" /></th>' : ''}
             <th>#</th>
@@ -1063,9 +1081,7 @@ $(function () {
                 <div class="small text-body-secondary fw-normal text-nowrap">${App.escape(step.assignee_users.map(user => user.name).join(', ')) || '-'}</div></th>`).join('')}
         </tr>`);
 
-        $('#approval-matrix tbody').html(!data.instance
-            ? `<tr><td colspan="${3 + steps.length}" class="text-center">${muted('Belum ada data approval')}</td></tr>`
-            : items.map((item, index) => `<tr>
+        $('#approval-matrix tbody').html(!data.instance ? '' : items.map((item, index) => `<tr>
                 ${canAct ? `<td class="text-center">${actionableIds.includes(item.id)
                     ? `<input type="checkbox" class="form-check-input approval-item-check" value="${item.id}" />`
                     : ''}</td>` : ''}
@@ -1078,9 +1094,8 @@ $(function () {
             .flatMap(step => step.actions.map(action => ({ ...action, stepName: stepName(step) })))
             .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '') || b.id - a.id);
 
-        $('#approval-history tbody').html(actions.length === 0
-            ? `<tr><td colspan="6" class="text-center">${muted('Belum ada riwayat')}</td></tr>`
-            : actions.map(action => {
+        $('#approval-history-count').text(actions.length);
+        $('#approval-history tbody').html(actions.map(action => {
                 const label = ACTION_LABELS[action.action];
 
                 return `<tr>
@@ -1092,17 +1107,28 @@ $(function () {
                     <td>${action.reason ? App.escape(action.reason) : muted('-')}</td>
                 </tr>`;
             }).join(''));
+
+        const tableOptions = {
+            lengthChange: false,
+            pageLength: 10,
+            autoWidth: false,
+            ordering: false,
+            language: { search: 'Cari:', zeroRecords: 'Data tidak ditemukan', info: '_START_–_END_ dari _TOTAL_', infoEmpty: '', infoFiltered: '' }
+        };
+        matrixTable = $('#approval-matrix').DataTable({ ...tableOptions, language: { ...tableOptions.language, emptyTable: 'Belum ada data approval' } });
+        historyTable = $('#approval-history').DataTable({ ...tableOptions, language: { ...tableOptions.language, emptyTable: 'Belum ada riwayat' } });
     }
 
+    // Pilih semua / item terpilih memakai DataTables API supaya baris di halaman lain ikut.
     $approvalCard.on('change', '#approval-check-all', function () {
-        $approvalCard.find('.approval-item-check').prop('checked', $(this).is(':checked'));
+        matrixTable?.$('.approval-item-check').prop('checked', $(this).is(':checked'));
     });
 
     $approvalCard.on('click', '[data-approval-action]', function () {
         const action = $(this).data('approval-action');
         const itemIds = $(this).data('approval-scope') === 'all'
             ? actionableIds
-            : $approvalCard.find('.approval-item-check:checked').toArray().map(el => Number(el.value));
+            : (matrixTable ? matrixTable.$('.approval-item-check:checked').toArray() : []).map(el => Number(el.value));
 
         if (itemIds.length === 0) {
             App.notify('error', 'Pilih item terlebih dahulu.');

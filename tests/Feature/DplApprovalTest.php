@@ -282,6 +282,25 @@ class DplApprovalTest extends TestCase
             ->assertOk()->assertJsonPath('data.proposal_status', DplProposal::STATUS_IN_APPROVAL);
     }
 
+    public function test_waiting_roles_and_default_awaiting_filter_for_approvers(): void
+    {
+        $proposal = $this->draft();
+        $this->submit($proposal)->assertOk()->assertJsonPath('data.waiting_roles', ['RM', 'NSM', 'GM', 'SMD', 'DMD']);
+        $this->approve('RM', $proposal)->assertOk()->assertJsonPath('data.waiting_roles', ['NSM', 'GM', 'SMD', 'DMD']);
+
+        $this->actingAs($this->approvers['NSM'])
+            ->getJson('/api/dpl/proposals/datatable?'.$this->dataTableQuery(['dpl_number', 'date_offer', 'date_start', 'date_end', 'proposal_status', 'created_at']))
+            ->assertOk()
+            ->assertJsonPath('data.0.waiting_roles', ['NSM', 'GM', 'SMD', 'DMD']);
+
+        // Approver: filter "Menunggu Approval Saya" terpilih default; pengaju tidak.
+        $this->actingAs($this->approvers['NSM'])->get('/dpl/proposals')
+            ->assertOk()
+            ->assertSee('<option value="1" selected>Menunggu Approval Saya</option>', escape: false)
+            ->assertSee('id="proposal-status-legend"', escape: false);
+        $this->actingAs($this->proposer)->get('/dpl/proposals')->assertOk()->assertDontSee('<option value="1" selected>Menunggu Approval Saya', escape: false);
+    }
+
     public function test_future_start_activates_on_date_start_and_expires_after_date_end(): void
     {
         $proposal = $this->draft(['5'], ['date_start' => '2026-11-01', 'date_end' => '2026-11-30']);

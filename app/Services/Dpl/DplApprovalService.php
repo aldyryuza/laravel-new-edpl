@@ -321,6 +321,44 @@ class DplApprovalService
         });
     }
 
+    /**
+     * Nama role step yang masih menunggu (urut sequence) untuk DPL dalam approval, mis. ['NSM', 'GM', 'SMD', 'DMD'].
+     *
+     * @return array<int, string>
+     */
+    public function waitingRoleNames(DplProposal $proposal): array
+    {
+        if (! in_array($proposal->proposal_status, [DplProposal::STATUS_IN_APPROVAL, DplProposal::STATUS_PARTIALLY_APPROVED], true)) {
+            return [];
+        }
+
+        $instance = $this->currentInstance($proposal);
+
+        return $instance === null ? [] : $instance->steps()
+            ->where('status', ApprovalStepInstance::STATUS_PENDING)
+            ->with('workflowStep.role:id,name')
+            ->get()
+            ->sortBy(fn (ApprovalStepInstance $step) => $step->workflowStep->sequence)
+            ->map(fn (ApprovalStepInstance $step) => $step->workflowStep->role?->name ?? "Step {$step->workflowStep->sequence}")
+            ->values()
+            ->all();
+    }
+
+    /**
+     * User terdaftar sebagai approver aktif (Approver DPL) hari ini.
+     */
+    public function isApprover(User $user): bool
+    {
+        $today = CarbonImmutable::now(config('dpl.timezone'))->toDateString();
+
+        return ApproverAssignment::query()
+            ->where('user_id', $user->id)
+            ->where('is_active', true)
+            ->where(fn ($query) => $query->whereNull('valid_from')->orWhere('valid_from', '<=', $today))
+            ->where(fn ($query) => $query->whereNull('valid_until')->orWhere('valid_until', '>=', $today))
+            ->exists();
+    }
+
     public function isOverrideReviewer(User $user): bool
     {
         $today = CarbonImmutable::now(config('dpl.timezone'))->toDateString();

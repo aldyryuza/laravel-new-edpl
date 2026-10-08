@@ -8,6 +8,7 @@ use App\Models\Dpl\BonusScheme;
 use App\Models\Dpl\DplProposal;
 use App\Models\Product;
 use App\Services\Dpl\CommercialParameterReader;
+use App\Services\Dpl\DplApprovalService;
 use App\Services\Dpl\DplPricing;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -16,8 +17,12 @@ class DplProposalController extends Controller
 {
     public function index(Request $request): View
     {
+        $user = $request->user();
+
         return view('pages.dpl.proposals.index', [
-            'teams' => $request->user()->effectiveTeams(),
+            'teams' => $user->effectiveTeams(),
+            // Approver (RM–DMD) langsung melihat DPL yang menunggu approval-nya.
+            'defaultAwaitingMe' => $user->can('dpl-proposals.approve') && app(DplApprovalService::class)->isApprover($user),
             'statuses' => [
                 DplProposal::STATUS_DRAFT, DplProposal::STATUS_SUBMITTED, DplProposal::STATUS_IN_APPROVAL,
                 DplProposal::STATUS_PARTIALLY_APPROVED, DplProposal::STATUS_APPROVED, DplProposal::STATUS_REJECTED, DplProposal::STATUS_CANCELLED,

@@ -50,11 +50,21 @@
                         <label for="filter-awaiting" class="form-label">Approval</label>
                         <select class="form-select" id="filter-awaiting" data-filter="awaiting_me">
                             <option value="">Semua</option>
-                            <option value="1">Menunggu Approval Saya</option>
+                            <option value="1" @selected($defaultAwaitingMe)>Menunggu Approval Saya</option>
                         </select>
                     </div>
                 @endcan
             </div>
+        </div>
+        {{-- Keterangan warna baris = status pengajuan (sama dengan kelas di public/js/pages/dpl/proposals.js). --}}
+        <div class="card-body pt-4 pb-0 d-flex flex-wrap align-items-center gap-3 small" id="proposal-status-legend">
+            <span class="text-body-secondary">Keterangan:</span>
+            <span><span class="badge bg-label-secondary">&nbsp;</span> Draft</span>
+            <span><span class="badge bg-label-info">&nbsp;</span> Menunggu Approval</span>
+            <span><span class="badge bg-label-warning">&nbsp;</span> Approve Sebagian</span>
+            <span><span class="badge bg-label-success">&nbsp;</span> Approved</span>
+            <span><span class="badge bg-label-danger">&nbsp;</span> Ditolak</span>
+            <span><span class="badge bg-label-dark">&nbsp;</span> Dibatalkan</span>
         </div>
         <div class="card-datatable table-responsive">
             <table class="table" id="proposals-table">

@@ -91,6 +91,7 @@ class DplProposalController extends Controller implements HasMiddleware
             ->whitelist(['dpl_number', 'date_offer', 'date_start', 'date_end', 'proposal_status', 'created_at'])
             ->addColumn('can_edit', fn (DplProposal $proposal) => $proposal->isEditableDraftOf($request->user()))
             ->addColumn('awaiting_me', fn (DplProposal $proposal) => $canApprove && $approvals->actionableStates($proposal, $user)->isNotEmpty())
+            ->addColumn('waiting_roles', fn (DplProposal $proposal) => $approvals->waitingRoleNames($proposal))
             ->filter(function (Builder $query) use ($request): void {
                 $term = trim((string) $request->input('search.value'));
 
@@ -448,6 +449,7 @@ class DplProposalController extends Controller implements HasMiddleware
         return [
             ...$proposal->toArray(),
             'can_edit' => $approvals->canEdit($proposal, $user),
+            'waiting_roles' => $approvals->waitingRoleNames($proposal),
             // Item auto reject & aksi Open: pengaju bisa minta, reviewer (GM) bisa membuka.
             'auto_rejected_item_ids' => $autoRejected,
             'pending_open_item_ids' => $proposal->overrideRequests()->where('status', ApprovalOverrideRequest::STATUS_PENDING)->pluck('dpl_item_id')->all(),
