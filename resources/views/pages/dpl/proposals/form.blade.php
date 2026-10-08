@@ -227,8 +227,8 @@
                             <div class="form-text" id="item-margin-source"></div>
                         </div>
                         <div class="col-md-3">
-                            <label for="item-logistic" class="form-label">Logistic Support (%)</label>
-                            <input type="number" class="form-control" id="item-logistic" name="logistic_support" min="0" step="0.0001" />
+                            <label for="item-logistic" class="form-label">Support Logistic Satoria (%)</label>
+                            <input type="number" class="form-control" id="item-logistic" name="logistic_support" min="0" max="100" step="0.01" />
                         </div>
                         <div class="col-md-3">
                             <label for="item-minimum" class="form-label">Minimum Order per Bulan <span class="text-danger">*</span></label>

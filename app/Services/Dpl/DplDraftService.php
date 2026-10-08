@@ -27,8 +27,8 @@ class DplDraftService
         'price_type', 'margin', 'logistic_fee', 'logistic_support',
     ];
 
-    /** Diskon wajib terisi di DB (default 0). */
-    private const DISCOUNT_FIELDS = ['principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off'];
+    /** Diskon & Support Logistic Satoria: kosong disimpan 0. */
+    private const DISCOUNT_FIELDS = ['principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off', 'logistic_support'];
 
     /** Kolom dpl_items yang diinput user. */
     public const ITEM_FIELDS = [

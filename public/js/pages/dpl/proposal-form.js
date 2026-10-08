@@ -69,7 +69,7 @@ $(function () {
     const isBlank = value => value === null || value === undefined || value === '';
     const number = value => (isBlank(value) ? muted('-') : App.escape(String(Number(value))));
     /** Discount: 2 angka di belakang koma (format Indonesia, mis. 10,50). */
-    const DISCOUNTS = ['principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off'];
+    const DISCOUNTS = ['principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off', 'logistic_support'];
     const discount = value => (isBlank(value) ? muted('-')
         : App.escape(Number(value).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })));
     /**

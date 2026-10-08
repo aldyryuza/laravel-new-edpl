@@ -80,7 +80,8 @@ class DplProposalRequest extends FormRequest
             // Logistic fee wajib (boleh 0) untuk item Direct.
             'items.*.logistic_fee' => ['nullable', 'required_if_accepted:items.*.is_direct_delivery', 'numeric', 'min:0', 'max:'.self::MAX_PERCENT],
             // Logistic fee & logistic support dalam % (ikut dijumlah di Total Diskon kalkulator).
-            'items.*.logistic_support' => $percent,
+            // Support Logistic Satoria (legacy support_logistic_satoria): input manual 0–100%.
+            'items.*.logistic_support' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
 
@@ -296,7 +297,7 @@ class DplProposalRequest extends FormRequest
             'items.*.price_type' => 'jenis harga',
             'items.*.margin' => 'margin',
             'items.*.logistic_fee' => 'logistic fee',
-            'items.*.logistic_support' => 'logistic support',
+            'items.*.logistic_support' => 'Support Logistic Satoria',
         ];
     }
 

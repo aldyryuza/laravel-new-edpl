@@ -372,6 +372,15 @@ class DplProposalDraftTest extends TestCase
             ->assertDontSee('Infusion Set');
     }
 
+    public function test_support_logistic_satoria_is_0_to_100_and_defaults_to_zero(): void
+    {
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item(['logistic_support' => '100.5'])]]))
+            ->assertUnprocessable()->assertJsonValidationErrors('items.0.logistic_support');
+
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item()]]))
+            ->assertCreated()->assertJsonPath('data.items.0.terms.logistic_support', '0.0000');
+    }
+
     public function test_minimum_order_is_required(): void
     {
         $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item(['minimum_order' => null])]]))
