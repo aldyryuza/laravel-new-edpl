@@ -23,6 +23,7 @@ use App\Http\Controllers\Web\OnlineUserController;
 use App\Http\Controllers\Web\OutletClassificationController;
 use App\Http\Controllers\Web\OutletController;
 use App\Http\Controllers\Web\OutletGroupController;
+use App\Http\Controllers\Web\OutletSalesAssignmentController;
 use App\Http\Controllers\Web\ProductController;
 use App\Http\Controllers\Web\ProfileController;
 use App\Http\Controllers\Web\ProvinceController;
@@ -101,6 +102,12 @@ Route::middleware('auth')->group(function () {
         ->middleware(['can:outlets.create', 'throttle:export'])
         ->name('outlets.import-template');
     Route::get('/outlet-groups', [OutletGroupController::class, 'index'])->middleware('can:outlet-groups.read')->name('outlet-groups.index');
+    Route::get('/outlet-sales-assignments', [OutletSalesAssignmentController::class, 'index'])
+        ->middleware('can:outlet-sales-assignments.read')
+        ->name('outlet-sales-assignments.index');
+    Route::get('/outlet-sales-assignments/import-template', [OutletSalesAssignmentController::class, 'template'])
+        ->middleware(['can:outlet-sales-assignments.create', 'throttle:export'])
+        ->name('outlet-sales-assignments.import-template');
     Route::get('/outlet-classifications', [OutletClassificationController::class, 'index'])
         ->middleware('can:outlet-classifications.read')
         ->name('outlet-classifications.index');

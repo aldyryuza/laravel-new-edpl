@@ -74,6 +74,7 @@ class AccessControlSeeder extends Seeder
                 ['code' => 'outlets', 'title' => 'Outlet', 'icon' => 'bx bx-building-house', 'route' => 'outlets.index', 'sort_order' => 1],
                 ['code' => 'outlet-groups', 'title' => 'Group RS', 'icon' => 'bx bx-collection', 'route' => 'outlet-groups.index', 'sort_order' => 2],
                 ['code' => 'outlet-classifications', 'title' => 'Klasifikasi Outlet', 'icon' => 'bx bx-category', 'route' => 'outlet-classifications.index', 'sort_order' => 3],
+                ['code' => 'outlet-sales-assignments', 'title' => 'PIC Outlet', 'icon' => 'bx bx-user-pin', 'route' => 'outlet-sales-assignments.index', 'sort_order' => 4],
             ]],
             ['code' => 'master-product-distributor', 'title' => 'Master Produk & Distributor', 'icon' => 'bx bx-package', 'route' => null, 'sort_order' => 12, 'children' => [
                 ['code' => 'products', 'title' => 'Product', 'icon' => 'bx bx-capsule', 'route' => 'products.index', 'sort_order' => 1],
