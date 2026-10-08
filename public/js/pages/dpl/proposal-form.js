@@ -165,6 +165,201 @@ $(function () {
         .on('select2:select', event => applyBed(event.params.data.bed_count ?? null, ''))
         .on('select2:clear', () => applyBed(null, ''));
 
+    // ---- Konsolidasi / Group RS (Jenis = CONSOLIDATION) ----
+    // Tanpa outlet header; outlet + Kontrak + 25% Bed per outlet. Mode Pilih outlet (wilayah user) atau Group RS
+    // (anggota aktif group, GET api/dpl/proposals/outlet-groups/{id}/members). Mode & group hanya dipilih saat dibuat.
+
+    const $consolidationBody = $('#consolidation-table tbody');
+    const $consolidationGroup = $('#consolidation-group');
+    const $consolidationOutlet = $('#consolidation-outlet');
+    /** Outlet konsolidasi: { outlet_id, label, bed_count, is_contract, bed_order_minimum, has_pic, owner, child } */
+    let consolidationOutlets = [];
+    /** Konsolidasi tersimpan (halaman detail) atau null saat membuat. */
+    let savedConsolidation = null;
+    let loadedType = null;
+
+    const isConsolidation = () => (proposalId ? loadedType : $form.find('[name="proposal_type"]').val()) === 'CONSOLIDATION';
+    const consolidationMode = () => (savedConsolidation ? savedConsolidation.mode : $form.find('[name="consolidation_mode"]:checked').val());
+    const consolidationGroupId = () => (savedConsolidation ? savedConsolidation.outlet_group_id : $consolidationGroup.val());
+
+    function ajaxSelect2($select, path, placeholder) {
+        $select.wrap('<div class="position-relative"></div>').select2({
+            dropdownParent: $select.parent(),
+            placeholder: placeholder,
+            width: '100%',
+            ajax: {
+                url: App.url(path),
+                delay: 300,
+                data: params => ({ q: params.term || '' }),
+                processResults: res => ({ results: res.data }),
+                error: (xhr, status) => (status === 'abort' ? null : App.handleError(xhr))
+            }
+        });
+    }
+
+    ajaxSelect2($consolidationOutlet, 'api/dpl/proposals/outlet-options', 'Cari outlet');
+    ajaxSelect2($consolidationGroup, 'api/dpl/proposals/outlet-group-options', 'Cari group RS');
+
+    /** 25% Bed per outlet: Bed × rasio × hari; manual bila bed 0/kosong. */
+    function outletBedOrder(bed) {
+        return Number(bed) > 0 && bedOrderRatio !== null && bedOrderDays !== null
+            ? (Math.round(Number(bed) * bedOrderRatio * bedOrderDays * 100) / 100).toFixed(2)
+            : null;
+    }
+
+    function addConsolidationOutlet(outlet) {
+        if (consolidationOutlets.some(row => row.outlet_id === outlet.id)) {
+            return false;
+        }
+
+        consolidationOutlets.push({
+            outlet_id: outlet.id,
+            label: outlet.text,
+            bed_count: outlet.bed_count ?? null,
+            is_contract: false,
+            bed_order_minimum: outletBedOrder(outlet.bed_count),
+            has_pic: outlet.has_pic ?? null,
+            owner: null,
+            child: null
+        });
+
+        return true;
+    }
+
+    function picCell(row) {
+        if (row.owner) {
+            return App.escape(row.owner.name);
+        }
+        if (row.has_pic === false) {
+            return '<span class="badge bg-label-danger">Belum ada PIC</span>';
+        }
+
+        return row.has_pic ? '<span class="badge bg-label-success">Ada</span>' : muted('-');
+    }
+
+    function renderConsolidation() {
+        const group = consolidationMode() === 'GROUP';
+
+        $('.consolidation-pic-col').toggleClass('d-none', !group);
+        $('#consolidation-summary').text(`${consolidationOutlets.length} outlet`);
+
+        if (consolidationOutlets.length === 0) {
+            $consolidationBody.html(`<tr><td colspan="8" class="text-center">${muted('Belum ada outlet')}</td></tr>`);
+            return;
+        }
+
+        $consolidationBody.html(consolidationOutlets.map((row, index) => {
+            const hasBed = Number(row.bed_count) > 0;
+
+            return `
+            <tr data-index="${index}">
+                <td>${index + 1}</td>
+                <td>${App.escape(row.label)}</td>
+                <td class="text-end">${isBlank(row.bed_count) ? muted('-') : App.escape(String(row.bed_count))}</td>
+                <td class="text-center">
+                    <input class="form-check-input consolidation-contract" type="checkbox" ${row.is_contract ? 'checked' : ''} ${editable ? '' : 'disabled'} />
+                </td>
+                <td class="text-end" style="min-width: 8rem">
+                    <input type="number" class="form-control form-control-sm text-end consolidation-bed-order" min="0" step="0.01"
+                        value="${isBlank(row.bed_order_minimum) ? '' : Number(row.bed_order_minimum)}"
+                        ${hasBed || !editable ? 'readonly' : ''} placeholder="${hasBed ? '' : 'manual'}" />
+                </td>
+                <td class="${group ? '' : 'd-none'}">${picCell(row)}</td>
+                <td>${row.child
+                    ? `<a href="${showUrl}/${row.child.id}">${App.escape(row.child.dpl_number)}</a>`
+                    : muted('Belum dipecah')}</td>
+                <td class="text-end${editable ? '' : ' d-none'}">
+                    <button type="button" class="btn btn-sm btn-icon btn-text-danger btn-remove-consolidation-outlet" title="Hapus"><i class="icon-base bx bx-trash"></i></button>
+                </td>
+            </tr>`;
+        }).join(''));
+    }
+
+    /** Tampilan header & kartu sesuai jenis; kolom aksi outlet sesuai mode dan hak edit. */
+    function applyType() {
+        const consolidation = isConsolidation();
+        const group = consolidationMode() === 'GROUP';
+
+        $form.find('[data-normal-only]').toggleClass('d-none', consolidation);
+        $form.find('[data-consolidation-only]').toggleClass('d-none', !consolidation);
+        $('#consolidation-group-col').toggleClass('d-none', !group);
+        $consolidationGroup.parent().toggleClass('d-none', Boolean(savedConsolidation));
+        $('#consolidation-group-text').toggleClass('d-none', !savedConsolidation);
+        $('#consolidation-outlet-col').toggleClass('d-none', !editable || group);
+        $('#consolidation-reload-col').toggleClass('d-none', !editable || !group).toggleClass('d-flex', editable && group);
+        $form.find('[name="consolidation_mode"]').prop('disabled', !editable || Boolean(savedConsolidation));
+        $('#consolidation-mode-info').text(group
+            ? 'DPL per outlet milik PIC outlet (SPV, bila kosong AM); team yang dikecualikan tetap milik Anda.'
+            : 'DPL per outlet milik Anda.');
+        renderConsolidation();
+    }
+
+    function loadGroupMembers(replace) {
+        const groupId = consolidationGroupId();
+
+        if (!groupId) {
+            return;
+        }
+
+        $.get(App.url(`api/dpl/proposals/outlet-groups/${groupId}/members`))
+            .done(res => {
+                if (replace) {
+                    consolidationOutlets = [];
+                }
+
+                const added = res.data.filter(addConsolidationOutlet).length;
+                // Status PIC terbaru untuk outlet yang sudah ada di daftar.
+                res.data.forEach(outlet => {
+                    const row = consolidationOutlets.find(candidate => candidate.outlet_id === outlet.id);
+                    if (row && !row.owner) {
+                        row.has_pic = outlet.has_pic;
+                    }
+                });
+                renderConsolidation();
+                App.notify('success', `${added} outlet anggota group ditambahkan.`);
+            })
+            .fail(xhr => App.handleError(xhr));
+    }
+
+    $form.find('[name="proposal_type"]').on('change', applyType);
+    $form.find('[name="consolidation_mode"]').on('change', function () {
+        consolidationOutlets = [];
+        $consolidationGroup.val(null).trigger('change');
+        applyType();
+    });
+    $consolidationGroup.on('select2:select', () => loadGroupMembers(true));
+    $('#btn-reload-group').on('click', () => loadGroupMembers(false));
+
+    $('#btn-add-consolidation-outlet').on('click', function () {
+        const outlet = $consolidationOutlet.select2('data')[0];
+
+        if (!outlet || !outlet.id) {
+            App.notify('error', 'Pilih outlet dulu.');
+            return;
+        }
+
+        if (!addConsolidationOutlet({ ...outlet, id: Number(outlet.id) })) {
+            App.notify('error', 'Outlet ini sudah ada di daftar.');
+        }
+
+        $consolidationOutlet.val(null).trigger('change');
+        renderConsolidation();
+    });
+
+    $consolidationBody.on('change', '.consolidation-contract', function () {
+        consolidationOutlets[$(this).closest('tr').data('index')].is_contract = $(this).is(':checked');
+    });
+    $consolidationBody.on('input', '.consolidation-bed-order', function () {
+        consolidationOutlets[$(this).closest('tr').data('index')].bed_order_minimum = isBlank($(this).val()) ? null : $(this).val();
+    });
+    $consolidationBody.on('click', '.btn-remove-consolidation-outlet', function () {
+        consolidationOutlets.splice($(this).closest('tr').data('index'), 1);
+        renderConsolidation();
+    });
+
+    /** Outlet untuk margin/logistic otomatis: konsolidasi tanpa outlet (tanpa margin khusus outlet / Instansi). */
+    const headerOutletId = () => (isConsolidation() ? '' : (outletId || $('#proposal-outlet').val() || ''));
+
     // ---- Harga acuan (HNA/PPN), dipakai tabel item ----
 
     function loadPricing() {
@@ -528,7 +723,7 @@ $(function () {
         defaultsRequest = $.get(App.url('api/dpl/proposals/item-defaults'), {
             product_id: productId,
             distributor_id: distributorId,
-            outlet_id: outletId || $('#proposal-outlet').val() || '',
+            outlet_id: headerOutletId(),
             team_code: currentTeam(),
             is_direct_delivery: $direct.is(':checked') ? 1 : 0,
             is_factory_pickup: $pickup.is(':checked') ? 1 : 0,
@@ -569,6 +764,7 @@ $(function () {
         $('#proposal-team').prop('disabled', !state || $('#proposal-team option').length === 1);
         $form.find('[data-edit-only]').toggleClass('d-none', !state);
         renderItems();
+        applyType();
     }
 
     function deliveryLabel(item) {
@@ -647,6 +843,8 @@ $(function () {
 
         $itemForm.find('input, select, textarea').not('[readonly]').prop('disabled', !editable);
         $single.add($itemForm.find('[name="product_mode"]')).prop('disabled', !editable || item !== null);
+        // Konsolidasi tidak bisa Direct (legacy).
+        $direct.prop('disabled', !editable || isConsolidation());
         $('#item-mode-group').toggleClass('d-none', item !== null);
         $itemForm.find('[type="submit"]').toggleClass('d-none', !editable);
         loadingItem = false;
@@ -734,7 +932,7 @@ $(function () {
         $.get(App.url('api/dpl/proposals/item-defaults'), {
             product_ids: productIds,
             distributor_id: distributorId,
-            outlet_id: outletId || $('#proposal-outlet').val() || '',
+            outlet_id: headerOutletId(),
             team_code: currentTeam(),
             is_direct_delivery: shared.is_direct_delivery ? 1 : 0,
             is_factory_pickup: shared.is_factory_pickup ? 1 : 0,
@@ -791,6 +989,22 @@ $(function () {
             data.team_code = $('#proposal-team').val() || null;
         }
 
+        if (isConsolidation()) {
+            delete data.outlet_id;
+            data.is_contract = false;
+            data.bed_order_minimum = null;
+            data.outlets = consolidationOutlets.map(row => ({
+                outlet_id: row.outlet_id,
+                is_contract: row.is_contract,
+                bed_order_minimum: isBlank(row.bed_order_minimum) ? null : row.bed_order_minimum
+            }));
+
+            if (!proposalId) {
+                data.consolidation_mode = consolidationMode();
+                data.outlet_group_id = consolidationMode() === 'GROUP' ? (consolidationGroupId() || null) : null;
+            }
+        }
+
         return data;
     }
 
@@ -800,11 +1014,18 @@ $(function () {
         const itemMessages = [];
 
         $itemsBody.find('tr').removeClass('table-danger');
+        $consolidationBody.find('tr').removeClass('table-danger');
 
         Object.entries(errors).forEach(([field, messages]) => {
             const match = field.match(/^items\.(\d+)\./);
+            const outletMatch = field.match(/^outlets\.(\d+)\./);
 
-            if (match) {
+            if (outletMatch) {
+                $consolidationBody.find(`tr[data-index="${outletMatch[1]}"]`).addClass('table-danger');
+                itemMessages.push(`Outlet #${Number(outletMatch[1]) + 1}: ${messages[0]}`);
+            } else if (field === 'outlets' || field === 'consolidation_mode') {
+                itemMessages.push(messages[0]);
+            } else if (match) {
                 $itemsBody.find(`tr[data-index="${match[1]}"]`).addClass('table-danger');
                 itemMessages.push(`Item #${Number(match[1]) + 1}: ${messages[0]}`);
             } else {
@@ -969,7 +1190,7 @@ $(function () {
 
     // ---- Make a Copy (amendment) / Duplicate (renewal) & asal-usul ----
 
-    const RELATION_LABELS = { AMENDMENT: 'Amendment (Make a Copy)', RENEWAL: 'Renewal (Duplicate)' };
+    const RELATION_LABELS = { AMENDMENT: 'Amendment (Make a Copy)', RENEWAL: 'Renewal (Duplicate)', CONSOLIDATION_CHILD: 'Hasil konsolidasi' };
 
     function renderRelations(proposal) {
         const parts = [];
@@ -979,7 +1200,8 @@ $(function () {
             parts.push(`${RELATION_LABELS[from.type] || from.type} dari <a href="${showUrl}/${from.id}">${App.escape(from.dpl_number || '#' + from.id)}</a>`);
         }
 
-        (proposal.derivatives || []).forEach(child => {
+        // DPL anak konsolidasi tampil di tabel Outlet Konsolidasi.
+        (proposal.derivatives || []).filter(child => child.type !== 'CONSOLIDATION_CHILD').forEach(child => {
             parts.push(`${RELATION_LABELS[child.type] || child.type}: <a href="${showUrl}/${child.id}">${App.escape(child.dpl_number || '#' + child.id)}</a>`
                 + ` <span class="badge bg-label-secondary">${App.escape(child.proposal_status || '')}</span>`);
         });
@@ -1348,8 +1570,32 @@ $(function () {
 
     function fill(proposal) {
         showStatus(proposal);
-        $('#proposal-outlet-text').val(`${proposal.outlet.name} (${proposal.outlet.code})`
-            + (proposal.outlet.area ? ` - ${proposal.outlet.area.name}` : ''));
+        loadedType = proposal.proposal_type;
+        savedConsolidation = proposal.consolidation || null;
+        // Jenis konsolidasi tidak bisa diganti ke / dari DPL biasa.
+        $form.find('[name="proposal_type"] option').each(function () {
+            $(this).toggleClass('d-none', ($(this).val() === 'CONSOLIDATION') !== (proposal.proposal_type === 'CONSOLIDATION'));
+        });
+
+        if (savedConsolidation) {
+            $form.find(`[name="consolidation_mode"][value="${savedConsolidation.mode}"]`).prop('checked', true);
+            $('#consolidation-group-text').val(savedConsolidation.outlet_group
+                ? `${savedConsolidation.outlet_group.name} (${savedConsolidation.outlet_group.code})` : '');
+            consolidationOutlets = savedConsolidation.outlets.map(row => ({
+                outlet_id: row.outlet_id,
+                label: row.outlet ? `${row.outlet.name} (${row.outlet.code})` + (row.outlet.area ? ` - ${row.outlet.area.name}` : '') : `#${row.outlet_id}`,
+                bed_count: row.outlet ? row.outlet.bed_count : row.bed_count_snapshot,
+                is_contract: row.is_contract,
+                bed_order_minimum: row.bed_order_minimum,
+                has_pic: null,
+                owner: row.owner,
+                child: row.generated_dpl
+            }));
+        }
+
+        $('#proposal-outlet-text').val(proposal.outlet
+            ? `${proposal.outlet.name} (${proposal.outlet.code})` + (proposal.outlet.area ? ` - ${proposal.outlet.area.name}` : '')
+            : 'KONSOLIDASI');
         $('#proposal-team-text').val(proposal.team_code);
         teamCode = proposal.team_code;
         outletId = proposal.outlet_id;

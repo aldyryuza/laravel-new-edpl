@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\OutletCategoryController;
 use App\Http\Controllers\Api\OutletController;
 use App\Http\Controllers\Api\OutletGroupController;
+use App\Http\Controllers\Api\OutletSalesAssignmentController;
 use App\Http\Controllers\Api\OwnershipTypeController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
@@ -89,6 +90,11 @@ Route::post('outlets/import', [OutletController::class, 'import'])->name('outlet
 Route::apiResource('outlets', OutletController::class)->except('index');
 Route::get('outlet-groups/datatable', [OutletGroupController::class, 'datatable'])->name('outlet-groups.datatable');
 Route::apiResource('outlet-groups', OutletGroupController::class)->only(['store', 'update', 'destroy']);
+Route::get('outlet-sales-assignments/datatable', [OutletSalesAssignmentController::class, 'datatable'])->name('outlet-sales-assignments.datatable');
+Route::get('outlet-sales-assignments/outlet-options', [OutletSalesAssignmentController::class, 'outletOptions'])->name('outlet-sales-assignments.outlet-options');
+Route::get('outlet-sales-assignments/user-options', [OutletSalesAssignmentController::class, 'userOptions'])->name('outlet-sales-assignments.user-options');
+Route::post('outlet-sales-assignments/import', [OutletSalesAssignmentController::class, 'import'])->name('outlet-sales-assignments.import');
+Route::apiResource('outlet-sales-assignments', OutletSalesAssignmentController::class)->only(['store', 'update', 'destroy']);
 Route::get('outlet-categories/datatable', [OutletCategoryController::class, 'datatable'])->name('outlet-categories.datatable');
 Route::apiResource('outlet-categories', OutletCategoryController::class)->only(['store', 'update', 'destroy']);
 Route::get('ownership-types/datatable', [OwnershipTypeController::class, 'datatable'])->name('ownership-types.datatable');
@@ -109,6 +115,8 @@ Route::prefix('dpl')->name('dpl.')->group(function () {
     // Pengajuan DPL
     Route::get('proposals/datatable', [DplProposalController::class, 'datatable'])->name('proposals.datatable');
     Route::get('proposals/outlet-options', [DplProposalController::class, 'outletOptions'])->name('proposals.outlet-options');
+    Route::get('proposals/outlet-group-options', [DplProposalController::class, 'outletGroupOptions'])->name('proposals.outlet-group-options');
+    Route::get('proposals/outlet-groups/{outletGroup}/members', [DplProposalController::class, 'outletGroupMembers'])->name('proposals.outlet-group-members');
     Route::get('proposals/pricing', [DplProposalController::class, 'pricing'])->name('proposals.pricing');
     Route::post('proposals/calculate', [DplProposalController::class, 'calculate'])->name('proposals.calculate');
     Route::get('proposals/item-defaults', [DplProposalController::class, 'itemDefaults'])->name('proposals.item-defaults');

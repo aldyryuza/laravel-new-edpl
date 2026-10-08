@@ -33,11 +33,16 @@ use Illuminate\Validation\ValidationException;
  * - Satu item ditolak -> DPL REJECTED, approval berhenti sampai diedit & disubmit ulang.
  * - Semua item approve -> DPL APPROVED; program ACTIVE bila periode sudah berjalan (DPL aktif lama
  *   outlet + team yang sama -> SUPERSEDED), selain itu diaktifkan job harian (refreshProgramStatuses).
+ * - Konsolidasi (DplConsolidationService): approver dari wilayah pengaju; aturan approval berprovinsi hanya cocok bila
+ *   semua outlet konsolidasi ada di provinsinya; semua item approve -> dipecah menjadi DPL per outlet (induk tidak aktif).
  *
  * Semua pengecekan hak akses ada di server (legacy hanya di UI).
  */
 class DplApprovalService
 {
+    /** Relasi untuk routing approver (outlet atau outlet konsolidasi) dan kalkulator. */
+    private const ROUTING_RELATIONS = ['outlet.area.region', 'outlet.city', 'items.terms', 'consolidation.outlets.outlet.city'];
+
     public function __construct(private DplCalculator $calculator) {}
 
     /**
@@ -54,7 +59,8 @@ class DplApprovalService
                 throw ValidationException::withMessages(['proposal' => 'Hanya draft milik Anda yang bisa diajukan.']);
             }
 
-            $proposal->load(['outlet.area.region', 'outlet.city', 'items.terms']);
+            $proposal->load(self::ROUTING_RELATIONS);
+            $this->ensureConsolidationPics($proposal);
             $source = app(DplDerivationService::class)->amendmentSource($proposal);
 
             if ($source === null) {
@@ -195,6 +201,11 @@ class DplApprovalService
         $header['date_start'] = $proposal->date_start?->toDateString();
         $header['date_end'] = $proposal->date_end?->toDateString();
 
+        // Konsolidasi: perubahan outlet / Kontrak / 25% Bed = header berubah (semua item approval ulang).
+        if ($proposal->isConsolidation()) {
+            $header['outlets'] = app(DplConsolidationService::class)->outletSnapshot($proposal);
+        }
+
         return [
             'header' => $header,
             'items' => $proposal->items->mapWithKeys(fn (DplItem $item) => [$item->id => [
@@ -235,7 +246,8 @@ class DplApprovalService
 
             $oldInstance?->update(['status' => ApprovalInstance::STATUS_CANCELLED, 'completed_at' => now()]);
 
-            $proposal->load(['outlet.area.region', 'outlet.city', 'items.terms']);
+            $proposal->load(self::ROUTING_RELATIONS);
+            $this->ensureConsolidationPics($proposal);
 
             $this->startInstance(
                 $proposal,
@@ -481,6 +493,7 @@ class DplApprovalService
         DplProposal::query()
             ->where('proposal_status', DplProposal::STATUS_APPROVED)
             ->where('program_status', DplProposal::PROGRAM_INACTIVE)
+            ->where('proposal_type', '!=', DplProposal::TYPE_CONSOLIDATION)
             ->whereDate('date_start', '<=', $today->toDateString())
             ->orderBy('approved_at')
             ->each(function (DplProposal $proposal) use ($today, &$result): void {
@@ -559,7 +572,9 @@ class DplApprovalService
         $calculations = $this->calculations($proposal);
         $routes = $this->routes($proposal, $workflow, $calculations);
         $steps = $workflow->steps->whereIn('id', $routes->flatten()->unique()->all())->values();
-        $assignees = $this->resolveAssignees($steps, $proposal->outlet);
+        $assignees = $proposal->isConsolidation()
+            ? $this->resolveAssignees($steps, $proposal->consolidation->region_id, $proposal->consolidation->zone_id)
+            : $this->resolveAssignees($steps, $proposal->outlet->area?->region_id, $proposal->outlet->area?->region?->zone_id);
 
         $now = now();
         $instance = ApprovalInstance::query()->create([
@@ -668,7 +683,15 @@ class DplApprovalService
 
         if ($proposalStatus === DplProposal::STATUS_APPROVED) {
             $proposal->update(['approved_at' => $proposal->approved_at ?? now()]);
-            $this->activateIfDue($proposal->fresh(), CarbonImmutable::now(config('dpl.timezone')));
+            $today = CarbonImmutable::now(config('dpl.timezone'));
+
+            if ($proposal->isConsolidation()) {
+                // Induk tidak pernah aktif; DPL anak per outlet diaktifkan seperti DPL biasa.
+                app(DplConsolidationService::class)->generateChildren($proposal->fresh(), $user)
+                    ->each(fn (DplProposal $child) => $this->activateIfDue($child, $today));
+            } else {
+                $this->activateIfDue($proposal->fresh(), $today);
+            }
         }
     }
 
@@ -677,7 +700,7 @@ class DplApprovalService
      */
     private function activateIfDue(DplProposal $proposal, CarbonImmutable $today): bool
     {
-        if ($proposal->proposal_status !== DplProposal::STATUS_APPROVED || $proposal->program_status !== DplProposal::PROGRAM_INACTIVE
+        if ($proposal->isConsolidation() || $proposal->proposal_status !== DplProposal::STATUS_APPROVED || $proposal->program_status !== DplProposal::PROGRAM_INACTIVE
             || $proposal->date_start->toDateString() > $today->toDateString()) {
             return false;
         }
@@ -728,13 +751,16 @@ class DplApprovalService
      */
     private function routes(DplProposal $proposal, ApprovalWorkflow $workflow, array $calculations): Collection
     {
-        $provinceId = $proposal->outlet->city?->province_id;
+        // Konsolidasi: provinsi semua outlet; aturan berprovinsi harus mencakup semuanya.
+        $provinceIds = ($proposal->isConsolidation()
+            ? $proposal->consolidation->outlets->map(fn ($row) => $row->outlet->city?->province_id)
+            : collect([$proposal->outlet->city?->province_id]))->unique()->values();
         $rules = ApprovalRule::query()->where('is_active', true)->with(['steps', 'provinces'])->orderBy('sort_order')->orderBy('id')->get();
         $defaultRoute = $workflow->steps->where('is_required', true)->pluck('id')->all();
 
-        return $proposal->items->values()->mapWithKeys(function (DplItem $item, int $index) use ($rules, $provinceId, $calculations, $workflow, $defaultRoute) {
+        return $proposal->items->values()->mapWithKeys(function (DplItem $item, int $index) use ($rules, $provinceIds, $calculations, $workflow, $defaultRoute) {
             $rule = $rules->first(fn (ApprovalRule $rule) => $rule->coversTotal($calculations[$index]['total_discount'])
-                && ($rule->provinces->isEmpty() || $rule->provinces->contains('id', $provinceId)));
+                && ($rule->provinces->isEmpty() || $provinceIds->every(fn ($provinceId) => $rule->provinces->contains('id', $provinceId))));
             $route = $rule === null
                 ? $defaultRoute
                 : $workflow->steps->whereIn('id', $rule->steps->pluck('id'))->pluck('id')->all();
@@ -744,18 +770,17 @@ class DplApprovalService
     }
 
     /**
-     * Approver per step dari approver_assignments yang berlaku hari ini: region outlet -> zona outlet -> global.
+     * Approver per step dari approver_assignments yang berlaku hari ini: region -> zona -> global.
+     * DPL biasa memakai wilayah outlet, konsolidasi memakai wilayah pengaju.
      *
      * @param  Collection<int, ApprovalWorkflowStep>  $steps
      * @return array<int, array<int, int>> workflow_step_id => [user_id]
      *
      * @throws ValidationException
      */
-    private function resolveAssignees(Collection $steps, Outlet $outlet): array
+    private function resolveAssignees(Collection $steps, ?int $regionId, ?int $zoneId): array
     {
         $today = CarbonImmutable::now(config('dpl.timezone'))->toDateString();
-        $regionId = $outlet->area?->region_id;
-        $zoneId = $outlet->area?->region?->zone_id;
         $result = [];
         $missing = [];
 
@@ -782,11 +807,32 @@ class DplApprovalService
 
         if ($missing !== []) {
             throw ValidationException::withMessages([
-                'approvers' => 'Approver belum diatur untuk wilayah outlet ini: '.implode(', ', $missing).'. Atur di halaman Approver DPL.',
+                'approvers' => 'Approver belum diatur untuk wilayah DPL ini: '.implode(', ', $missing).'. Atur di halaman Approver DPL.',
             ]);
         }
 
         return $result;
+    }
+
+    /**
+     * Konsolidasi Group RS yang DPL anaknya disebar ke PIC: semua outlet wajib punya PIC (AM / SPV).
+     *
+     * @throws ValidationException
+     */
+    private function ensureConsolidationPics(DplProposal $proposal): void
+    {
+        if (! $proposal->isConsolidation()) {
+            return;
+        }
+
+        $missing = app(DplConsolidationService::class)->outletsWithoutPic($proposal);
+
+        if ($missing->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'outlets' => 'Outlet berikut belum punya PIC (AM/SPV), atur di halaman PIC Outlet: '
+                    .$missing->map(fn (Outlet $outlet) => "{$outlet->name} ({$outlet->code})")->implode(', ').'.',
+            ]);
+        }
     }
 
     /**

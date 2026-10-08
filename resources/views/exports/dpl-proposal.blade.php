@@ -13,7 +13,7 @@
     </tr>
     <tr>
         <th>Ship to</th>
-        <td colspan="3">{{ $proposal->outlet?->code }} - {{ $proposal->outlet?->name }}</td>
+        <td colspan="3">{{ $proposal->outlet ? "{$proposal->outlet->code} - {$proposal->outlet->name}" : 'KONSOLIDASI' }}</td>
     </tr>
     <tr>
         <th>Address</th>
@@ -39,6 +39,12 @@
         <th>Tanggal Penawaran</th>
         <td colspan="3">{{ $proposal->date_offer->format('d-m-Y') }}</td>
     </tr>
+    @if ($consolidationSource)
+        <tr>
+            <th>Konsolidasi</th>
+            <td colspan="3">{{ $consolidationSource->dpl_number }}</td>
+        </tr>
+    @endif
     <tr>
         <th>Pengaju</th>
         <td colspan="3">{{ $proposal->creator?->name }} ({{ $proposal->creator?->nik }})</td>
@@ -48,6 +54,36 @@
         <td colspan="3">{{ $allApproved ? 'APPROVED' : $proposal->proposal_status }}</td>
     </tr>
 </table>
+
+@if ($proposal->consolidation)
+    <table>
+        <thead>
+            <tr>
+                <th colspan="6"><strong>OUTLET KONSOLIDASI</strong></th>
+            </tr>
+            <tr>
+                <th>No.</th>
+                <th>Outlet</th>
+                <th>Address</th>
+                <th>Kontrak</th>
+                <th>25% Bed</th>
+                <th>No. DPL Outlet</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($proposal->consolidation->outlets as $row)
+                <tr>
+                    <td>{{ $loop->iteration }}</td>
+                    <td>{{ $row->outlet?->code }} - {{ $row->outlet?->name }}</td>
+                    <td>{{ $row->outlet?->address }}</td>
+                    <td>{{ $row->is_contract ? 'Ya' : 'Tidak' }}</td>
+                    <td>{{ $row->bed_order_minimum ?? '-' }}</td>
+                    <td>{{ $row->generatedDpl?->dpl_number ?? 'BELUM ADA NO. DPL' }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+@endif
 
 <table>
     <thead>

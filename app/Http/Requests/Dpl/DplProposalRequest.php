@@ -4,8 +4,10 @@ namespace App\Http\Requests\Dpl;
 
 use App\Models\Distributor;
 use App\Models\Dpl\BonusScheme;
+use App\Models\Dpl\DplConsolidation;
 use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
+use App\Models\OutletGroup;
 use App\Models\Product;
 use App\Services\Dpl\DplApprovalService;
 use App\Services\Dpl\DplDerivationService;
@@ -20,6 +22,8 @@ use Illuminate\Validation\Validator;
 
 /**
  * Draft DPL (header + item + commercial terms). Outlet dan team hanya dipilih saat membuat draft.
+ * Konsolidasi (proposal_type CONSOLIDATION): tanpa outlet header; mode (MANUAL / GROUP + group RS) dipilih saat dibuat,
+ * outlet (Kontrak, 25% Bed) bisa diubah. Item konsolidasi tidak boleh Direct (legacy: Direct dimatikan).
  */
 class DplProposalRequest extends FormRequest
 {
@@ -45,16 +49,31 @@ class DplProposalRequest extends FormRequest
     public function rules(): array
     {
         $creating = $this->route('proposal') === null;
+        $consolidation = $this->isConsolidation();
         $today = CarbonImmutable::now(config('dpl.timezone'))->toDateString();
         $percent = ['nullable', 'numeric', 'min:0', 'max:'.self::MAX_PERCENT];
 
         return [
             ...($creating ? [
-                'outlet_id' => ['required', 'integer'],
+                'outlet_id' => [Rule::requiredIf(! $consolidation), 'nullable', 'integer'],
                 'team_code' => ['nullable', 'string', 'max:20'],
             ] : []),
-            // CONSOLIDATION dibuat lewat alur konsolidasi, bukan dari form ini.
-            'proposal_type' => ['required', Rule::in([DplProposal::TYPE_NORMAL, DplProposal::TYPE_CLEARANCE])],
+            // Jenis konsolidasi hanya dipilih saat dibuat; DPL biasa tidak bisa diubah menjadi konsolidasi dan sebaliknya.
+            'proposal_type' => ['required', Rule::in(match (true) {
+                $creating => [DplProposal::TYPE_NORMAL, DplProposal::TYPE_CLEARANCE, DplProposal::TYPE_CONSOLIDATION],
+                $consolidation => [DplProposal::TYPE_CONSOLIDATION],
+                default => [DplProposal::TYPE_NORMAL, DplProposal::TYPE_CLEARANCE],
+            })],
+            ...($creating && $consolidation ? [
+                'consolidation_mode' => ['required', Rule::in([DplConsolidation::MODE_MANUAL, DplConsolidation::MODE_GROUP])],
+                'outlet_group_id' => ['nullable', 'required_if:consolidation_mode,'.DplConsolidation::MODE_GROUP, 'integer', Rule::exists(OutletGroup::class, 'id')->where('is_active', true)],
+            ] : []),
+            ...($consolidation ? [
+                'outlets' => ['required', 'array', 'min:1', 'max:500'],
+                'outlets.*.outlet_id' => ['required', 'integer', 'distinct'],
+                'outlets.*.is_contract' => ['boolean'],
+                'outlets.*.bed_order_minimum' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99', 'decimal:0,2'],
+            ] : []),
             // Tanggal penawaran otomatis hari ini (diisi server). Semua tanggal tidak boleh backdated (BR-007).
             // Amendment (Make a Copy): periode dikunci dari pembuatan, tidak divalidasi / diubah lagi.
             ...($this->isAmendment() ? [] : [
@@ -105,8 +124,13 @@ class DplProposalRequest extends FormRequest
                 $this->validateDistributors($validator);
                 $this->validateItemRules($validator);
 
-                if ($this->route('proposal') === null) {
+                if ($this->isConsolidation()) {
+                    $this->validateConsolidationOutlets($validator);
+                } elseif ($this->route('proposal') === null) {
                     $this->validateOutlet($validator);
+                }
+
+                if ($this->route('proposal') === null) {
                     $this->validateTeam($validator);
                 }
             },
@@ -136,9 +160,49 @@ class DplProposalRequest extends FormRequest
      */
     public function proposalAttributes(): array
     {
-        $fields = ['proposal_type', 'date_start', 'date_end', 'is_contract', 'bed_order_minimum', 'description'];
+        $fields = $this->isConsolidation()
+            ? ['proposal_type', 'date_start', 'date_end', 'description']
+            : ['proposal_type', 'date_start', 'date_end', 'is_contract', 'bed_order_minimum', 'description'];
 
         return $this->safe()->only($this->isAmendment() ? array_diff($fields, ['date_start', 'date_end']) : $fields);
+    }
+
+    /**
+     * DPL ini (atau yang sedang dibuat) adalah konsolidasi.
+     */
+    public function isConsolidation(): bool
+    {
+        $proposal = $this->route('proposal');
+
+        return $proposal instanceof DplProposal
+            ? $proposal->isConsolidation()
+            : $this->input('proposal_type') === DplProposal::TYPE_CONSOLIDATION;
+    }
+
+    /**
+     * Data konsolidasi untuk dibuat: mode, group RS (mode GROUP), dan outlet.
+     *
+     * @return array{mode: string, outlet_group_id: int|null, outlets: array<int, array<string, mixed>>}
+     */
+    public function consolidationAttributes(): array
+    {
+        return [
+            'mode' => $this->validated('consolidation_mode'),
+            'outlet_group_id' => $this->validated('outlet_group_id') === null ? null : (int) $this->validated('outlet_group_id'),
+            'outlets' => $this->consolidationOutlets(),
+        ];
+    }
+
+    /**
+     * @return array<int, array{outlet_id: int, is_contract: bool, bed_order_minimum: mixed}>
+     */
+    public function consolidationOutlets(): array
+    {
+        return array_map(fn (array $row) => [
+            'outlet_id' => (int) $row['outlet_id'],
+            'is_contract' => (bool) ($row['is_contract'] ?? false),
+            'bed_order_minimum' => $row['bed_order_minimum'] ?? null,
+        ], array_values($this->validated('outlets', [])));
     }
 
     /**
@@ -207,6 +271,10 @@ class DplProposalRequest extends FormRequest
                 $validator->errors()->add("items.{$index}.price_type", "{$priceType} hanya untuk product {$allowed} ml.");
             }
 
+            if ($this->isConsolidation() && filter_var($item['is_direct_delivery'] ?? false, FILTER_VALIDATE_BOOL)) {
+                $validator->errors()->add("items.{$index}.is_direct_delivery", 'DPL konsolidasi tidak bisa memakai Direct.');
+            }
+
             if (filter_var($item['is_direct_delivery'] ?? false, FILTER_VALIDATE_BOOL) && filter_var($item['is_factory_pickup'] ?? false, FILTER_VALIDATE_BOOL)) {
                 $validator->errors()->add("items.{$index}.is_factory_pickup", 'Pilih salah satu: Direct atau Ambil Dari Pabrik.');
             }
@@ -270,6 +338,44 @@ class DplProposalRequest extends FormRequest
         }
     }
 
+    /**
+     * Outlet konsolidasi harus aktif dan punya zona (nomor DPL anak). Mode MANUAL: di wilayah user.
+     * Mode GROUP: anggota aktif group RS (tanpa batas wilayah, seperti legacy).
+     */
+    private function validateConsolidationOutlets(Validator $validator): void
+    {
+        if ($validator->errors()->hasAny(['outlets', 'consolidation_mode', 'outlet_group_id'])) {
+            return;
+        }
+
+        $proposal = $this->route('proposal');
+        $mode = $proposal instanceof DplProposal ? $proposal->consolidation?->mode : $this->input('consolidation_mode');
+        $groupId = $proposal instanceof DplProposal ? $proposal->consolidation?->outlet_group_id : $this->integer('outlet_group_id');
+        $ids = collect($this->input('outlets', []))->pluck('outlet_id')->filter()->map(fn ($id) => (int) $id)->unique()->all();
+
+        $outlets = Outlet::query()
+            ->where('is_active', true)
+            ->whereKey($ids)
+            ->when($mode === DplConsolidation::MODE_GROUP,
+                fn (Builder $query) => $query->whereHas('activeGroupMembership', fn (Builder $membership) => $membership->where('outlet_group_id', $groupId)),
+                fn (Builder $query) => $query->visibleTo($this->user()))
+            ->with('area.region.zone')
+            ->get()
+            ->keyBy('id');
+
+        foreach ($this->input('outlets', []) as $index => $row) {
+            $outlet = $outlets->get((int) ($row['outlet_id'] ?? 0));
+
+            if ($outlet === null) {
+                $validator->errors()->add("outlets.{$index}.outlet_id", $mode === DplConsolidation::MODE_GROUP
+                    ? 'Outlet tidak ditemukan, nonaktif, atau bukan anggota group RS ini.'
+                    : 'Outlet tidak ditemukan, nonaktif, atau di luar wilayah Anda.');
+            } elseif ($outlet->area?->region?->zone === null) {
+                $validator->errors()->add("outlets.{$index}.outlet_id", "Outlet {$outlet->code} belum memiliki area/region/zona, sehingga nomor DPL tidak bisa dibuat.");
+            }
+        }
+    }
+
     private function validateTeam(Validator $validator): void
     {
         $teams = $this->user()->effectiveTeams();
@@ -297,6 +403,11 @@ class DplProposalRequest extends FormRequest
         return [
             'outlet_id' => 'outlet',
             'team_code' => 'team',
+            'consolidation_mode' => 'mode konsolidasi',
+            'outlet_group_id' => 'group RS',
+            'outlets' => 'outlet konsolidasi',
+            'outlets.*.outlet_id' => 'outlet',
+            'outlets.*.bed_order_minimum' => '25% Bed',
             'proposal_type' => 'jenis DPL',
             'date_start' => 'Date Start',
             'date_end' => 'Date End',
@@ -327,6 +438,9 @@ class DplProposalRequest extends FormRequest
             'date_start.after_or_equal' => 'Date Start tidak boleh tanggal yang sudah lewat.',
             'date_end.after_or_equal' => 'Date End tidak boleh tanggal yang sudah lewat atau sebelum Date Start.',
             'items.*.logistic_fee.required_if_accepted' => 'Logistic fee wajib diisi (boleh 0) untuk item Direct.',
+            'outlet_group_id.required_if' => 'Pilih group RS.',
+            'outlets.required' => 'Tambahkan minimal satu outlet.',
+            'outlets.*.outlet_id.distinct' => 'Outlet ini sudah ada di daftar.',
         ];
     }
 }

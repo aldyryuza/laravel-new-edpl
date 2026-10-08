@@ -83,7 +83,11 @@ class DplProposalController extends Controller
             'productOptions' => $this->productOptions(),
             'distributors' => Distributor::query()->visibleTo($user)->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
             'bonusSchemes' => BonusScheme::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
-            'types' => [DplProposal::TYPE_NORMAL => 'Normal', DplProposal::TYPE_CLEARANCE => 'Clearance (ED dekat)'],
+            'types' => [
+                DplProposal::TYPE_NORMAL => 'Normal',
+                DplProposal::TYPE_CLEARANCE => 'Clearance (ED dekat)',
+                DplProposal::TYPE_CONSOLIDATION => 'Konsolidasi / Group RS',
+            ],
         ]);
     }
 

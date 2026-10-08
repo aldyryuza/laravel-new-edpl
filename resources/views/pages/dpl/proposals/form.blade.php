@@ -45,7 +45,7 @@
                 {{-- Asal-usul (amendment / renewal dari DPL lain) dan DPL turunan. --}}
                 <div class="alert alert-info d-none" id="proposal-relation" role="alert"></div>
                 <div class="row g-4">
-                    <div class="col-md-6">
+                    <div class="col-md-6" data-normal-only>
                         <label for="proposal-outlet" class="form-label">Outlet <span class="text-danger">*</span></label>
                         @if ($proposal)
                             <input type="text" class="form-control" id="proposal-outlet-text" readonly />
@@ -96,18 +96,18 @@
                         <input type="date" class="form-control" id="proposal-end" name="date_end" min="{{ $today }}" required />
                         <div class="form-text">Maksimal 1 tahun dari Date Start.</div>
                     </div>
-                    <div class="col-md-3 d-flex align-items-center">
+                    <div class="col-md-3 d-flex align-items-center" data-normal-only>
                         <div class="form-check form-switch mt-md-6">
                             <input class="form-check-input" type="checkbox" id="proposal-contract" name="is_contract" value="1" />
                             <label class="form-check-label" for="proposal-contract">Kontrak</label>
                         </div>
                     </div>
                     {{-- 25% Bed = Bed × rasio × hari (parameter komersial); dihitung ulang server, manual bila bed outlet 0/kosong. --}}
-                    <div class="col-md-3">
+                    <div class="col-md-3" data-normal-only>
                         <label for="proposal-bed" class="form-label">Bed</label>
                         <input type="text" class="form-control" id="proposal-bed" readonly placeholder="Dari master outlet" />
                     </div>
-                    <div class="col-md-3" id="proposal-bed-order-group" data-ratio="{{ $bedOrderRatio }}" data-days="{{ $bedOrderDays }}">
+                    <div class="col-md-3" id="proposal-bed-order-group" data-normal-only data-ratio="{{ $bedOrderRatio }}" data-days="{{ $bedOrderDays }}">
                         <label for="proposal-bed-order" class="form-label">25% Bed</label>
                         <input type="number" class="form-control" id="proposal-bed-order" name="bed_order_minimum" min="0" step="0.01" readonly />
                         <div class="form-text" id="proposal-bed-order-info">Bed × {{ $bedOrderRatio ?? '-' }} × {{ $bedOrderDays ?? '-' }}.</div>
@@ -117,6 +117,74 @@
                         <textarea class="form-control" id="proposal-description" name="description" rows="2" maxlength="5000"></textarea>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        {{-- Konsolidasi / Group RS: tampil bila Jenis = Konsolidasi. Mode & group RS hanya dipilih saat dibuat. --}}
+        <div class="card mb-6 d-none" id="consolidation-card" data-consolidation-only>
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h5 class="mb-0">Outlet Konsolidasi</h5>
+                <span class="badge bg-label-info" id="consolidation-summary"></span>
+            </div>
+            <div class="card-body">
+                <div class="row g-4 mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label d-block">Mode <span class="text-danger">*</span></label>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="consolidation_mode" id="consolidation-mode-manual" value="MANUAL" checked />
+                            <label class="form-check-label" for="consolidation-mode-manual">Pilih outlet</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="consolidation_mode" id="consolidation-mode-group" value="GROUP" />
+                            <label class="form-check-label" for="consolidation-mode-group">Group RS</label>
+                        </div>
+                        <div class="form-text" id="consolidation-mode-info">DPL per outlet milik Anda.</div>
+                    </div>
+                    <div class="col-md-5 d-none" id="consolidation-group-col">
+                        <label for="consolidation-group" class="form-label">Group RS <span class="text-danger">*</span></label>
+                        <select class="form-select" id="consolidation-group" name="outlet_group_id">
+                            <option value="">Cari group RS</option>
+                        </select>
+                        <input type="text" class="form-control d-none" id="consolidation-group-text" readonly />
+                    </div>
+                    <div class="col-md-5" id="consolidation-outlet-col">
+                        <label for="consolidation-outlet" class="form-label">Tambah Outlet</label>
+                        <div class="d-flex gap-2">
+                            <div class="flex-grow-1">
+                                <select class="form-select" id="consolidation-outlet">
+                                    <option value="">Cari outlet</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-label-primary" id="btn-add-consolidation-outlet">
+                                <i class="icon-base bx bx-plus"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Mode Pilih outlet: outlet aktif di wilayah Anda.</div>
+                    </div>
+                    <div class="col-md-3 d-none align-items-end" id="consolidation-reload-col">
+                        <button type="button" class="btn btn-label-secondary w-100" id="btn-reload-group">
+                            <i class="icon-base bx bx-refresh me-1"></i> Muat anggota group
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm" id="consolidation-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Outlet</th>
+                                <th class="text-end">Bed</th>
+                                <th class="text-center">Kontrak</th>
+                                <th class="text-end">25% Bed</th>
+                                <th class="consolidation-pic-col">PIC</th>
+                                <th>DPL Outlet</th>
+                                <th class="text-end" data-edit-only></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="form-text">Semua item di bawah berlaku untuk setiap outlet. Setelah semua item approved, DPL dipecah menjadi satu DPL per outlet; DPL konsolidasi ini sendiri tidak pernah aktif.</div>
             </div>
         </div>
 

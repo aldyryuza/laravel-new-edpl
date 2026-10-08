@@ -85,4 +85,16 @@ return [
         'IV CAT PEN',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Konsolidasi Group RS
+    |--------------------------------------------------------------------------
+    |
+    | Team pengaju yang DPL anak konsolidasi mode Group RS tetap milik pengaju (tidak disebar ke PIC outlet).
+    | Legacy: tim B (cekUserTimDariDpl != 'b').
+    |
+    */
+
+    'consolidation_creator_owned_teams' => ['B'],
+
 ];

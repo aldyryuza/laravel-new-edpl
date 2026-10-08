@@ -6,6 +6,7 @@ use App\Models\Dpl\ApprovalInstance;
 use App\Models\Dpl\ApprovalItemState;
 use App\Models\Dpl\DplItem;
 use App\Models\Dpl\DplProposal;
+use App\Models\Dpl\DplRelation;
 use App\Services\Dpl\DplPricing;
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromView;
@@ -14,6 +15,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 
 /**
  * Export Excel DPL yang sudah approved (legacy printout/excel): header, item, dan status approval per level.
+ * Konsolidasi: ditambah daftar outlet (Kontrak, 25% Bed, No. DPL outlet); DPL anak memakai approval DPL induknya.
  * HNA - Disc On & HNA+PPN - Disc On dihitung dari snapshot base_price item, dibulatkan ke rupiah.
  */
 class DplProposalExport implements FromView, ShouldAutoSize, WithTitle
@@ -29,10 +31,16 @@ class DplProposalExport implements FromView, ShouldAutoSize, WithTitle
             'items.distributor:id,code,name',
             'items.bonusScheme:id,name',
             'items.terms',
+            'consolidation.outlets.outlet:id,code,name,address',
+            'consolidation.outlets.generatedDpl:id,dpl_number',
         ]);
         $ppn = (float) (app(DplPricing::class)->ppnPercent() ?? 0);
+        $consolidationSource = $proposal->incomingRelations()
+            ->where('relation_type', DplRelation::TYPE_CONSOLIDATION_CHILD)
+            ->with('source')
+            ->first()?->source;
 
-        $instance = $proposal->approvalInstances()
+        $instance = ($consolidationSource ?? $proposal)->approvalInstances()
             ->where('status', '!=', ApprovalInstance::STATUS_CANCELLED)
             ->latest('id')
             ->with(['steps.workflowStep.role:id,name', 'steps.itemStates', 'steps.actions.actor:id,name'])
@@ -91,6 +99,7 @@ class DplProposalExport implements FromView, ShouldAutoSize, WithTitle
             'proposal' => $proposal,
             'items' => $items,
             'steps' => $steps,
+            'consolidationSource' => $consolidationSource,
             'allApproved' => $instance !== null && ApprovalItemState::query()
                 ->whereIn('step_instance_id', $instance->steps->pluck('id'))
                 ->where('status', '!=', ApprovalItemState::STATUS_APPROVED)

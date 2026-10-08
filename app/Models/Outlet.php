@@ -116,6 +116,16 @@ class Outlet extends Model
     }
 
     /**
+     * PIC outlet (AM / SPV), pemilik DPL anak konsolidasi Group RS.
+     *
+     * @return HasOne<OutletSalesAssignment, $this>
+     */
+    public function salesAssignment(): HasOne
+    {
+        return $this->hasOne(OutletSalesAssignment::class);
+    }
+
+    /**
      * @return HasMany<DplProposal, $this>
      */
     public function dplProposals(): HasMany

@@ -61,7 +61,17 @@ $(function () {
                 data: 'outlet',
                 orderable: false,
                 searchable: false,
-                render: outlet => outlet ? `${App.escape(outlet.name)} ${muted('(' + App.escape(outlet.code) + ')')}` : '-'
+                // Konsolidasi: tanpa outlet header, tampilkan jumlah outlet (dan group RS).
+                render: (outlet, type, row) => {
+                    if (outlet) {
+                        return `${App.escape(outlet.name)} ${muted('(' + App.escape(outlet.code) + ')')}`;
+                    }
+
+                    return row.consolidation
+                        ? `Konsolidasi ${muted(`${row.consolidation.outlets_count} outlet`
+                            + (row.consolidation.outlet_group ? ` · ${App.escape(row.consolidation.outlet_group.name)}` : ''))}`
+                        : '-';
+                }
             },
             { data: 'team_code', orderable: false, searchable: false, render: App.escape },
             {

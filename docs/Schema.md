@@ -355,6 +355,20 @@ Indexes: `area_id`, `outlet_category_id`, `ownership_type_id`.
 
 Tidak ada region harga di outlet: harga DPL tidak dibedakan per region (lihat bagian 8).
 
+### `outlet_sales_assignments`
+
+PIC outlet (pengganti legacy `dpl_map_outlet_users`, memakai user ID): penentu pemilik DPL anak konsolidasi Group RS (SPV, bila kosong AM).
+
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `outlet_id` | bigint | No | FK `outlets.id`, RESTRICT, UNIQUE |
+| `am_user_id` | bigint | Yes | FK `users.id`, RESTRICT |
+| `spv_user_id` | bigint | Yes | FK `users.id`, RESTRICT |
+| timestamps | timestamp | Yes | |
+
+CHECK `num_nonnulls(am_user_id, spv_user_id) >= 1`.
+
 ### `outlet_group_members`
 
 | Column | Type | Nullable | Constraint/Note |
@@ -592,7 +606,7 @@ Logistic Fee (semua item, read-only; Direct boleh diganti manual; Ambil Dari Pab
 |---|---|---:|---|
 | `id` | bigint | No | PK |
 | `dpl_number` | varchar(50) | No | UNIQUE |
-| `outlet_id` | bigint | No | FK `outlets.id`, RESTRICT |
+| `outlet_id` | bigint | Yes | FK `outlets.id`, RESTRICT; NULL hanya untuk `CONSOLIDATION` (CHECK) |
 | `team_code` | varchar(20) | No | team identity; legacy A/B |
 | `created_by_user_id` | bigint | No | FK `users.id`, RESTRICT |
 | `date_offer` | date | No | |
@@ -761,13 +775,22 @@ Constraints:
 
 ### `dpl_consolidations`
 
+Konsolidasi / Group RS (FR-012, user confirmation 2026-10-08). DPL induk = `dpl_proposals` bertipe `CONSOLIDATION` dengan `outlet_id` NULL (CHECK `dpl_proposals_outlet_required_check`), nomor `{nomor DPL}-C`; tidak pernah ACTIVE.
+
 | Column | Type | Nullable | Constraint/Note |
 |---|---|---:|---|
 | `id` | bigint | No | PK |
-| `code` | varchar(50) | No | UNIQUE |
+| `dpl_proposal_id` | bigint | No | FK `dpl_proposals.id`, RESTRICT, UNIQUE (DPL induk) |
+| `code` | varchar(50) | No | UNIQUE (= nomor DPL induk) |
 | `created_by_user_id` | bigint | No | FK users, RESTRICT |
-| `status` | varchar(30) | No | lifecycle values to be finalized |
+| `status` | varchar(30) | No | `OPEN`, `GENERATED` (sudah dipecah menjadi DPL per outlet) |
+| `mode` | varchar(10) | No | `MANUAL` (outlet di wilayah pengaju), `GROUP` (anggota aktif group RS) |
+| `outlet_group_id` | bigint | Yes | FK `outlet_groups.id`, RESTRICT; mode GROUP |
+| `region_id` | bigint | Yes | FK `sales_regions.id`, RESTRICT; wilayah pengaju (routing approver) |
+| `zone_id` | bigint | Yes | FK `sales_zones.id`, RESTRICT; zona pengaju (routing approver, nomor DPL induk) |
 | timestamps | timestamp | Yes | |
+
+Wilayah pengaju: satu region -> region + zonanya; beberapa region dalam satu zona -> zona; Nasional / lintas zona -> kosong (approver global, nomor induk dari zona outlet pertama).
 
 ### `dpl_consolidation_outlets`
 
@@ -776,10 +799,16 @@ Constraints:
 | `id` | bigint | No | PK |
 | `consolidation_id` | bigint | No | FK `dpl_consolidations.id`, RESTRICT |
 | `outlet_id` | bigint | No | FK `outlets.id`, RESTRICT |
+| `is_contract` | boolean | No | default false; disalin ke DPL anak |
+| `bed_count_snapshot` | integer | Yes | snapshot `outlets.bed_count` saat disimpan |
+| `bed_order_minimum` | numeric(14,2) | Yes | "25% Bed" = bed × `BED_ORDER_RATIO` × `BED_ORDER_DAYS`, manual bila bed 0/kosong |
+| `owner_user_id` | bigint | Yes | FK users, RESTRICT; pemilik DPL anak, diisi saat dipecah |
 | `generated_dpl_id` | bigint | Yes | FK `dpl_proposals.id`, RESTRICT |
 | `created_at` | timestamp | No | |
 
 UNIQUE `(consolidation_id, outlet_id)`.
+
+Pemecahan (semua item approved, dalam transaksi approval, outlet yang sudah punya `generated_dpl_id` dilewati): satu DPL `NORMAL` APPROVED per outlet, nomor dari zona outlet, item + terms disalin, `dpl_relations` `CONSOLIDATION_CHILD`, aktivasi/supersede seperti DPL biasa. Pemilik: pengaju (mode MANUAL atau team di `config('dpl.consolidation_creator_owned_teams')`), selain itu PIC outlet (`outlet_sales_assignments`: SPV, bila kosong AM).
 
 ## 10. Approval workflow
 
@@ -1146,7 +1175,7 @@ Do not add percentage <= 100 constraints before special-case data is validated.
 | `zona` | `sales_zones` | Migrate/Cleanup | NSM scope |
 | `regional` | `sales_regions` | Migrate/Cleanup | RM scope |
 | legacy area values | `sales_areas` | Transform | normalized area master |
-| `dpl_map_outlet_users` | org/access assignment | Transform/Review | remove duplicated names, use user IDs |
+| `dpl_map_outlet_users` | `outlet_sales_assignments` | Transform | user ID AM/SPV; nama duplikat dibuang |
 
 ### Outlet/product/distributor
 

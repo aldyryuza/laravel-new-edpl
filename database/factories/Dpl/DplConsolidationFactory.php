@@ -3,6 +3,7 @@
 namespace Database\Factories\Dpl;
 
 use App\Models\Dpl\DplConsolidation;
+use App\Models\Dpl\DplProposal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,9 +20,11 @@ class DplConsolidationFactory extends Factory
     public function definition(): array
     {
         return [
+            'dpl_proposal_id' => DplProposal::factory()->state(['proposal_type' => DplProposal::TYPE_CONSOLIDATION]),
             'code' => fake()->unique()->bothify('CONS-#####'),
             'created_by_user_id' => User::factory(),
-            'status' => 'DRAFT',
+            'status' => DplConsolidation::STATUS_OPEN,
+            'mode' => DplConsolidation::MODE_MANUAL,
         ];
     }
 }

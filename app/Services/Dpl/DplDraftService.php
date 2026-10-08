@@ -126,9 +126,11 @@ class DplDraftService
     }
 
     /**
+     * Simpan item: dengan `id` diperbarui, tanpa `id` dibuat, yang tidak dikirim dihapus. Juga dipakai DplConsolidationService.
+     *
      * @param  array<int, array<string, mixed>>  $items
      */
-    private function syncItems(DplProposal $proposal, array $items): void
+    public function syncItems(DplProposal $proposal, array $items): void
     {
         $existing = $proposal->items()->get()->keyBy('id');
         $keptIds = [];

@@ -10,10 +10,12 @@ use App\Models\Dpl\ApprovalOverrideRequest;
 use App\Models\Dpl\ApprovalStepInstance;
 use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
+use App\Models\OutletGroup;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\Dpl\DplApprovalService;
 use App\Services\Dpl\DplCalculator;
+use App\Services\Dpl\DplConsolidationService;
 use App\Services\Dpl\DplDerivationService;
 use App\Services\Dpl\DplDraftService;
 use App\Services\Dpl\DplItemDefaults;
@@ -44,6 +46,15 @@ class DplProposalController extends Controller implements HasMiddleware
         'items.distributor:id,code,name',
         'items.bonusScheme:id,code,name',
         'items.terms',
+        'consolidation:id,dpl_proposal_id,mode,status,outlet_group_id,region_id,zone_id',
+        'consolidation.outletGroup:id,code,name',
+        'consolidation.region:id,name',
+        'consolidation.zone:id,name',
+        'consolidation.outlets:id,consolidation_id,outlet_id,is_contract,bed_count_snapshot,bed_order_minimum,owner_user_id,generated_dpl_id',
+        'consolidation.outlets.outlet:id,code,name,area_id,bed_count',
+        'consolidation.outlets.outlet.area:id,name',
+        'consolidation.outlets.owner:id,nik,name',
+        'consolidation.outlets.generatedDpl:id,dpl_number,program_status',
     ];
 
     /**
@@ -52,7 +63,7 @@ class DplProposalController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing', 'calculate', 'itemDefaults', 'approval']),
+            new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing', 'calculate', 'itemDefaults', 'approval', 'outletGroupOptions', 'outletGroupMembers']),
             new Middleware('can:dpl-proposals.approve', only: ['approve', 'reject', 'reviewOverride']),
             new Middleware('can:dpl-proposals.create', only: ['store', 'outletOptions', 'amend', 'renew']),
             new Middleware('can:dpl-proposals.update', only: ['update', 'submit', 'requestOverride']),
@@ -77,7 +88,12 @@ class DplProposalController extends Controller implements HasMiddleware
                 'dpl_proposals.created_by_user_id', 'dpl_proposals.date_offer', 'dpl_proposals.date_start', 'dpl_proposals.date_end',
                 'dpl_proposals.proposal_type', 'dpl_proposals.proposal_status', 'dpl_proposals.program_status', 'dpl_proposals.created_at',
             ])
-            ->with(['outlet:id,code,name', 'creator:id,nik,name'])
+            ->with([
+                'outlet:id,code,name',
+                'creator:id,nik,name',
+                'consolidation' => fn ($query) => $query->select(['id', 'dpl_proposal_id', 'mode', 'outlet_group_id'])->withCount('outlets'),
+                'consolidation.outletGroup:id,name',
+            ])
             ->withCount('items')
             ->when($request->filled('proposal_status'), fn (Builder $query) => $query->where('proposal_status', $request->input('proposal_status')))
             ->when($request->filled('team_code'), fn (Builder $query) => $query->where('team_code', $request->input('team_code')))
@@ -96,7 +112,8 @@ class DplProposalController extends Controller implements HasMiddleware
                 if ($term !== '') {
                     $query->where(fn (Builder $query) => $query
                         ->whereLike('dpl_proposals.dpl_number', "%{$term}%")
-                        ->orWhereHas('outlet', fn (Builder $outlet) => $outlet->whereLike('code', "%{$term}%")->orWhereLike('name', "%{$term}%")));
+                        ->orWhereHas('outlet', fn (Builder $outlet) => $outlet->whereLike('code', "%{$term}%")->orWhereLike('name', "%{$term}%"))
+                        ->orWhereHas('consolidation.outlets.outlet', fn (Builder $outlet) => $outlet->whereLike('code', "%{$term}%")->orWhereLike('name', "%{$term}%")));
                 }
             })
             ->toJson();
@@ -127,6 +144,54 @@ class DplProposalController extends Controller implements HasMiddleware
                 'id' => $outlet->id,
                 'text' => "{$outlet->name} ({$outlet->code})".($outlet->area ? " - {$outlet->area->name}" : ' - tanpa area'),
                 'bed_count' => $outlet->bed_count,
+            ]),
+        ]);
+    }
+
+    /**
+     * Pilihan group RS aktif untuk konsolidasi mode Group (select2, maks. 20 hasil).
+     */
+    public function outletGroupOptions(Request $request): JsonResponse
+    {
+        $term = trim((string) $request->input('q'));
+
+        $groups = OutletGroup::query()
+            ->where('is_active', true)
+            ->when($term !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->whereLike('code', "%{$term}%")
+                ->orWhereLike('name', "%{$term}%")))
+            ->orderBy('name')
+            ->limit(20)
+            ->get(['id', 'code', 'name']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil diambil',
+            'data' => $groups->map(fn (OutletGroup $group) => ['id' => $group->id, 'text' => "{$group->name} ({$group->code})"]),
+        ]);
+    }
+
+    /**
+     * Outlet aktif anggota group RS (keanggotaan aktif), tanpa batas wilayah seperti legacy; `has_pic` = sudah punya PIC.
+     */
+    public function outletGroupMembers(OutletGroup $outletGroup): JsonResponse
+    {
+        $outlets = Outlet::query()
+            ->where('is_active', true)
+            ->whereHas('activeGroupMembership', fn (Builder $membership) => $membership->where('outlet_group_id', $outletGroup->id))
+            ->with('area:id,name')
+            ->withExists('salesAssignment as has_pic')
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'area_id', 'bed_count']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil diambil',
+            'data' => $outlets->map(fn (Outlet $outlet) => [
+                'id' => $outlet->id,
+                'text' => "{$outlet->name} ({$outlet->code})".($outlet->area ? " - {$outlet->area->name}" : ' - tanpa area'),
+                'bed_count' => $outlet->bed_count,
+                'has_pic' => (bool) $outlet->has_pic,
             ]),
         ]);
     }
@@ -225,9 +290,11 @@ class DplProposalController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function store(DplProposalRequest $request, DplDraftService $draftService): JsonResponse
+    public function store(DplProposalRequest $request, DplDraftService $draftService, DplConsolidationService $consolidations): JsonResponse
     {
-        $proposal = $draftService->create($request->user(), $request->outlet(), $request->teamCode(), $request->proposalAttributes(), $request->proposalItems());
+        $proposal = $request->isConsolidation()
+            ? $consolidations->create($request->user(), $request->teamCode(), $request->proposalAttributes(), $request->consolidationAttributes(), $request->proposalItems())
+            : $draftService->create($request->user(), $request->outlet(), $request->teamCode(), $request->proposalAttributes(), $request->proposalItems());
 
         return response()->json([
             'success' => true,
@@ -251,8 +318,13 @@ class DplProposalController extends Controller implements HasMiddleware
      * Simpan draft; DPL yang sudah diajukan (diedit pengaju setelah reject, atau RM/NSM selama approval) langsung
      * diajukan ulang: approval item yang tidak berubah dipertahankan (DplApprovalService::resubmit).
      */
-    public function update(DplProposalRequest $request, DplProposal $proposal, DplDraftService $draftService, DplApprovalService $approvals): JsonResponse
-    {
+    public function update(
+        DplProposalRequest $request,
+        DplProposal $proposal,
+        DplDraftService $draftService,
+        DplConsolidationService $consolidations,
+        DplApprovalService $approvals,
+    ): JsonResponse {
         $this->ensureVisible($request, $proposal);
         abort_unless($approvals->canEdit($proposal, $request->user()), 403, 'Anda tidak bisa mengubah DPL ini.');
 
@@ -260,8 +332,12 @@ class DplProposalController extends Controller implements HasMiddleware
         $editorSequence = $isDraft ? null : $approvals->editorSequence($proposal, $request->user());
         $before = $isDraft ? null : $approvals->snapshot($proposal);
 
-        DB::transaction(function () use ($request, $proposal, $draftService, $approvals, $isDraft, $before, $editorSequence): void {
-            $draftService->update($proposal, $request->proposalAttributes(), $request->proposalItems());
+        DB::transaction(function () use ($request, $proposal, $draftService, $consolidations, $approvals, $isDraft, $before, $editorSequence): void {
+            if ($proposal->isConsolidation()) {
+                $consolidations->update($proposal, $request->proposalAttributes(), $request->consolidationOutlets(), $request->proposalItems());
+            } else {
+                $draftService->update($proposal, $request->proposalAttributes(), $request->proposalItems());
+            }
 
             if (! $isDraft) {
                 $approvals->resubmit($proposal, $request->user(), $before, $editorSequence);
@@ -487,6 +563,7 @@ class DplProposalController extends Controller implements HasMiddleware
         $today = CarbonImmutable::now(config('dpl.timezone'))->toDateString();
 
         return $proposal->created_by_user_id === $user->id
+            && ! $proposal->isConsolidation()
             && $proposal->proposal_status === DplProposal::STATUS_APPROVED
             && $proposal->program_status === DplProposal::PROGRAM_ACTIVE
             && $proposal->date_start->toDateString() <= $today
@@ -522,7 +599,8 @@ class DplProposalController extends Controller implements HasMiddleware
             'can_review_open' => $autoRejected !== [] && $approvals->isOverrideReviewer($user),
             // Make a Copy / Duplicate (hanya pemilik DPL approved) dan asal-usul DPL ini.
             'can_amend' => $this->canAmend($proposal, $user),
-            'can_renew' => $proposal->created_by_user_id === $user->id && $proposal->proposal_status === DplProposal::STATUS_APPROVED,
+            // Make a Copy / Duplicate konsolidasi belum tersedia.
+            'can_renew' => $proposal->created_by_user_id === $user->id && ! $proposal->isConsolidation() && $proposal->proposal_status === DplProposal::STATUS_APPROVED,
             'derived_from' => $proposal->incomingRelations()->with('source:id,dpl_number')->get()
                 ->map(fn ($relation) => ['type' => $relation->relation_type, 'id' => $relation->source_dpl_id, 'dpl_number' => $relation->source?->dpl_number])
                 ->first(),

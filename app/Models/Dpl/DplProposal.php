@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -81,6 +82,7 @@ class DplProposal extends Model
     /**
      * DPL yang outlet-nya berada di wilayah user (lihat App\Support\RegionScope), ditambah DPL di mana user
      * menjadi approver (mis. GM global, atau RM untuk outlet di luar wilayah penugasannya).
+     * DPL induk konsolidasi (tanpa outlet): terlihat oleh pembuatnya dan user yang wilayahnya mencakup salah satu outletnya.
      *
      * @param  Builder<DplProposal>  $query
      */
@@ -89,7 +91,15 @@ class DplProposal extends Model
     {
         $query->where(fn (Builder $query) => $query
             ->whereHas('outlet', fn (Builder $outlet) => $user->regionScope()->applyToOutlets($outlet))
+            ->orWhere(fn (Builder $query) => $query->whereNull('dpl_proposals.outlet_id')->where(fn (Builder $query) => $query
+                ->where('dpl_proposals.created_by_user_id', $user->id)
+                ->orWhereHas('consolidation.outlets.outlet', fn (Builder $outlet) => $user->regionScope()->applyToOutlets($outlet))))
             ->orWhereHas('approvalInstances.steps.assignees', fn (Builder $assignee) => $assignee->where('user_id', $user->id)));
+    }
+
+    public function isConsolidation(): bool
+    {
+        return $this->proposal_type === self::TYPE_CONSOLIDATION;
     }
 
     /**
@@ -114,6 +124,16 @@ class DplProposal extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    /**
+     * Data konsolidasi (hanya untuk DPL induk tipe CONSOLIDATION).
+     *
+     * @return HasOne<DplConsolidation, $this>
+     */
+    public function consolidation(): HasOne
+    {
+        return $this->hasOne(DplConsolidation::class, 'dpl_proposal_id');
     }
 
     /**
