@@ -1068,6 +1068,14 @@ $(function () {
 
     $form.on('submit', function (event) {
         event.preventDefault();
+
+        // Mengajukan ulang mengecek ulang batas kalkulator: permintaan Open yang belum dibuka GM tidak berlaku.
+        if (currentProposal && currentProposal.proposal_status !== 'DRAFT' && (currentProposal.pending_open_item_ids || []).length > 0) {
+            App.confirm('Masih ada permintaan Open yang menunggu GM. Bila diajukan ulang, item di atas batas kalkulator akan ditolak otomatis lagi. Lanjutkan?', 'Ya, ajukan ulang')
+                .then(confirmed => (confirmed ? saveDraft() : null));
+            return;
+        }
+
         saveDraft();
     });
 
@@ -1078,7 +1086,10 @@ $(function () {
         const autoIds = proposal.auto_rejected_item_ids || [];
         const pendingIds = proposal.pending_open_item_ids || [];
 
-        if (autoIds.length === 0 || (!proposal.can_request_open && !proposal.can_review_open)) {
+        const requests = proposal.open_requests || [];
+        const canAct = autoIds.length > 0 && (proposal.can_request_open || proposal.can_review_open);
+
+        if (!canAct && requests.length === 0) {
             $panel.addClass('d-none').empty();
             return;
         }
@@ -1100,7 +1111,23 @@ $(function () {
             return `<li class="mb-1">Item ${App.escape(itemNumber(id))}${pending ? ' <span class="badge bg-label-info">permintaan Open menunggu</span>' : ''} ${buttons}</li>`;
         }).join('');
 
-        $panel.removeClass('d-none').html(`<div class="fw-medium mb-2">Item ditolak otomatis (melewati batas kalkulator):</div><ul class="mb-0 ps-4">${rows}</ul>`);
+        const STATUS = { PENDING: ['info', 'Menunggu GM'], APPROVED: ['success', 'Dibuka'], REJECTED: ['danger', 'Ditolak'] };
+        const history = requests.map(request => {
+            const [color, label] = STATUS[request.status] || ['secondary', request.status];
+            const review = request.reviewed_by
+                ? `<br><span class="small">${label} oleh ${App.escape(request.reviewed_by)}, ${App.escape(formatDateTime(request.reviewed_at))}`
+                    + `${request.review_reason ? ` — ${App.escape(request.review_reason)}` : ''}</span>`
+                : '';
+
+            return `<li class="mb-1">Item ${App.escape(itemNumber(request.dpl_item_id))} <span class="badge bg-label-${color}">${label}</span>`
+                + `<br><span class="small">Diminta ${App.escape(request.requested_by || '-')}, ${App.escape(formatDateTime(request.requested_at))}</span>`
+                + `<br>Alasan: ${App.escape(request.request_reason || '-')}${review}</li>`;
+        }).join('');
+
+        $panel.removeClass('d-none').html(
+            (canAct ? `<div class="fw-medium mb-2">Item ditolak otomatis (melewati batas kalkulator):</div><ul class="mb-3 ps-4">${rows}</ul>` : '')
+            + (history ? `<div class="fw-medium mb-2">Permintaan Open</div><ul class="mb-0 ps-4">${history}</ul>` : '')
+        );
     }
 
     $(document).on('click', '#approval-open .btn-open-request', function () {
@@ -1264,6 +1291,8 @@ $(function () {
     const PROGRAM_BADGES = { ACTIVE: ['success', 'Aktif'], EXPIRED: ['secondary', 'Expired'], SUPERSEDED: ['dark', 'Superseded'] };
     /** Payload terakhir yang tersimpan di server; beda = ada perubahan belum disimpan. */
     let savedPayload = null;
+    /** Data DPL terakhir dari server (detail). */
+    let currentProposal = null;
 
     function showStatus(proposal) {
         const labels = {
@@ -1575,6 +1604,7 @@ $(function () {
     });
 
     function fill(proposal) {
+        currentProposal = proposal;
         showStatus(proposal);
         loadedType = proposal.proposal_type;
         savedConsolidation = proposal.consolidation || null;

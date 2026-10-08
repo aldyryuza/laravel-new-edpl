@@ -289,8 +289,15 @@ class DplApprovalTest extends TestCase
         $this->actingAs($this->approvers['RM'])->postJson("/api/dpl/proposals/{$proposal->id}/override", ['item_ids' => [$itemId], 'approve' => true])
             ->assertUnprocessable();
         $this->actingAs($this->approvers['GM'])->getJson("/api/dpl/proposals/{$proposal->id}")->assertJsonPath('data.can_review_open', true);
-        $this->actingAs($this->approvers['GM'])->postJson("/api/dpl/proposals/{$proposal->id}/override", ['item_ids' => [$itemId], 'approve' => true])
-            ->assertOk()->assertJsonPath('data.proposal_status', DplProposal::STATUS_IN_APPROVAL);
+        $this->actingAs($this->approvers['GM'])->postJson("/api/dpl/proposals/{$proposal->id}/override", ['item_ids' => [$itemId], 'approve' => true, 'reason' => 'Disetujui khusus'])
+            ->assertOk()
+            ->assertJsonPath('data.proposal_status', DplProposal::STATUS_IN_APPROVAL)
+            // Riwayat permintaan Open: alasan peminta & catatan GM.
+            ->assertJsonPath('data.open_requests.0.status', 'APPROVED')
+            ->assertJsonPath('data.open_requests.0.request_reason', 'Program RS')
+            ->assertJsonPath('data.open_requests.0.requested_by', $this->proposer->name)
+            ->assertJsonPath('data.open_requests.0.reviewed_by', $this->approvers['GM']->name)
+            ->assertJsonPath('data.open_requests.0.review_reason', 'Disetujui khusus');
     }
 
     public function test_waiting_roles_and_default_awaiting_filter_for_approvers(): void

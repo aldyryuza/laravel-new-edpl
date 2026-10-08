@@ -626,6 +626,18 @@ class DplProposalController extends Controller implements HasMiddleware
             // Item auto reject & aksi Open: pengaju bisa minta, reviewer (GM) bisa membuka.
             'auto_rejected_item_ids' => $autoRejected,
             'pending_open_item_ids' => $proposal->overrideRequests()->where('status', ApprovalOverrideRequest::STATUS_PENDING)->pluck('dpl_item_id')->all(),
+            // Riwayat permintaan Open (terbaru dulu): peminta, alasan, status, peninjau, catatan.
+            'open_requests' => $proposal->overrideRequests()->with(['requester:id,nik,name', 'reviewer:id,nik,name'])->latest('id')->get()
+                ->map(fn (ApprovalOverrideRequest $request) => [
+                    'dpl_item_id' => $request->dpl_item_id,
+                    'status' => $request->status,
+                    'request_reason' => $request->request_reason,
+                    'requested_by' => $request->requester?->name,
+                    'requested_at' => $request->requested_at?->toIso8601String(),
+                    'review_reason' => $request->review_reason,
+                    'reviewed_by' => $request->reviewer?->name,
+                    'reviewed_at' => $request->reviewed_at?->toIso8601String(),
+                ])->values(),
             'can_request_open' => $autoRejected !== [] && $proposal->created_by_user_id === $user->id,
             'can_review_open' => $autoRejected !== [] && $approvals->isOverrideReviewer($user),
             // Make a Copy / Duplicate (hanya pemilik DPL approved) dan asal-usul DPL ini.
