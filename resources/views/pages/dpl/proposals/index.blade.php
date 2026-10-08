@@ -45,6 +45,15 @@
                         <option value="1">Buatan saya</option>
                     </select>
                 </div>
+                @can('dpl-proposals.approve')
+                    <div class="col-md-3">
+                        <label for="filter-awaiting" class="form-label">Approval</label>
+                        <select class="form-select" id="filter-awaiting" data-filter="awaiting_me">
+                            <option value="">Semua</option>
+                            <option value="1">Menunggu Approval Saya</option>
+                        </select>
+                    </div>
+                @endcan
             </div>
         </div>
         <div class="card-datatable table-responsive">

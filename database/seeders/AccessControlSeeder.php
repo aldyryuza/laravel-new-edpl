@@ -58,6 +58,7 @@ class AccessControlSeeder extends Seeder
             ['code' => 'example', 'title' => 'Contoh Halaman', 'icon' => 'bx bx-data', 'route' => 'example.index', 'sort_order' => 2],
             ['code' => 'dpl', 'title' => 'DPL', 'icon' => 'bx bx-file', 'route' => null, 'sort_order' => 5, 'children' => [
                 ['code' => 'dpl-proposals', 'title' => 'Pengajuan DPL', 'icon' => 'bx bx-file-blank', 'route' => 'dpl.proposals.index', 'sort_order' => 1],
+                ['code' => 'approval-rules', 'title' => 'Aturan Approval', 'icon' => 'bx bx-git-branch', 'route' => 'dpl.approval-rules.index', 'sort_order' => 2],
             ]],
             ['code' => 'master-organization', 'title' => 'Master Organisasi', 'icon' => 'bx bx-sitemap', 'route' => null, 'sort_order' => 10, 'children' => [
                 ['code' => 'sales-zones', 'title' => 'Zona', 'icon' => 'bx bx-globe', 'route' => 'sales-zones.index', 'sort_order' => 1],

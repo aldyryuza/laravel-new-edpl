@@ -5,6 +5,9 @@
  * Header: Bed dari master outlet; "25% Bed" = Bed × rasio × hari (read-only), manual bila bed 0/kosong.
  * Detail: data dimuat dari GET api/dpl/proposals/{id}; bila draft milik user, bisa disimpan via PUT.
  * Item dikelola di browser (tabel + modal) dan dikirim bersama header sebagai JSON.
+ * Ajukan: POST api/dpl/proposals/{id}/submit (draft milik user dengan item tersimpan; perubahan belum tersimpan
+ * disimpan dulu). Panel approval (DPL bukan DRAFT): GET api/dpl/proposals/{id}/approval -> matriks item × step,
+ * approve/reject terpilih/semua (POST .../approve|reject, alasan wajib untuk reject), dan riwayat approval.
  *
  * Aturan item (juga ditegakkan server):
  * - Pilih Product (radio): Satuan (default) = satu product dicari, HNA langsung tampil di modal;
@@ -816,11 +819,11 @@ $(function () {
         }
     }
 
-    $form.on('submit', function (event) {
-        event.preventDefault();
+    /** Simpan draft (buat/ubah); dipakai tombol Simpan Draft dan sebelum Ajukan bila ada perubahan. */
+    function saveDraft() {
         $submit.prop('disabled', true);
 
-        $.ajax({
+        return $.ajax({
             url: App.url(proposalId ? `api/dpl/proposals/${proposalId}` : 'api/dpl/proposals'),
             type: proposalId ? 'PUT' : 'POST',
             contentType: 'application/json',
@@ -840,10 +843,222 @@ $(function () {
                 ? showValidationErrors(xhr.responseJSON.errors)
                 : App.handleError(xhr)))
             .always(() => $submit.prop('disabled', false));
+    }
+
+    $form.on('submit', function (event) {
+        event.preventDefault();
+        saveDraft();
+    });
+
+    // ---- Ajukan & status ----
+
+    const $submitProposal = $('#btn-submit-proposal');
+    const STATUS_COLORS = {
+        DRAFT: 'secondary', SUBMITTED: 'info', IN_APPROVAL: 'info', PARTIALLY_APPROVED: 'warning',
+        APPROVED: 'success', REJECTED: 'danger', CANCELLED: 'dark'
+    };
+    const PROGRAM_BADGES = { ACTIVE: ['success', 'Aktif'], EXPIRED: ['secondary', 'Expired'], SUPERSEDED: ['dark', 'Superseded'] };
+    /** Payload terakhir yang tersimpan di server; beda = ada perubahan belum disimpan. */
+    let savedPayload = null;
+
+    function showStatus(proposal) {
+        $('#proposal-status')
+            .text(proposal.proposal_status)
+            .attr('class', `badge bg-label-${STATUS_COLORS[proposal.proposal_status] || 'secondary'}`);
+
+        const program = PROGRAM_BADGES[proposal.program_status];
+        $('#proposal-program-status')
+            .text(program ? `Program ${program[1]}` : '')
+            .attr('class', program ? `badge bg-${program[0]}` : 'badge d-none');
+    }
+
+    function submitProposal() {
+        $submitProposal.prop('disabled', true);
+
+        $.ajax({ url: App.url(`api/dpl/proposals/${proposalId}/submit`), type: 'POST' })
+            .done(res => {
+                App.notify(res.data.proposal_status === 'REJECTED' ? 'error' : 'success', res.message);
+                fill(res.data);
+            })
+            .fail(xhr => (xhr.status === 422 && xhr.responseJSON?.errors
+                ? App.notify('error', Object.values(xhr.responseJSON.errors).flat().join(' '))
+                : App.handleError(xhr)))
+            .always(() => $submitProposal.prop('disabled', false));
+    }
+
+    $submitProposal.on('click', () => {
+        App.confirm('Ajukan DPL? Setelah diajukan draft tidak bisa diubah.', 'Ya, ajukan').then(confirmed => {
+            if (!confirmed) {
+                return;
+            }
+
+            if (savedPayload !== JSON.stringify(payload())) {
+                saveDraft().done(submitProposal);
+                return;
+            }
+
+            submitProposal();
+        });
+    });
+
+    // ---- Panel approval ----
+
+    const $approvalCard = $('#approval-card');
+    const canApprove = $approvalCard.data('can-approve') === 1;
+    const $approvalForm = $('#approval-form');
+    const approvalModal = $approvalForm.length ? bootstrap.Modal.getOrCreateInstance(document.getElementById('approval-modal')) : null;
+    const ACTION_LABELS = { APPROVE: ['success', 'Approve'], REJECT: ['danger', 'Reject'], AUTO_REJECT: ['danger', 'Auto Reject'] };
+    let actionableIds = [];
+    let pendingAction = null;
+    let approvalRequest = null;
+
+    const formatDateTime = value => (value
+        ? new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
+        : '');
+    const itemNumber = itemId => {
+        const index = items.findIndex(item => item.id === itemId);
+
+        return index === -1 ? '-' : `#${index + 1}`;
+    };
+
+    function loadApproval(proposal) {
+        if (!$approvalCard.length || proposal.proposal_status === 'DRAFT') {
+            $approvalCard.addClass('d-none');
+            return;
+        }
+
+        approvalRequest?.abort();
+        approvalRequest = $.get(App.url(`api/dpl/proposals/${proposalId}/approval`))
+            .done(res => renderApproval(res.data))
+            .fail((xhr, status) => (status === 'abort' ? null : App.handleError(xhr)));
+    }
+
+    function stateBadge(state) {
+        if (!state) {
+            return muted('-');
+        }
+
+        if (state.status === 'APPROVED') {
+            return `<span class="badge bg-label-success" title="${App.escape(formatDateTime(state.approved_at))}">Approve</span>`;
+        }
+
+        if (state.status === 'REJECTED') {
+            return `<span class="badge bg-label-danger" title="${App.escape(state.reject_reason || '')}">Reject</span>`;
+        }
+
+        return '<span class="badge bg-label-secondary">Menunggu</span>';
+    }
+
+    /** Matriks item × step (urut sequence) + riwayat aksi terbaru di atas. */
+    function renderApproval(data) {
+        const steps = data.instance ? data.instance.steps : [];
+        const canAct = canApprove && data.actionable_item_ids.length > 0;
+
+        actionableIds = data.actionable_item_ids;
+        $approvalCard.removeClass('d-none');
+        $('#approval-actions').toggleClass('d-none', !canAct);
+
+        const states = steps.map(step => Object.fromEntries(step.item_states.map(state => [state.dpl_item_id, state])));
+        const stepName = step => (step.workflow_step?.role ? step.workflow_step.role.name : `Step ${step.workflow_step?.sequence ?? ''}`);
+
+        $('#approval-matrix thead').html(`<tr>
+            ${canAct ? '<th class="text-center"><input type="checkbox" class="form-check-input" id="approval-check-all" title="Pilih semua" /></th>' : ''}
+            <th>#</th>
+            <th>Product</th>
+            ${steps.map(step => `<th class="text-center">${App.escape(stepName(step))}
+                <div class="small text-body-secondary fw-normal text-nowrap">${App.escape(step.assignee_users.map(user => user.name).join(', ')) || '-'}</div></th>`).join('')}
+        </tr>`);
+
+        $('#approval-matrix tbody').html(!data.instance
+            ? `<tr><td colspan="${3 + steps.length}" class="text-center">${muted('Belum ada data approval')}</td></tr>`
+            : items.map((item, index) => `<tr>
+                ${canAct ? `<td class="text-center">${actionableIds.includes(item.id)
+                    ? `<input type="checkbox" class="form-check-input approval-item-check" value="${item.id}" />`
+                    : ''}</td>` : ''}
+                <td>${index + 1}</td>
+                <td>${App.escape(item.labels.product)}</td>
+                ${states.map(byItem => `<td class="text-center">${stateBadge(byItem[item.id])}</td>`).join('')}
+            </tr>`).join(''));
+
+        const actions = steps
+            .flatMap(step => step.actions.map(action => ({ ...action, stepName: stepName(step) })))
+            .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '') || b.id - a.id);
+
+        $('#approval-history tbody').html(actions.length === 0
+            ? `<tr><td colspan="6" class="text-center">${muted('Belum ada riwayat')}</td></tr>`
+            : actions.map(action => {
+                const label = ACTION_LABELS[action.action];
+
+                return `<tr>
+                    <td class="text-nowrap">${App.escape(formatDateTime(action.created_at))}</td>
+                    <td>${App.escape(action.stepName)}</td>
+                    <td>${action.actor ? `${App.escape(action.actor.name)} ${muted(`(${App.escape(action.actor.nik)})`)}` : muted('-')}</td>
+                    <td>${label ? `<span class="badge bg-label-${label[0]}">${label[1]}</span>` : App.escape(action.action)}</td>
+                    <td>${App.escape(itemNumber(action.dpl_item_id))}</td>
+                    <td>${action.reason ? App.escape(action.reason) : muted('-')}</td>
+                </tr>`;
+            }).join(''));
+    }
+
+    $approvalCard.on('change', '#approval-check-all', function () {
+        $approvalCard.find('.approval-item-check').prop('checked', $(this).is(':checked'));
+    });
+
+    $approvalCard.on('click', '[data-approval-action]', function () {
+        const action = $(this).data('approval-action');
+        const itemIds = $(this).data('approval-scope') === 'all'
+            ? actionableIds
+            : $approvalCard.find('.approval-item-check:checked').toArray().map(el => Number(el.value));
+
+        if (itemIds.length === 0) {
+            App.notify('error', 'Pilih item terlebih dahulu.');
+            return;
+        }
+
+        const reject = action === 'reject';
+        pendingAction = { action, itemIds };
+
+        $approvalForm[0].reset();
+        App.clearErrors($approvalForm);
+        $('#approval-modal-title').text(reject ? 'Reject Item' : 'Approve Item');
+        $('#approval-modal-summary').text(`${itemIds.length} item (${itemIds.map(itemNumber).join(', ')}) akan ${reject ? 'ditolak' : 'di-approve'}.`);
+        $('#approval-reason-required').toggleClass('d-none', !reject);
+        $('#approval-reason').prop('required', reject).attr('placeholder', reject ? 'Wajib diisi' : 'Opsional');
+        $('#approval-modal-submit')
+            .text(reject ? 'Reject' : 'Approve')
+            .attr('class', `btn ${reject ? 'btn-danger' : 'btn-success'}`);
+        approvalModal.show();
+    });
+
+    $approvalForm.on('submit', function (event) {
+        event.preventDefault();
+
+        const reason = $('#approval-reason').val().trim();
+
+        if (pendingAction.action === 'reject' && reason === '') {
+            App.showErrors($approvalForm, { reason: ['Alasan reject wajib diisi.'] });
+            return;
+        }
+
+        const $button = $('#approval-modal-submit').prop('disabled', true);
+
+        $.ajax({
+            url: App.url(`api/dpl/proposals/${proposalId}/${pendingAction.action}`),
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ item_ids: pendingAction.itemIds, reason: reason || null })
+        })
+            .done(res => {
+                approvalModal.hide();
+                App.notify('success', res.message);
+                fill(res.data);
+            })
+            .fail(xhr => App.handleError(xhr, $approvalForm))
+            .always(() => $button.prop('disabled', false));
     });
 
     function fill(proposal) {
-        $('#proposal-status').text(proposal.proposal_status);
+        showStatus(proposal);
         $('#proposal-outlet-text').val(`${proposal.outlet.name} (${proposal.outlet.code})`
             + (proposal.outlet.area ? ` - ${proposal.outlet.area.name}` : ''));
         $('#proposal-team-text').val(proposal.team_code);
@@ -881,6 +1096,10 @@ $(function () {
         setEditable(canSave && proposal.can_edit);
         recalcItems();
         loadPricing();
+
+        savedPayload = JSON.stringify(payload());
+        $submitProposal.toggleClass('d-none', !(canSave && proposal.can_edit && proposal.items.length > 0));
+        loadApproval(proposal);
     }
 
     if (proposalId) {

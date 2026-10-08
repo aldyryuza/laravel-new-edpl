@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\CityController;
 use App\Http\Controllers\Api\DistributorController;
+use App\Http\Controllers\Api\Dpl\ApprovalRuleController;
 use App\Http\Controllers\Api\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Api\Dpl\BonusSchemeController;
 use App\Http\Controllers\Api\Dpl\CommercialParameterController;
@@ -116,6 +117,10 @@ Route::prefix('dpl')->name('dpl.')->group(function () {
     Route::post('proposals/{proposal}/approve', [DplProposalController::class, 'approve'])->name('proposals.approve');
     Route::post('proposals/{proposal}/reject', [DplProposalController::class, 'reject'])->name('proposals.reject');
     Route::apiResource('proposals', DplProposalController::class)->except('index');
+
+    // Aturan jalur approval item
+    Route::get('approval-rules/datatable', [ApprovalRuleController::class, 'datatable'])->name('approval-rules.datatable');
+    Route::apiResource('approval-rules', ApprovalRuleController::class)->only(['store', 'update', 'destroy']);
 
     Route::get('approver-assignments/datatable', [ApproverAssignmentController::class, 'datatable'])->name('approver-assignments.datatable');
     Route::apiResource('approver-assignments', ApproverAssignmentController::class)->except('index');

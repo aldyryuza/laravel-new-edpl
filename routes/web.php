@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\CityController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\DistributorController;
+use App\Http\Controllers\Web\Dpl\ApprovalRuleController;
 use App\Http\Controllers\Web\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Web\Dpl\BonusSchemeController;
 use App\Http\Controllers\Web\Dpl\CommercialParameterController;
@@ -123,6 +124,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/proposals', [DplProposalController::class, 'index'])->middleware('can:dpl-proposals.read')->name('proposals.index');
         Route::get('/proposals/create', [DplProposalController::class, 'create'])->middleware('can:dpl-proposals.create')->name('proposals.create');
         Route::get('/proposals/{proposal}', [DplProposalController::class, 'show'])->middleware('can:dpl-proposals.read')->name('proposals.show');
+
+        Route::get('/approval-rules', [ApprovalRuleController::class, 'index'])->middleware('can:approval-rules.read')->name('approval-rules.index');
 
         Route::get('/approver-assignments', [ApproverAssignmentController::class, 'index'])
             ->middleware('can:approver-assignments.read')

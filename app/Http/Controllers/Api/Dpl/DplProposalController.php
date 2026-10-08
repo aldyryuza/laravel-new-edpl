@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Dpl;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dpl\DplProposalRequest;
 use App\Models\Distributor;
+use App\Models\Dpl\ApprovalInstance;
+use App\Models\Dpl\ApprovalStepInstance;
 use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
 use App\Models\Product;
@@ -54,10 +56,15 @@ class DplProposalController extends Controller implements HasMiddleware
     }
 
     /**
-     * Data tabel (Yajra). Pencarian: nomor DPL, kode/nama outlet. Filter opsional: proposal_status, team_code, mine.
+     * Data tabel (Yajra). Pencarian: nomor DPL, kode/nama outlet. Filter opsional: proposal_status, team_code, mine,
+     * awaiting_me (DPL dalam approval di mana user menjadi kandidat approver step yang masih PENDING).
+     * Kolom `awaiting_me`: user (berhak approve) punya item yang bisa ditindak sekarang.
      */
-    public function datatable(Request $request): JsonResponse
+    public function datatable(Request $request, DplApprovalService $approvals): JsonResponse
     {
+        $user = $request->user();
+        $canApprove = $user->can('dpl-proposals.approve');
+
         $query = DplProposal::query()
             ->visibleTo($request->user())
             ->select([
@@ -69,11 +76,19 @@ class DplProposalController extends Controller implements HasMiddleware
             ->withCount('items')
             ->when($request->filled('proposal_status'), fn (Builder $query) => $query->where('proposal_status', $request->input('proposal_status')))
             ->when($request->filled('team_code'), fn (Builder $query) => $query->where('team_code', $request->input('team_code')))
-            ->when($request->boolean('mine'), fn (Builder $query) => $query->where('created_by_user_id', $request->user()->id));
+            ->when($request->boolean('mine'), fn (Builder $query) => $query->where('created_by_user_id', $request->user()->id))
+            ->when($request->boolean('awaiting_me'), fn (Builder $query) => $query
+                ->whereIn('proposal_status', [DplProposal::STATUS_IN_APPROVAL, DplProposal::STATUS_PARTIALLY_APPROVED])
+                ->whereHas('approvalInstances', fn (Builder $instance) => $instance
+                    ->where('status', ApprovalInstance::STATUS_IN_PROGRESS)
+                    ->whereHas('steps', fn (Builder $step) => $step
+                        ->where('status', ApprovalStepInstance::STATUS_PENDING)
+                        ->whereHas('assignees', fn (Builder $assignee) => $assignee->where('user_id', $user->id)))));
 
         return DataTables::eloquent($query)
             ->whitelist(['dpl_number', 'date_offer', 'date_start', 'date_end', 'proposal_status', 'created_at'])
             ->addColumn('can_edit', fn (DplProposal $proposal) => $proposal->isEditableDraftOf($request->user()))
+            ->addColumn('awaiting_me', fn (DplProposal $proposal) => $canApprove && $approvals->actionableStates($proposal, $user)->isNotEmpty())
             ->filter(function (Builder $query) use ($request): void {
                 $term = trim((string) $request->input('search.value'));
 

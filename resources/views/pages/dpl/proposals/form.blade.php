@@ -17,7 +17,10 @@
         <div class="card mb-6">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Header</h5>
-                <span class="badge bg-label-secondary" id="proposal-status">{{ $proposal?->proposal_status ?? 'DRAFT BARU' }}</span>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-label-secondary" id="proposal-status">{{ $proposal?->proposal_status ?? 'DRAFT BARU' }}</span>
+                    <span class="badge d-none" id="proposal-program-status"></span>
+                </div>
             </div>
             <div class="card-body">
                 <div class="row g-4">
@@ -133,11 +136,86 @@
             <button type="submit" class="btn btn-primary">
                 <i class="icon-base bx bx-save me-1"></i> Simpan Draft
             </button>
+            {{-- Tampil bila draft milik user dan sudah punya item tersimpan; perubahan belum tersimpan disimpan dulu. --}}
+            @if ($proposal)
+                <button type="button" class="btn btn-success d-none" id="btn-submit-proposal">
+                    <i class="icon-base bx bx-send me-1"></i> Ajukan
+                </button>
+            @endif
         </div>
     </form>
+
+    @if ($proposal)
+        {{-- Panel approval (dimuat via api/dpl/proposals/{id}/approval bila DPL bukan DRAFT). Di luar form agar
+             checkbox tidak ikut dinonaktifkan saat form read-only. Flag hanya UX; server tetap mengecek. --}}
+        <div class="card mt-6 d-none" id="approval-card" data-can-approve="{{ (int) auth()->user()->can('dpl-proposals.approve') }}">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h5 class="mb-0">Approval</h5>
+                <div class="d-flex flex-wrap gap-2 d-none" id="approval-actions">
+                    <button type="button" class="btn btn-sm btn-success" data-approval-action="approve" data-approval-scope="selected">
+                        <i class="icon-base bx bx-check me-1"></i> Approve Terpilih
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" data-approval-action="reject" data-approval-scope="selected">
+                        <i class="icon-base bx bx-x me-1"></i> Reject Terpilih
+                    </button>
+                    <button type="button" class="btn btn-sm btn-label-success" data-approval-action="approve" data-approval-scope="all">
+                        <i class="icon-base bx bx-check-double me-1"></i> Approve Semua
+                    </button>
+                    <button type="button" class="btn btn-sm btn-label-danger" data-approval-action="reject" data-approval-scope="all">
+                        <i class="icon-base bx bx-block me-1"></i> Reject Semua
+                    </button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0" id="approval-matrix">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="card-body">
+                <h6 class="mb-3">Riwayat Approval</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm" id="approval-history">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Step</th>
+                                <th>Aktor</th>
+                                <th>Aksi</th>
+                                <th>Item</th>
+                                <th>Alasan</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
 @endsection
 
 @push('modals')
+    @if ($proposal)
+        <div class="modal fade" id="approval-modal" tabindex="-1" aria-labelledby="approval-modal-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <form class="modal-content" id="approval-form" novalidate>
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="approval-modal-title">Approve Item</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-4" id="approval-modal-summary"></p>
+                        <label for="approval-reason" class="form-label">Alasan <span class="text-danger d-none" id="approval-reason-required">*</span></label>
+                        <textarea class="form-control" id="approval-reason" name="reason" rows="3" maxlength="2000"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary" id="approval-modal-submit">Approve</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
     <div class="modal fade" id="item-modal" tabindex="-1" aria-labelledby="item-modal-title" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <form class="modal-content" id="item-form" novalidate>
