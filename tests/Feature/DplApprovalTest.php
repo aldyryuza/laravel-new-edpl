@@ -22,6 +22,7 @@ use Database\Seeders\ApprovalReferenceSeeder;
 use Database\Seeders\CommercialParameterSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 /**
@@ -299,6 +300,32 @@ class DplApprovalTest extends TestCase
             ->assertSee('<option value="1" selected>Giliran Approval Saya</option>', escape: false)
             ->assertSee('id="proposal-status-legend"', escape: false);
         $this->actingAs($this->proposer)->get('/dpl/proposals')->assertOk()->assertDontSee('<option value="1" selected>Giliran Approval Saya', escape: false);
+    }
+
+    public function test_excel_export_only_for_fully_approved_dpl_with_print_access(): void
+    {
+        $printer = $this->userWithAccess(['dpl-proposals' => ['read', 'print']]);
+        $proposal = $this->draft();
+        $this->submit($proposal)->assertOk();
+
+        $this->actingAs($printer)->get("/dpl/proposals/{$proposal->id}/export")->assertForbidden();
+
+        foreach (['RM', 'NSM', 'GM', 'SMD', 'DMD'] as $role) {
+            $this->approve($role, $proposal)->assertOk();
+        }
+
+        $this->actingAs($this->proposer)->get("/dpl/proposals/{$proposal->id}/export")->assertForbidden();
+
+        $response = $this->actingAs($printer)->get("/dpl/proposals/{$proposal->id}/export")->assertOk();
+        $response->assertDownload("DPL-{$proposal->fresh()->dpl_number}.xlsx");
+
+        $sheet = IOFactory::load($response->baseResponse->getFile()->getPathname())->getActiveSheet();
+        $values = collect($sheet->toArray())->flatten()->filter()->values();
+        $this->assertTrue($values->contains($proposal->fresh()->dpl_number));
+        $this->assertTrue($values->contains('DPL ITEMS'));
+        $this->assertTrue($values->contains('Approved'));
+
+        $this->actingAs($printer)->get("/dpl/proposals/{$proposal->id}")->assertSee('id="btn-export"', escape: false);
     }
 
     public function test_future_start_activates_on_date_start_and_expires_after_date_end(): void

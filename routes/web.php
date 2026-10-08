@@ -124,6 +124,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/proposals', [DplProposalController::class, 'index'])->middleware('can:dpl-proposals.read')->name('proposals.index');
         Route::get('/proposals/create', [DplProposalController::class, 'create'])->middleware('can:dpl-proposals.create')->name('proposals.create');
         Route::get('/proposals/{proposal}', [DplProposalController::class, 'show'])->middleware('can:dpl-proposals.read')->name('proposals.show');
+        Route::get('/proposals/{proposal}/export', [DplProposalController::class, 'export'])
+            ->middleware(['can:dpl-proposals.print', 'throttle:export'])
+            ->name('proposals.export');
 
         Route::get('/approval-rules', [ApprovalRuleController::class, 'index'])->middleware('can:approval-rules.read')->name('approval-rules.index');
 

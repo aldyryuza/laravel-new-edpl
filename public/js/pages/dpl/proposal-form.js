@@ -962,6 +962,7 @@ $(function () {
         $('#proposal-relation').toggleClass('d-none', parts.length === 0).html(parts.join('<br>'));
         $('#btn-amend').toggleClass('d-none', !proposal.can_amend);
         $('#btn-renew').toggleClass('d-none', !proposal.can_renew);
+        $('#btn-export').toggleClass('d-none', proposal.proposal_status !== 'APPROVED');
 
         // Amendment: periode dikunci (hari ini s/d Date End sumber).
         if (proposal.derived_from?.type === 'AMENDMENT') {

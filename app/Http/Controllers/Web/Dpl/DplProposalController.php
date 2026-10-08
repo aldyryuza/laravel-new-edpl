@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Dpl;
 
+use App\Exports\DplProposalExport;
 use App\Http\Controllers\Controller;
 use App\Models\Distributor;
 use App\Models\Dpl\BonusScheme;
@@ -12,6 +13,8 @@ use App\Services\Dpl\DplApprovalService;
 use App\Services\Dpl\DplPricing;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DplProposalController extends Controller
 {
@@ -43,6 +46,17 @@ class DplProposalController extends Controller
         abort_unless(DplProposal::query()->visibleTo($request->user())->whereKey($proposal->getKey())->exists(), 404);
 
         return $this->form($request, $proposal);
+    }
+
+    /**
+     * Export Excel DPL yang sudah approved semua (hak akses dpl-proposals.print).
+     */
+    public function export(Request $request, DplProposal $proposal): BinaryFileResponse
+    {
+        abort_unless(DplProposal::query()->visibleTo($request->user())->whereKey($proposal->getKey())->exists(), 404);
+        abort_unless($proposal->proposal_status === DplProposal::STATUS_APPROVED, 403, 'Export Excel hanya untuk DPL yang sudah approved semua.');
+
+        return Excel::download(new DplProposalExport($proposal), "DPL-{$proposal->dpl_number}.xlsx");
     }
 
     /**

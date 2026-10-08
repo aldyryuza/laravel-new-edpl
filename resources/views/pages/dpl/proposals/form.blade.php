@@ -8,6 +8,12 @@
         <x-slot:actions>
             {{-- Make a Copy / Duplicate: tampil via JS bila user pemilik DPL approved (can_amend / can_renew). --}}
             @if ($proposal)
+                {{-- Export Excel: tampil via JS bila DPL sudah approved semua. --}}
+                @can('dpl-proposals.print')
+                    <a href="{{ route('dpl.proposals.export', $proposal) }}" class="btn btn-success d-none" id="btn-export">
+                        <i class="icon-base bx bx-spreadsheet me-1"></i> Export Excel
+                    </a>
+                @endcan
                 @can('dpl-proposals.create')
                     <button type="button" class="btn btn-label-primary d-none" id="btn-amend">
                         <i class="icon-base bx bx-copy me-1"></i> Make a Copy
