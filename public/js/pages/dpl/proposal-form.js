@@ -15,8 +15,8 @@
  *   HNA - Disc On = HNA × (1 − (Principle ON + Distributor ON)%), HNA+PPN - Disc On = HNA × (1 + PPN%) × (1 − ...),
  *   dibulatkan ke rupiah (desimal >= 0,5 ke atas, < 0,5 ke bawah).
  * - Mode Satuan: HNA - Disc On bisa diketik; Discount Share Principle ON dihitung balik
- *   = (1 − target / HNA) × 100 − Distributor ON (1 desimal, tidak boleh negatif).
- * - Discount (Principle/Distributor ON/OFF) ditampilkan 1 angka di belakang koma.
+ *   = (1 − target / HNA) × 100 − Distributor ON (2 desimal, tidak boleh negatif).
+ * - Discount (Principle/Distributor ON/OFF) ditampilkan 2 angka di belakang koma.
  * - Minimum order wajib diisi.
  * - Discount Share Principle OFF diisi -> Buyer reward dicentang.
  * - Direct -> Logistic Fee wajib (boleh 0); Ambil Dari Pabrik -> Logistic Fee 0; keduanya tidak boleh bersamaan.
@@ -64,10 +64,10 @@ $(function () {
     const muted = text => `<span class="text-body-secondary">${text}</span>`;
     const isBlank = value => value === null || value === undefined || value === '';
     const number = value => (isBlank(value) ? muted('-') : App.escape(String(Number(value))));
-    /** Discount: 1 angka di belakang koma (format Indonesia, mis. 10,5). */
+    /** Discount: 2 angka di belakang koma (format Indonesia, mis. 10,50). */
     const DISCOUNTS = ['principle_discount_on', 'principle_discount_off', 'distributor_discount_on', 'distributor_discount_off'];
     const discount = value => (isBlank(value) ? muted('-')
-        : App.escape(Number(value).toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })));
+        : App.escape(Number(value).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })));
     /**
      * Bulatkan ke rupiah: desimal >= 0,5 ke atas, < 0,5 ke bawah (nilai selalu positif).
      * toFixed(6) dulu agar galat float (mis. 2,4999999 dari 2,5) tidak membulatkan ke bawah.
@@ -284,7 +284,7 @@ $(function () {
 
     /**
      * HNA - Disc On diubah -> Discount Share Principle ON dihitung balik:
-     * Principle ON = (1 − target / HNA) × 100 − Distributor ON, dibulatkan 1 desimal.
+     * Principle ON = (1 − target / HNA) × 100 − Distributor ON, dibulatkan 2 desimal.
      */
     $('#item-hna-disc').on('input', function () {
         const $info = $('#item-hna-disc-info');
@@ -298,14 +298,14 @@ $(function () {
             return;
         }
 
-        const principleOn = Math.round(((1 - target / hna) * 100 - (Number(valueOrNull('distributor_discount_on')) || 0)) * 10) / 10;
+        const principleOn = Math.round(((1 - target / hna) * 100 - (Number(valueOrNull('distributor_discount_on')) || 0)) * 100) / 100;
 
         if (principleOn < 0) {
             $info.addClass('text-danger').text('Melebihi harga setelah Discount Share Distributor ON; Principle ON tidak bisa negatif.');
             return;
         }
 
-        $itemForm.find('[name="principle_discount_on"]').val(principleOn.toFixed(1));
+        $itemForm.find('[name="principle_discount_on"]').val(principleOn.toFixed(2));
         updateItemPrices(true);
     });
 
@@ -409,7 +409,7 @@ $(function () {
         $itemForm.find('[name="minimum_order"]').val(item?.minimum_order ?? '');
         $itemForm.find('[name="remark"]').val(item?.remark ?? '');
         TERMS.forEach(field => $itemForm.find(`[name="${field}"]`).val(item && !isBlank(item[field])
-            ? (DISCOUNTS.includes(field) ? Number(item[field]).toFixed(1) : Number(item[field]))
+            ? (DISCOUNTS.includes(field) ? Number(item[field]).toFixed(2) : Number(item[field]))
             : ''));
         FLAGS.forEach(flag => $itemForm.find(`[name="${flag}"]`).prop('checked', Boolean(item?.[flag])));
         $priceType.val(item?.price_type || defaultPriceType);
