@@ -1347,7 +1347,13 @@ $(function () {
 
         approvalRequest?.abort();
         approvalRequest = $.get(App.url(`api/dpl/proposals/${proposalId}/approval`))
-            .done(res => renderApproval(res.data))
+            .done(res => {
+                // DPL pecahan konsolidasi: approval milik DPL induk (read-only).
+                if (res.data.source) {
+                    $('#approval-waiting').html(`Approval dari konsolidasi <a href="${showUrl}/${res.data.source.id}">${App.escape(res.data.source.dpl_number)}</a>`);
+                }
+                renderApproval(res.data);
+            })
             .fail((xhr, status) => (status === 'abort' ? null : App.handleError(xhr)));
     }
 

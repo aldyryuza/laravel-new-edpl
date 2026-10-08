@@ -337,6 +337,28 @@ class DplConsolidationTest extends TestCase
         $this->assertTrue($childValues->contains('Approved'));
     }
 
+    public function test_child_dpl_shows_parent_approval_mapped_to_its_items_read_only(): void
+    {
+        $id = $this->create($this->payload([['outlet_id' => $this->outlet->id]]))->json('data.id');
+        $proposal = DplProposal::query()->findOrFail($id);
+        $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$id}/submit")->assertOk();
+        $this->approveAll($proposal);
+
+        $child = $proposal->consolidation->outlets()->sole()->generatedDpl;
+        $childItemId = $child->items()->value('id');
+
+        $response = $this->actingAs($this->proposer)->getJson("/api/dpl/proposals/{$child->id}/approval")
+            ->assertOk()
+            ->assertJsonPath('data.source.dpl_number', $proposal->dpl_number)
+            ->assertJsonPath('data.actionable_item_ids', [])
+            ->assertJsonCount(5, 'data.instance.steps');
+
+        $steps = collect($response->json('data.instance.steps'));
+        $this->assertSame([$childItemId], $steps->flatMap(fn (array $step) => array_column($step['item_states'], 'dpl_item_id'))->unique()->values()->all());
+        $this->assertSame([$childItemId], $steps->flatMap(fn (array $step) => array_column($step['actions'], 'dpl_item_id'))->unique()->values()->all());
+        $this->assertSame(['APPROVED'], $steps->flatMap(fn (array $step) => array_column($step['item_states'], 'status'))->unique()->values()->all());
+    }
+
     public function test_editing_outlets_after_submit_requires_approval_again(): void
     {
         $id = $this->create($this->payload([['outlet_id' => $this->outlet->id], ['outlet_id' => $this->outletNoBed->id, 'bed_order_minimum' => '5']]))->json('data.id');

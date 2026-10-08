@@ -9,6 +9,7 @@ use App\Models\Dpl\ApprovalInstance;
 use App\Models\Dpl\ApprovalOverrideRequest;
 use App\Models\Dpl\ApprovalStepInstance;
 use App\Models\Dpl\DplProposal;
+use App\Models\Dpl\DplRelation;
 use App\Models\Outlet;
 use App\Models\OutletGroup;
 use App\Models\Product;
@@ -446,12 +447,19 @@ class DplProposalController extends Controller implements HasMiddleware
 
     /**
      * Status approval per step & item, plus item yang bisa ditindak user sekarang.
+     * DPL hasil pecahan konsolidasi tidak punya approval sendiri: ditampilkan approval DPL induknya (read-only,
+     * `source` = DPL induk) dengan item induk dipetakan ke item DPL ini lewat product + distributor.
      */
     public function approval(Request $request, DplProposal $proposal, DplApprovalService $approvals): JsonResponse
     {
         $this->ensureVisible($request, $proposal);
 
-        $instance = $proposal->approvalInstances()
+        $source = $proposal->incomingRelations()
+            ->where('relation_type', DplRelation::TYPE_CONSOLIDATION_CHILD)
+            ->with('source:id,dpl_number')
+            ->first()?->source;
+
+        $instance = ($source ?? $proposal)->approvalInstances()
             ->latest('id')
             ->with([
                 'steps' => fn ($query) => $query->join('dpl.approval_workflow_steps as ws', 'ws.id', '=', 'approval_step_instances.workflow_step_id')
@@ -469,10 +477,36 @@ class DplProposalController extends Controller implements HasMiddleware
             'success' => true,
             'message' => 'Data berhasil diambil',
             'data' => [
-                'instance' => $instance,
-                'actionable_item_ids' => $approvals->actionableStates($proposal, $request->user())->keys()->values(),
+                'instance' => $source === null || $instance === null ? $instance : $this->mapSourceItems($instance, $source, $proposal),
+                'source' => $source?->only(['id', 'dpl_number']),
+                'actionable_item_ids' => $source === null ? $approvals->actionableStates($proposal, $request->user())->keys()->values() : [],
             ],
         ]);
+    }
+
+    /**
+     * Ganti dpl_item_id item induk dengan item DPL pecahan (product + distributor unik per DPL).
+     * Item induk tanpa pasangan dibiarkan apa adanya.
+     *
+     * @return array<string, mixed>
+     */
+    private function mapSourceItems(ApprovalInstance $instance, DplProposal $source, DplProposal $child): array
+    {
+        $key = fn ($item) => "{$item->product_id}-{$item->distributor_id}";
+        $childIds = $child->items()->get(['id', 'product_id', 'distributor_id'])->mapWithKeys(fn ($item) => [$key($item) => $item->id]);
+        $map = $source->items()->get(['id', 'product_id', 'distributor_id'])
+            ->mapWithKeys(fn ($item) => [$item->id => $childIds[$key($item)] ?? $item->id])
+            ->all();
+        $remap = fn (array $row) => [...$row, 'dpl_item_id' => $row['dpl_item_id'] === null ? null : ($map[$row['dpl_item_id']] ?? $row['dpl_item_id'])];
+
+        $data = $instance->toArray();
+        $data['steps'] = array_map(fn (array $step) => [
+            ...$step,
+            'item_states' => array_map($remap, $step['item_states']),
+            'actions' => array_map($remap, $step['actions']),
+        ], $data['steps']);
+
+        return $data;
     }
 
     /**
