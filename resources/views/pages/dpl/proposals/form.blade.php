@@ -116,6 +116,7 @@
                             <th>Jenis Harga</th>
                             <th class="text-end">HNA - Disc On</th>
                             <th class="text-end">HNA+PPN - Disc On</th>
+                            <th class="text-end">Margin</th>
                             <th class="text-end">Logistic Fee</th>
                             <th class="text-end">Total Calculator</th>
                             <th>Pengiriman</th>

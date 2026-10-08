@@ -47,7 +47,7 @@ $(function () {
     const $direct = $('#item-is_direct_delivery');
     const $pickup = $('#item-is_factory_pickup');
     const $logisticFee = $('#item-logistic-fee');
-    const COLUMNS = 14;
+    const COLUMNS = 15;
 
     const FLAGS = ['is_direct_delivery', 'is_factory_pickup', 'is_buyer_reward', 'is_support_satoria', 'is_returnable'];
     const TERMS = [
@@ -596,6 +596,7 @@ $(function () {
                 <td>${App.escape(item.price_type || defaultPriceType)}</td>
                 <td class="text-end">${money(result.hnaDisc)}</td>
                 <td class="text-end">${money(result.hnaPpnDisc)}</td>
+                <td class="text-end">${isBlank(item.margin) ? muted('-') : `${discount(item.margin)}%`}</td>
                 <td class="text-end">${isBlank(item.logistic_fee) ? muted('-') : `${discount(item.logistic_fee)}%`}</td>
                 <td class="text-end">${calculatorCell(index)}</td>
                 <td>${deliveryLabel(item)}</td>
