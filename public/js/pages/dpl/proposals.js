@@ -55,6 +55,7 @@ $(function () {
                 name: 'dpl_number',
                 render: (number, type, row) => `<a href="${showUrl}/${row.id}">${App.escape(number)}</a>`
                     + (row.proposal_type !== 'NORMAL' ? ` <span class="badge bg-label-warning">${App.escape(row.proposal_type)}</span>` : '')
+                    + (row.open_requested ? ' <span class="badge bg-label-warning">Minta Open</span>' : '')
                     + (row.awaiting_me ? ' <span class="badge bg-label-primary">Giliran Anda</span>' : '')
             },
             {

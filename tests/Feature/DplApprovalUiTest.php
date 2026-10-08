@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\City;
+use App\Models\Dpl\ApprovalOverrideRequest;
 use App\Models\Dpl\ApprovalRule;
 use App\Models\Dpl\ApprovalWorkflowStep;
 use App\Models\Dpl\ApproverAssignment;
@@ -124,6 +125,31 @@ class DplApprovalUiTest extends TestCase
         // Proposer bukan approver: tidak ada yang menunggu.
         $this->datatable($this->proposer, ['awaiting_me' => 1])->assertJsonPath('recordsFiltered', 0);
         $this->datatable($this->proposer)->assertJsonPath('recordsFiltered', 3)->assertJsonPath('data.0.awaiting_me', false);
+    }
+
+    public function test_open_reviewer_sees_rejected_dpls_with_pending_open_request_as_awaiting(): void
+    {
+        $proposal = $this->submitted();
+        $this->actingAs($this->approvers['RM'])->postJson("/api/dpl/proposals/{$proposal->id}/reject", [
+            'item_ids' => $proposal->items()->pluck('id')->all(),
+            'reason' => 'Tidak sesuai',
+        ])->assertOk();
+        $proposal->overrideRequests()->create([
+            'dpl_item_id' => $proposal->items()->value('id'),
+            'requested_by_user_id' => $this->proposer->id,
+            'request_reason' => 'Program RS',
+            'status' => ApprovalOverrideRequest::STATUS_PENDING,
+            'requested_at' => now(),
+        ]);
+
+        $this->datatable($this->approvers['GM'], ['awaiting_me' => 1])
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.id', $proposal->id)
+            ->assertJsonPath('data.0.open_requested', true)
+            ->assertJsonPath('data.0.awaiting_me', true);
+
+        // Bukan reviewer Open: tidak ikut menunggu.
+        $this->datatable($this->approvers['RM'], ['awaiting_me' => 1])->assertJsonPath('recordsFiltered', 0);
     }
 
     public function test_awaiting_me_flag_follows_approval_sequence(): void

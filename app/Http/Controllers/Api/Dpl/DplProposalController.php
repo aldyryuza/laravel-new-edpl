@@ -74,13 +74,15 @@ class DplProposalController extends Controller implements HasMiddleware
 
     /**
      * Data tabel (Yajra). Pencarian: nomor DPL, kode/nama outlet. Filter opsional: proposal_status, team_code, mine,
-     * awaiting_me (hanya DPL yang sekarang giliran user; setelah ia approve tidak tampil lagi).
-     * Kolom `awaiting_me`: user (berhak approve) punya item yang bisa ditindak sekarang.
+     * awaiting_me (hanya DPL yang sekarang giliran user; setelah ia approve tidak tampil lagi). Untuk reviewer Open (GM)
+     * termasuk DPL ditolak yang punya permintaan Open menunggu.
+     * Kolom `awaiting_me`: user (berhak approve) punya item yang bisa ditindak sekarang; `open_requested`: ada permintaan Open menunggu.
      */
     public function datatable(Request $request, DplApprovalService $approvals): JsonResponse
     {
         $user = $request->user();
         $canApprove = $user->can('dpl-proposals.approve');
+        $isOpenReviewer = $canApprove && $approvals->isOverrideReviewer($user);
 
         $query = DplProposal::query()
             ->visibleTo($request->user())
@@ -96,15 +98,18 @@ class DplProposalController extends Controller implements HasMiddleware
                 'consolidation.outletGroup:id,name',
             ])
             ->withCount('items')
+            ->withCount(['overrideRequests as pending_open_count' => fn (Builder $query) => $query->where('status', ApprovalOverrideRequest::STATUS_PENDING)])
             ->when($request->filled('proposal_status'), fn (Builder $query) => $query->where('proposal_status', $request->input('proposal_status')))
             ->when($request->filled('team_code'), fn (Builder $query) => $query->where('team_code', $request->input('team_code')))
             ->when($request->boolean('mine'), fn (Builder $query) => $query->where('created_by_user_id', $request->user()->id))
-            ->when($request->boolean('awaiting_me'), fn (Builder $query) => $query->whereKey($this->awaitingIds($user, $approvals) ?: [0]));
+            ->when($request->boolean('awaiting_me'), fn (Builder $query) => $query->whereKey($this->awaitingIds($user, $approvals, $isOpenReviewer) ?: [0]));
 
         return DataTables::eloquent($query)
             ->whitelist(['dpl_number', 'date_offer', 'date_start', 'date_end', 'proposal_status', 'created_at'])
             ->addColumn('can_edit', fn (DplProposal $proposal) => $proposal->isEditableDraftOf($request->user()))
-            ->addColumn('awaiting_me', fn (DplProposal $proposal) => $canApprove && $approvals->actionableStates($proposal, $user)->isNotEmpty())
+            ->addColumn('open_requested', fn (DplProposal $proposal) => $proposal->proposal_status === DplProposal::STATUS_REJECTED && $proposal->pending_open_count > 0)
+            ->addColumn('awaiting_me', fn (DplProposal $proposal) => $canApprove && ($approvals->actionableStates($proposal, $user)->isNotEmpty()
+                || ($isOpenReviewer && $proposal->proposal_status === DplProposal::STATUS_REJECTED && $proposal->pending_open_count > 0)))
             ->addColumn('waiting_roles', fn (DplProposal $proposal) => $approvals->waitingRoleNames($proposal))
             ->addColumn('rejections', fn (DplProposal $proposal) => $approvals->rejections($proposal))
             ->filter(function (Builder $query) use ($request): void {
@@ -577,9 +582,17 @@ class DplProposalController extends Controller implements HasMiddleware
      *
      * @return array<int, int>
      */
-    private function awaitingIds(User $user, DplApprovalService $approvals): array
+    private function awaitingIds(User $user, DplApprovalService $approvals, bool $isOpenReviewer = false): array
     {
-        return DplProposal::query()
+        // Reviewer Open (GM): DPL ditolak dengan permintaan Open yang menunggu.
+        $openIds = ! $isOpenReviewer ? [] : DplProposal::query()
+            ->visibleTo($user)
+            ->where('proposal_status', DplProposal::STATUS_REJECTED)
+            ->whereHas('overrideRequests', fn (Builder $request) => $request->where('status', ApprovalOverrideRequest::STATUS_PENDING))
+            ->pluck('id')
+            ->all();
+
+        return [...$openIds, ...DplProposal::query()
             ->visibleTo($user)
             ->whereIn('proposal_status', [DplProposal::STATUS_IN_APPROVAL, DplProposal::STATUS_PARTIALLY_APPROVED])
             ->whereHas('approvalInstances', fn (Builder $instance) => $instance
@@ -589,7 +602,7 @@ class DplProposalController extends Controller implements HasMiddleware
                     ->whereHas('assignees', fn (Builder $assignee) => $assignee->where('user_id', $user->id))))
             ->get()
             ->filter(fn (DplProposal $proposal) => $approvals->actionableStates($proposal, $user)->isNotEmpty())
-            ->modelKeys();
+            ->modelKeys()];
     }
 
     private function canAmend(DplProposal $proposal, User $user): bool
