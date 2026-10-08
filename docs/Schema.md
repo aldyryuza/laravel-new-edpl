@@ -830,6 +830,8 @@ Aturan aktif dicek urut `sort_order`, `id`; pertama yang cocok (Total Calculator
 - Auto reject saat submit: item dengan Total Calculator > batas (DplCalculator) -> semua state REJECTED, alasan "Total discount is more than X%", aksi `AUTO_REJECT`. DPL CLEARANCE dikecualikan.
 - Aksi: approver step bisa bertindak bila state item PENDING dan semua step `is_gate` sebelumnya di jalur item APPROVED (RM -> NSM -> GM/SMD/DMD bebas urutan). Beberapa approver satu step: aksi pertama dihitung. Reject wajib alasan. Hak akses dicek di server.
 - Status proposal: IN_APPROVAL -> PARTIALLY_APPROVED (ada approve) -> APPROVED (semua state approve); ada state REJECTED -> REJECTED dan approval berhenti. Semua transisi dicatat `dpl_status_histories`.
+- Edit setelah diajukan: pengaju saat REJECTED (ulang dari level pertama), approver step `can_edit` (RM, NSM) selama approval/REJECTED (approval di bawah levelnya dipertahankan). Simpan = ajukan ulang: snapshot sebelum edit ke `dpl_revisions`, instance lama CANCELLED, instance baru; item tidak berubah & tidak ditolak mempertahankan approval; header berubah = semua item ulang; auto reject dicek ulang untuk item berubah.
+- Open auto reject: pengaju membuat `approval_override_requests` (PENDING, alasan wajib); reviewer role `config('dpl.override_reviewer_role')` (GM) membuka (state item kembali PENDING, aksi `OVERRIDE`, permintaan APPROVED) atau menolak permintaan. Reject manual tidak bisa di-Open (harus diedit).
 - Aktivasi: APPROVED + Date Start <= hari ini -> program ACTIVE, DPL ACTIVE lama outlet + team sama -> SUPERSEDED. Job harian `dpl:refresh-program-status` (00:05 Asia/Jakarta) mengaktifkan yang Date Start-nya tiba dan meng-EXPIRED yang lewat Date End.
 
 ### `approver_assignments`

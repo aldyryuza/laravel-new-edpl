@@ -7,6 +7,7 @@ use App\Models\Dpl\BonusScheme;
 use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
 use App\Models\Product;
+use App\Services\Dpl\DplApprovalService;
 use App\Services\Dpl\DplDraftService;
 use App\Services\Dpl\DplPricing;
 use Carbon\CarbonImmutable;
@@ -32,7 +33,7 @@ class DplProposalRequest extends FormRequest
     {
         $proposal = $this->route('proposal');
 
-        return ! $proposal instanceof DplProposal || $proposal->isEditableDraftOf($this->user());
+        return ! $proposal instanceof DplProposal || app(DplApprovalService::class)->canEdit($proposal, $this->user());
     }
 
     /**

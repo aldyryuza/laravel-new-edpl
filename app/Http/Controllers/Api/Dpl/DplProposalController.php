@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Dpl\DplProposalRequest;
 use App\Models\Distributor;
 use App\Models\Dpl\ApprovalInstance;
+use App\Models\Dpl\ApprovalOverrideRequest;
 use App\Models\Dpl\ApprovalStepInstance;
 use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
@@ -20,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\Facades\DataTables;
 
 /**
@@ -48,9 +50,9 @@ class DplProposalController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing', 'calculate', 'itemDefaults', 'approval']),
-            new Middleware('can:dpl-proposals.approve', only: ['approve', 'reject']),
+            new Middleware('can:dpl-proposals.approve', only: ['approve', 'reject', 'reviewOverride']),
             new Middleware('can:dpl-proposals.create', only: ['store', 'outletOptions']),
-            new Middleware('can:dpl-proposals.update', only: ['update', 'submit']),
+            new Middleware('can:dpl-proposals.update', only: ['update', 'submit', 'requestOverride']),
             new Middleware('can:dpl-proposals.delete', only: ['destroy']),
         ];
     }
@@ -246,15 +248,73 @@ class DplProposalController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function update(DplProposalRequest $request, DplProposal $proposal, DplDraftService $draftService): JsonResponse
+    /**
+     * Simpan draft; DPL yang sudah diajukan (diedit pengaju setelah reject, atau RM/NSM selama approval) langsung
+     * diajukan ulang: approval item yang tidak berubah dipertahankan (DplApprovalService::resubmit).
+     */
+    public function update(DplProposalRequest $request, DplProposal $proposal, DplDraftService $draftService, DplApprovalService $approvals): JsonResponse
     {
-        $this->ensureEditable($request, $proposal);
-        $draftService->update($proposal, $request->proposalAttributes(), $request->proposalItems());
+        $this->ensureVisible($request, $proposal);
+        abort_unless($approvals->canEdit($proposal, $request->user()), 403, 'Anda tidak bisa mengubah DPL ini.');
+
+        $isDraft = $proposal->proposal_status === DplProposal::STATUS_DRAFT;
+        $editorSequence = $isDraft ? null : $approvals->editorSequence($proposal, $request->user());
+        $before = $isDraft ? null : $approvals->snapshot($proposal);
+
+        DB::transaction(function () use ($request, $proposal, $draftService, $approvals, $isDraft, $before, $editorSequence): void {
+            $draftService->update($proposal, $request->proposalAttributes(), $request->proposalItems());
+
+            if (! $isDraft) {
+                $approvals->resubmit($proposal, $request->user(), $before, $editorSequence);
+            }
+        });
 
         return response()->json([
             'success' => true,
-            'message' => "Draft DPL {$proposal->dpl_number} berhasil disimpan",
-            'data' => $this->present($request, $proposal),
+            'message' => $isDraft ? "Draft DPL {$proposal->dpl_number} berhasil disimpan" : "DPL {$proposal->dpl_number} disimpan dan diajukan ulang",
+            'data' => $this->present($request, $proposal->fresh()),
+        ]);
+    }
+
+    /**
+     * Pengaju meminta item yang ditolak otomatis dibuka kembali (alasan wajib).
+     */
+    public function requestOverride(Request $request, DplProposal $proposal, DplApprovalService $approvals): JsonResponse
+    {
+        $this->ensureVisible($request, $proposal);
+        $data = $request->validate([
+            'item_id' => ['required', 'integer'],
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $approvals->requestOverride($proposal, $request->user(), $data['item_id'], $data['reason']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Permintaan Open terkirim',
+            'data' => $this->present($request, $proposal->fresh()),
+        ]);
+    }
+
+    /**
+     * Reviewer Open (GM) membuka item yang ditolak otomatis (`approve` true) atau menolak permintaannya.
+     */
+    public function reviewOverride(Request $request, DplProposal $proposal, DplApprovalService $approvals): JsonResponse
+    {
+        $this->ensureVisible($request, $proposal);
+        $data = $request->validate([
+            'item_ids' => ['required', 'array', 'min:1'],
+            'item_ids.*' => ['integer'],
+            'approve' => ['required', 'boolean'],
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $count = $approvals->reviewOverride($proposal, $request->user(), $data['item_ids'], $request->boolean('approve'), $data['reason'] ?? null);
+
+        return response()->json([
+            'success' => true,
+            'message' => $request->boolean('approve') ? "{$count} item dibuka kembali" : 'Permintaan Open ditolak',
+            'data' => $this->present($request, $proposal->fresh()),
         ]);
     }
 
@@ -381,6 +441,18 @@ class DplProposalController extends Controller implements HasMiddleware
     {
         $proposal->load(self::DETAIL_RELATIONS);
 
-        return [...$proposal->toArray(), 'can_edit' => $proposal->isEditableDraftOf($request->user())];
+        $user = $request->user();
+        $approvals = app(DplApprovalService::class);
+        $autoRejected = $approvals->autoRejectedItemIds($proposal);
+
+        return [
+            ...$proposal->toArray(),
+            'can_edit' => $approvals->canEdit($proposal, $user),
+            // Item auto reject & aksi Open: pengaju bisa minta, reviewer (GM) bisa membuka.
+            'auto_rejected_item_ids' => $autoRejected,
+            'pending_open_item_ids' => $proposal->overrideRequests()->where('status', ApprovalOverrideRequest::STATUS_PENDING)->pluck('dpl_item_id')->all(),
+            'can_request_open' => $autoRejected !== [] && $proposal->created_by_user_id === $user->id,
+            'can_review_open' => $autoRejected !== [] && $approvals->isOverrideReviewer($user),
+        ];
     }
 }

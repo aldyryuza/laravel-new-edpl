@@ -850,6 +850,98 @@ $(function () {
         saveDraft();
     });
 
+    // ---- Open item yang ditolak otomatis (pengaju minta, GM membuka) ----
+
+    function renderOpenPanel(proposal) {
+        const $panel = $('#approval-open');
+        const autoIds = proposal.auto_rejected_item_ids || [];
+        const pendingIds = proposal.pending_open_item_ids || [];
+
+        if (autoIds.length === 0 || (!proposal.can_request_open && !proposal.can_review_open)) {
+            $panel.addClass('d-none').empty();
+            return;
+        }
+
+        const rows = autoIds.map(id => {
+            const pending = pendingIds.includes(id);
+            let buttons = '';
+
+            if (proposal.can_request_open && !pending) {
+                buttons += `<button type="button" class="btn btn-xs btn-warning btn-open-request" data-id="${id}">Minta Open</button> `;
+            }
+            if (proposal.can_review_open) {
+                buttons += `<button type="button" class="btn btn-xs btn-success btn-open-review" data-id="${id}" data-approve="1">Open</button> `;
+                if (pending) {
+                    buttons += `<button type="button" class="btn btn-xs btn-label-danger btn-open-review" data-id="${id}" data-approve="0">Tolak Permintaan</button>`;
+                }
+            }
+
+            return `<li class="mb-1">Item ${App.escape(itemNumber(id))}${pending ? ' <span class="badge bg-label-info">permintaan Open menunggu</span>' : ''} ${buttons}</li>`;
+        }).join('');
+
+        $panel.removeClass('d-none').html(`<div class="fw-medium mb-2">Item ditolak otomatis (melewati batas kalkulator):</div><ul class="mb-0 ps-4">${rows}</ul>`);
+    }
+
+    $(document).on('click', '#approval-open .btn-open-request', function () {
+        const itemId = $(this).data('id');
+
+        Swal.fire({
+            title: 'Minta Open',
+            input: 'textarea',
+            inputLabel: 'Alasan',
+            showCancelButton: true,
+            confirmButtonText: 'Kirim',
+            cancelButtonText: 'Batal',
+            inputValidator: value => (value && value.trim() ? null : 'Alasan wajib diisi.')
+        }).then(result => {
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            $.ajax({
+                url: App.url(`api/dpl/proposals/${proposalId}/override-request`),
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ item_id: itemId, reason: result.value })
+            })
+                .done(res => {
+                    App.notify('success', res.message);
+                    fill(res.data);
+                })
+                .fail(xhr => App.handleError(xhr));
+        });
+    });
+
+    $(document).on('click', '#approval-open .btn-open-review', function () {
+        const itemId = $(this).data('id');
+        const approve = $(this).data('approve') === 1;
+
+        Swal.fire({
+            title: approve ? 'Open item?' : 'Tolak permintaan Open?',
+            input: 'textarea',
+            inputLabel: 'Catatan (opsional)',
+            showCancelButton: true,
+            confirmButtonText: approve ? 'Open' : 'Tolak',
+            cancelButtonText: 'Batal'
+        }).then(result => {
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            $.ajax({
+                url: App.url(`api/dpl/proposals/${proposalId}/override`),
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ item_ids: [itemId], approve, reason: result.value || null })
+            })
+                .done(res => {
+                    App.notify('success', res.message);
+                    fill(res.data);
+                })
+                .fail(xhr => App.handleError(xhr));
+        });
+    });
+
     // ---- Ajukan & status ----
 
     const $submitProposal = $('#btn-submit-proposal');
@@ -907,7 +999,9 @@ $(function () {
     const canApprove = $approvalCard.data('can-approve') === 1;
     const $approvalForm = $('#approval-form');
     const approvalModal = $approvalForm.length ? bootstrap.Modal.getOrCreateInstance(document.getElementById('approval-modal')) : null;
-    const ACTION_LABELS = { APPROVE: ['success', 'Approve'], REJECT: ['danger', 'Reject'], AUTO_REJECT: ['danger', 'Auto Reject'] };
+    const ACTION_LABELS = {
+        APPROVE: ['success', 'Approve'], REJECT: ['danger', 'Reject'], AUTO_REJECT: ['danger', 'Auto Reject'], OVERRIDE: ['info', 'Open']
+    };
     let actionableIds = [];
     let pendingAction = null;
     let approvalRequest = null;
@@ -1098,8 +1192,14 @@ $(function () {
         loadPricing();
 
         savedPayload = JSON.stringify(payload());
-        $submitProposal.toggleClass('d-none', !(canSave && proposal.can_edit && proposal.items.length > 0));
+        // Ajukan hanya untuk draft; DPL yang sudah diajukan disimpan sebagai "Simpan & Ajukan Ulang".
+        const isDraft = proposal.proposal_status === 'DRAFT';
+        $submitProposal.toggleClass('d-none', !(canSave && isDraft && proposal.can_edit && proposal.items.length > 0));
+        $submit.html(isDraft
+            ? '<i class="icon-base bx bx-save me-1"></i> Simpan Draft'
+            : '<i class="icon-base bx bx-revision me-1"></i> Simpan &amp; Ajukan Ulang');
         loadApproval(proposal);
+        renderOpenPanel(proposal);
     }
 
     if (proposalId) {

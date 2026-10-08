@@ -69,6 +69,17 @@ return [
         '25ml' => 25,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Reviewer "Open" item yang ditolak otomatis
+    |--------------------------------------------------------------------------
+    |
+    | Nama role approver (approver_assignments) yang boleh membuka item auto reject (legacy: GM).
+    |
+    */
+
+    'override_reviewer_role' => env('DPL_OVERRIDE_REVIEWER_ROLE', 'GM'),
+
     'product_groups' => [
         'IV CAT WING',
         'IV CAT PEN',

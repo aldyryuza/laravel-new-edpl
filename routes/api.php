@@ -116,6 +116,8 @@ Route::prefix('dpl')->name('dpl.')->group(function () {
     Route::get('proposals/{proposal}/approval', [DplProposalController::class, 'approval'])->name('proposals.approval');
     Route::post('proposals/{proposal}/approve', [DplProposalController::class, 'approve'])->name('proposals.approve');
     Route::post('proposals/{proposal}/reject', [DplProposalController::class, 'reject'])->name('proposals.reject');
+    Route::post('proposals/{proposal}/override-request', [DplProposalController::class, 'requestOverride'])->name('proposals.override-request');
+    Route::post('proposals/{proposal}/override', [DplProposalController::class, 'reviewOverride'])->name('proposals.override');
     Route::apiResource('proposals', DplProposalController::class)->except('index');
 
     // Aturan jalur approval item

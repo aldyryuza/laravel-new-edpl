@@ -166,6 +166,8 @@
                     </button>
                 </div>
             </div>
+            {{-- Item ditolak otomatis: pengaju bisa minta Open, reviewer (GM) bisa membuka / menolak permintaan. --}}
+            <div class="alert alert-warning m-4 d-none" id="approval-open" role="alert"></div>
             <div class="table-responsive">
                 <table class="table table-sm table-bordered mb-0" id="approval-matrix">
                     <thead></thead>

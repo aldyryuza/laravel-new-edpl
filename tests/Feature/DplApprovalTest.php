@@ -232,6 +232,56 @@ class DplApprovalTest extends TestCase
         $this->assertDatabaseCount('dpl.approval_instances', 0);
     }
 
+    public function test_proposer_edits_rejected_dpl_via_put_and_it_is_resubmitted(): void
+    {
+        $proposal = $this->draft(['25']);
+        $this->submit($proposal)->assertOk()->assertJsonPath('data.proposal_status', DplProposal::STATUS_REJECTED)
+            ->assertJsonPath('data.can_edit', true)
+            ->assertJsonPath('data.can_request_open', true);
+
+        $item = $proposal->items()->with('terms')->sole();
+        $payload = [
+            'proposal_type' => 'NORMAL',
+            'date_start' => '2026-10-15',
+            'date_end' => '2026-12-31',
+            'is_contract' => false,
+            'items' => [[
+                'id' => $item->id,
+                'product_id' => $item->product_id,
+                'distributor_id' => $item->distributor_id,
+                'minimum_order' => 200,
+                'principle_discount_on' => '10',
+                'margin' => '5',
+            ]],
+        ];
+
+        $this->actingAs($this->proposer)->putJson("/api/dpl/proposals/{$proposal->id}", $payload)
+            ->assertOk()
+            ->assertJsonPath('data.proposal_status', DplProposal::STATUS_IN_APPROVAL);
+        $this->assertSame(1, $proposal->revisions()->count());
+
+        // Selama approval, pengaju tidak bisa edit lagi.
+        $this->actingAs($this->proposer)->putJson("/api/dpl/proposals/{$proposal->id}", $payload)->assertForbidden();
+    }
+
+    public function test_open_request_and_gm_review_via_api(): void
+    {
+        $proposal = $this->draft(['25']);
+        $this->submit($proposal)->assertOk();
+        $itemId = $proposal->items()->value('id');
+
+        $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$proposal->id}/override-request", ['item_id' => $itemId])
+            ->assertUnprocessable()->assertJsonValidationErrors('reason');
+        $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$proposal->id}/override-request", ['item_id' => $itemId, 'reason' => 'Program RS'])
+            ->assertOk()->assertJsonPath('data.pending_open_item_ids', [$itemId]);
+
+        $this->actingAs($this->approvers['RM'])->postJson("/api/dpl/proposals/{$proposal->id}/override", ['item_ids' => [$itemId], 'approve' => true])
+            ->assertUnprocessable();
+        $this->actingAs($this->approvers['GM'])->getJson("/api/dpl/proposals/{$proposal->id}")->assertJsonPath('data.can_review_open', true);
+        $this->actingAs($this->approvers['GM'])->postJson("/api/dpl/proposals/{$proposal->id}/override", ['item_ids' => [$itemId], 'approve' => true])
+            ->assertOk()->assertJsonPath('data.proposal_status', DplProposal::STATUS_IN_APPROVAL);
+    }
+
     public function test_future_start_activates_on_date_start_and_expires_after_date_end(): void
     {
         $proposal = $this->draft(['5'], ['date_start' => '2026-11-01', 'date_end' => '2026-11-30']);
