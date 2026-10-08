@@ -9,7 +9,11 @@ use App\Http\Controllers\Web\DistributorController;
 use App\Http\Controllers\Web\Dpl\ApproverAssignmentController;
 use App\Http\Controllers\Web\Dpl\BonusSchemeController;
 use App\Http\Controllers\Web\Dpl\CommercialParameterController;
+use App\Http\Controllers\Web\Dpl\DistributorLogisticRateController;
+use App\Http\Controllers\Web\Dpl\DistributorMarginOverrideController;
+use App\Http\Controllers\Web\Dpl\DistributorMarginRuleController;
 use App\Http\Controllers\Web\Dpl\DplProposalController;
+use App\Http\Controllers\Web\Dpl\ProductMarginOverrideController;
 use App\Http\Controllers\Web\Dpl\ProductPriceController;
 use App\Http\Controllers\Web\Dpl\ProductPriceOverrideController;
 use App\Http\Controllers\Web\ExampleController;
@@ -131,5 +135,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/commercial-parameters', [CommercialParameterController::class, 'index'])
             ->middleware('can:commercial-parameters.read')
             ->name('commercial-parameters.index');
+        Route::get('/distributor-margin-rules', [DistributorMarginRuleController::class, 'index'])
+            ->middleware('can:distributor-margin-rules.read')
+            ->name('distributor-margin-rules.index');
+        Route::get('/distributor-margin-overrides', [DistributorMarginOverrideController::class, 'index'])
+            ->middleware('can:distributor-margin-overrides.read')
+            ->name('distributor-margin-overrides.index');
+        Route::get('/product-margin-overrides', [ProductMarginOverrideController::class, 'index'])
+            ->middleware('can:product-margin-overrides.read')
+            ->name('product-margin-overrides.index');
+        Route::get('/distributor-logistic-rates', [DistributorLogisticRateController::class, 'index'])
+            ->middleware('can:distributor-logistic-rates.read')
+            ->name('distributor-logistic-rates.index');
     });
 });

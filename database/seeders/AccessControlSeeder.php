@@ -83,6 +83,10 @@ class AccessControlSeeder extends Seeder
                 ['code' => 'special-prices', 'title' => 'Harga Khusus', 'icon' => 'bx bx-badge-check', 'route' => 'dpl.special-prices.index', 'sort_order' => 2],
                 ['code' => 'bonus-schemes', 'title' => 'Skema Bonus', 'icon' => 'bx bx-gift', 'route' => 'dpl.bonus-schemes.index', 'sort_order' => 3],
                 ['code' => 'commercial-parameters', 'title' => 'Parameter Komersial', 'icon' => 'bx bx-slider-alt', 'route' => 'dpl.commercial-parameters.index', 'sort_order' => 4],
+                ['code' => 'distributor-margin-rules', 'title' => 'Margin Khusus Product', 'icon' => 'bx bx-package', 'route' => 'dpl.distributor-margin-rules.index', 'sort_order' => 5],
+                ['code' => 'distributor-margin-overrides', 'title' => 'Margin Khusus Outlet', 'icon' => 'bx bx-store', 'route' => 'dpl.distributor-margin-overrides.index', 'sort_order' => 6],
+                ['code' => 'product-margin-overrides', 'title' => 'Override Margin Product', 'icon' => 'bx bx-transfer-alt', 'route' => 'dpl.product-margin-overrides.index', 'sort_order' => 7],
+                ['code' => 'distributor-logistic-rates', 'title' => 'Tarif Logistic Distributor', 'icon' => 'bx bx-car', 'route' => 'dpl.distributor-logistic-rates.index', 'sort_order' => 8],
             ]],
             ['code' => 'settings', 'title' => 'Pengaturan', 'icon' => 'bx bx-cog', 'route' => null, 'sort_order' => 99, 'children' => [
                 ['code' => 'users', 'title' => 'User', 'icon' => 'bx bx-user', 'route' => 'users.index', 'sort_order' => 1],

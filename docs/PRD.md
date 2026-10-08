@@ -357,7 +357,7 @@ Sistem harus:
 | BR-036 | Product item DPL dipilih lewat radio: **Satuan** (default; satu product dicari, HNA - Disc On & HNA+PPN - Disc On langsung tampil di modal) atau **Group** (1L, 500ml, 250ml, 100ml, 25ml dari volume; IV CAT WING, IV CAT PEN dari master Product; semua product di group otomatis terpilih, tombol Pilih semua/Kosongkan, HNA tampil di tabel setelah disimpan); satu product = satu item dengan syarat yang sama; product tanpa group tidak bisa diajukan | User confirmation | Confirmed |
 | BR-032 | Discount Share Principle OFF diisi -> buyer reward otomatis dicentang | User confirmation | Confirmed |
 | BR-033 | Item Direct wajib logistic fee (boleh 0); Ambil Dari Pabrik -> logistic fee 0; Direct dan Ambil Dari Pabrik tidak boleh bersamaan (boleh keduanya tidak) | User confirmation | Confirmed |
-| BR-034 | Margin item otomatis dari distributor, dengan margin khusus per outlet (legacy `dpl_distributor_spesial_margin_outlet`), per product (legacy `dpl_distributor_margin`), dan product alkes (IV CAT PEN, WING, Infusion) = 10 bila diajukan Tim B | User confirmation | Pending struktur legacy |
+| BR-034 | Margin & logistic fee item terisi otomatis (bisa diubah) mengikuti aturan legacy yang dikonfirmasi: margin khusus product per grup distributor, margin Tim B, margin khusus outlet, aturan Direct KFTD 9/11 dan Instansi Jawa 3 / luar Jawa 5, override margin per product (non-Direct), logistic fee per kota / tarif grup+kota / nasional 6 / ÷3 untuk 25ml & produk tim B; lihat docs/Schema.md | Legacy E-DPL (kode) + user confirmation | Confirmed |
 | BR-028 | Team DPL diambil dari team pada penugasan Wilayah User pembuat; bila user punya lebih dari satu team, dipilih saat membuat draft | User confirmation | Confirmed |
 
 ## 9. Workflow
@@ -513,7 +513,7 @@ Jangan implementasikan integration behavior yang masih `TBD` tanpa konfirmasi.
 - [ ] Exact transition matrix untuk rejection dari RM/NSM/GM/SMD/DMD dan siapa yang dapat edit pada tiap state harus difinalkan sebelum approval service dibuat.
 - [ ] Field clearance ED dekat yang harus menjadi structured columns vs cukup remark/attachment.
 - [x] Apakah satu outlet boleh memiliki lebih dari satu active outlet group membership pada waktu yang sama. **Tidak: satu group aktif per outlet, histori tetap disimpan.**
-- [ ] Exact distributor margin special-case yang masih digunakan di production.
+- [x] Exact distributor margin special-case yang masih digunakan di production. **Resolved 2026-10-08** dari kode legacy + konfirmasi user (BR-034).
 - [ ] Exact NetSuite integration scope pada E-DPL baru.
 - [ ] Password migration strategy dari legacy user bila hash legacy tidak compatible dengan Laravel hash current.
 - [ ] Data cleanup hasil audit legacy untuk NIK duplicate/null sebelum cutover.

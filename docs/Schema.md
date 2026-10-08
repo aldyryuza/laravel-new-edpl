@@ -275,6 +275,7 @@ Master provinsi (master bersama). Kode = kode wilayah BPS tanpa titik, mis. `82`
 | `id` | bigint | No | PK |
 | `code` | varchar(10) | No | UNIQUE |
 | `name` | varchar(100) | No | |
+| `is_java` | boolean | No | default false; Pulau Jawa (margin DPL Direct ke outlet Instansi). Backfill: nama mengandung JAWA/BANTEN/JAKARTA/YOGYAKARTA |
 | `is_active` | boolean | No | default true |
 | timestamps | timestamp | Yes | |
 
@@ -288,6 +289,7 @@ Master kota/kabupaten (master bersama). Kode = kode wilayah BPS tanpa titik, mis
 | `code` | varchar(10) | No | UNIQUE |
 | `name` | varchar(100) | No | |
 | `province_id` | bigint | No | FK `provinces.id`, RESTRICT |
+| `logistic_fee` | numeric(10,4) | Yes | logistic fee DPL (%) distributor di kota ini (legacy `dpl_country_city.logistic_fee`) |
 | `is_active` | boolean | No | default true |
 | timestamps | timestamp | Yes | |
 
@@ -379,6 +381,8 @@ Satu outlet maksimal **satu keanggotaan aktif** (decision #3). Aktif = `valid_un
 | `name` | varchar(255) | No | legacy `PNAME` |
 | `volume` | numeric(10,4) | Yes | grouping UI berdasarkan nilai ini |
 | `product_group` | varchar(50) | Yes | index; group manual non-volume, nilai dari `config('dpl.product_groups')` (IV CAT WING, IV CAT PEN) |
+| `is_team_b_product` | boolean | No | default false; produk tim B yang dijual tim A (legacy I0005, IV0001–IV0010): batas kalkulator Tim B, logistic fee dibagi |
+| `calculator_limit` | numeric(10,4) | Yes | batas kalkulator DPL khusus (%), legacy `DPL_ITEM_BATAS_KALKULATOR_KHUSUS` (G0012/13/14 = 30); menang atas batas team |
 | `is_branded` | boolean | No | default false |
 | `is_active` | boolean | No | default true |
 | `netsuite_id` | varchar(255) | Yes | external identifier |
@@ -403,6 +407,9 @@ Tidak membuat tabel `product_groups` hanya untuk volume. Group product di form D
 | `latitude` | numeric(10,7) | Yes | legacy `LATITUDE`; lokasi monthly meeting CRM |
 | `longitude` | numeric(10,7) | Yes | legacy `LONGITUDE` |
 | `meeting_radius_meters` | integer | Yes | legacy `RADIUS` (meter), CHECK `>= 0` |
+| `margin` | numeric(10,4) | Yes | margin dasar DPL (%), legacy `margin` |
+| `margin_team_b` | numeric(10,4) | Yes | margin DPL Tim B (%), legacy `margin_tim_b`; kosong = pakai `margin` |
+| `is_special_case_margin` | boolean | No | default false; punya margin khusus per outlet (`dpl.distributor_margin_overrides`) |
 | `is_branch` | boolean | No | default false |
 | `parent_distributor_id` | bigint | Yes | self FK, RESTRICT |
 | `is_active` | boolean | No | default true |
@@ -499,31 +506,83 @@ MIN_MONTHLY_ORDER = 200
 MAX_PROGRAM_MONTHS = 12
 ```
 
-### `distributor_margin_rules`
+### `distributor_margin_rules` (schema `dpl`)
 
-Target replacement for legacy `dpl_distributor_margin`. Exact columns should be implemented only after legacy data/use-case review. Minimum conceptual fields:
+Margin khusus product per grup distributor (legacy `dpl_distributor_margin`; data legacy hanya produk 25ml, margin 7 / Kimia Farma 12, berlaku semua kota). Menang atas margin dasar distributor, termasuk margin Tim B.
 
-```text
-id
-product_id nullable/required after review
-distributor_group_code or distributor_id
-volume nullable
-region/city scope nullable
-is_direct nullable
-margin numeric
-valid_from/valid_until
-note
-is_active
-timestamps
-```
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `distributor_group_code` | varchar(50) | No | `distributors.group_code` |
+| `product_id` | bigint | No | FK `products.id`, RESTRICT |
+| `city_id` | bigint | Yes | FK `cities.id`, RESTRICT; null = semua kota (aturan kota distributor menang atas semua kota) |
+| `margin` | numeric(10,4) | No | % |
+| `note` | text | Yes | |
+| `is_active` | boolean | No | default true |
+| timestamps | timestamp | Yes | |
 
-**Status: design pending legacy rule confirmation. Do not generate this migration if exact semantics are not yet clear.**
+UNIQUE `(distributor_group_code, product_id, COALESCE(city_id, 0))`. Fitur legacy `shipping_branch`/`shipping_hq` tidak dibawa (data legacy tidak memakainya).
 
-### `distributor_margin_overrides`
+### `distributor_margin_overrides` (schema `dpl`)
 
-Target replacement for `dpl_distributor_spesial_margin_outlet`. Exact structure pending business usage confirmation.
+Margin khusus outlet (legacy `dpl_distributor_spesial_margin_outlet`). Berlaku bila `distributors.is_special_case_margin`, team pengaju tidak ada di parameter `OUTLET_MARGIN_EXCLUDED_TEAMS` (default `B`), dan product bukan volume `SMALL_VOLUME_ML` (25).
 
-**Status: design pending.**
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `distributor_id` | bigint | No | FK `distributors.id`, RESTRICT |
+| `outlet_id` | bigint | No | FK `outlets.id`, RESTRICT, index |
+| `margin` | numeric(10,4) | No | % |
+| `note` | text | Yes | |
+| `is_active` | boolean | No | default true |
+| timestamps | timestamp | Yes | |
+
+UNIQUE `(distributor_id, outlet_id)`.
+
+### `product_margin_overrides` (schema `dpl`)
+
+Override margin per product (legacy `dpl_config` `DPL_PRODUCT_MARGIN_OVERRIDE`), diterapkan terakhir hanya untuk item non-Direct. Urutan cocok: team + grup, team, grup, semua.
+
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `product_id` | bigint | No | FK `products.id`, RESTRICT, index |
+| `distributor_group_code` | varchar(50) | Yes | null = semua grup |
+| `team_code` | varchar(20) | Yes | null = semua team |
+| `margin` | numeric(10,4) | No | % |
+| `note` | text | Yes | |
+| `is_active` | boolean | No | default true |
+| timestamps | timestamp | Yes | |
+
+UNIQUE `(product_id, COALESCE(distributor_group_code, ''), COALESCE(team_code, ''))`. Data legacy: `I0005`, `IV0001`, `IV0002` = 10 (semua); `G0018` SDL = 11, `G0018` Tim A = 11.
+
+### `distributor_logistic_rates` (schema `dpl`)
+
+Tarif logistic fee (%) khusus grup distributor + kota (pengganti legacy `DPL_UDC_LOGISTIC_PER_AREA`, mis. UDC DKI Jakarta 3,5). Menang atas `cities.logistic_fee`; distributor nasional tetap memakai tarif nasional.
+
+| Column | Type | Nullable | Constraint/Note |
+|---|---|---:|---|
+| `id` | bigint | No | PK |
+| `distributor_group_code` | varchar(50) | No | |
+| `city_id` | bigint | No | FK `cities.id`, RESTRICT |
+| `logistic_fee` | numeric(10,4) | No | % |
+| `note` | text | Yes | |
+| `is_active` | boolean | No | default true |
+| timestamps | timestamp | Yes | |
+
+UNIQUE `(distributor_group_code, city_id)`.
+
+### Aturan nilai awal Margin & Logistic Fee item DPL
+
+Dihitung di server (`App\Services\Dpl\DplItemDefaults`, `GET api/dpl/proposals/item-defaults`), mengisi form; user tetap bisa mengubah. Angka bisnis dari parameter komersial (di-seed `CommercialParameterSeeder`).
+
+Margin, berurutan:
+1. Mode Group -> 0.
+2. `distributor_margin_rules` (grup distributor + product + kota distributor / semua kota); bila tidak ada: `distributors.margin` (Tim B: `margin_team_b` bila diisi).
+3. `distributor_margin_overrides` (lihat syaratnya di atas).
+4. Direct: grup `KFTD_DISTRIBUTOR_GROUP` -> `DIRECT_MARGIN_KFTD_INSTANSI` (9) bila outlet kategori `INSTANSI_CATEGORY_CODE`, selain itu `DIRECT_MARGIN_KFTD_OTHER` (11); non-KFTD + outlet Instansi -> `DIRECT_MARGIN_INSTANSI_JAVA` (3) bila provinsi kota distributor `is_java`, selain itu `..._OUTSIDE_JAVA` (5). Bukan Direct: `product_margin_overrides`. Tidak ada pengurangan "nilai direct delivery" (di legacy tidak pernah berjalan).
+
+Logistic Fee (hanya Direct; Ambil Dari Pabrik = 0; via distributor = kosong): `distributor_logistic_rates` -> `cities.logistic_fee` kota distributor -> kota `DEFAULT_LOGISTIC_CITY_CODE` (3216); grup di `NATIONAL_DISTRIBUTOR_GROUPS` (KFTD, UDC, SDL, PPI) -> `NATIONAL_DISTRIBUTOR_LOGISTIC_FEE` (6); product volume `SMALL_VOLUME_ML` atau `is_team_b_product` -> dibagi `SPECIAL_LOGISTIC_DIVISOR` (3), 2 desimal.
 
 ## 9. DPL core
 
@@ -1170,7 +1229,7 @@ product_price_overrides
 commercial_parameters
 ```
 
-Do **not** create distributor margin rule tables until pending semantics are resolved.
+Tabel aturan margin/logistic dibuat setelah aturan legacy dikonfirmasi (migration `2026_10_08_000061`–`000064`).
 
 ### Phase 1C - DPL core
 
@@ -1284,7 +1343,7 @@ Do not seed production-private users/approver assignments into source control.
 
 Do not let coding agent invent these:
 
-1. Exact distributor margin rule/override columns and precedence.
+1. ~~Exact distributor margin rule/override columns and precedence.~~ **Resolved** (2026-10-08): lihat "Aturan nilai awal Margin & Logistic Fee item DPL".
 2. Exact rejection transition matrix and whether reject taxonomy master is still required.
 3. ~~Whether active outlet group membership must be singular.~~ **Resolved:** satu keanggotaan aktif per outlet (user confirmation).
 4. Structured clearance batch/expired-date table vs remark/attachment.
