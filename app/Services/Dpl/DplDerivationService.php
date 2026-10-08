@@ -20,11 +20,15 @@ use Illuminate\Validation\ValidationException;
  *   Direct (input manual) dipertahankan. Item yang tetap sama persis dengan sumber mempertahankan approval saat
  *   amendment diajukan (lihat DplApprovalService::submit); item berubah / baru melewati approval ulang.
  * - Sumber tidak diubah; saat DPL baru aktif, sumber (aktif) menjadi SUPERSEDED.
+ * - Konsolidasi: AMENDMENT bila periode berjalan & minimal satu DPL outlet aktif; mode, group RS, outlet disalin.
+ *   Outlet (termasuk Kontrak / 25% Bed) berubah dari sumber = semua item approval ulang. Setelah approved dipecah lagi;
+ *   DPL outlet lama digantikan per outlet, outlet yang dihapus tetap memakai DPL lamanya sampai Date End.
  */
 class DplDerivationService
 {
     public function __construct(
         private DplDraftService $drafts,
+        private DplConsolidationService $consolidations,
         private DplItemDefaults $defaults,
     ) {}
 
@@ -36,9 +40,10 @@ class DplDerivationService
         $today = CarbonImmutable::now(config('dpl.timezone'))->toDateString();
         $this->authorizeSource($source, $user);
 
-        if ($source->program_status !== DplProposal::PROGRAM_ACTIVE
-            || $source->date_start->toDateString() > $today || $source->date_end->toDateString() < $today) {
-            throw ValidationException::withMessages(['proposal' => 'Make a Copy hanya untuk DPL yang program-nya aktif dan periodenya sedang berjalan.']);
+        if (! $this->isAmendable($source, $today)) {
+            throw ValidationException::withMessages(['proposal' => $source->isConsolidation()
+                ? 'Make a Copy konsolidasi hanya bila periodenya sedang berjalan dan minimal satu DPL outlet masih aktif.'
+                : 'Make a Copy hanya untuk DPL yang program-nya aktif dan periodenya sedang berjalan.']);
         }
 
         return $this->derive($source, $user, DplRelation::TYPE_AMENDMENT, $today, $source->date_end->toDateString());
@@ -78,6 +83,26 @@ class DplDerivationService
     }
 
     /**
+     * Syarat Make a Copy (selain pemilik & approved): periode berjalan dan program aktif; konsolidasi (induk tidak
+     * pernah aktif): minimal satu DPL outlet hasil pecahan masih aktif.
+     */
+    public function isAmendable(DplProposal $source, string $today): bool
+    {
+        if ($source->date_start->toDateString() > $today || $source->date_end->toDateString() < $today) {
+            return false;
+        }
+
+        if (! $source->isConsolidation()) {
+            return $source->program_status === DplProposal::PROGRAM_ACTIVE;
+        }
+
+        return DplProposal::query()
+            ->whereIn('id', $source->outgoingRelations()->where('relation_type', DplRelation::TYPE_CONSOLIDATION_CHILD)->select('target_dpl_id'))
+            ->where('program_status', DplProposal::PROGRAM_ACTIVE)
+            ->exists();
+    }
+
+    /**
      * DPL sumber amendment (null bila bukan amendment).
      */
     public function amendmentSource(DplProposal $proposal): ?DplProposal
@@ -91,24 +116,37 @@ class DplDerivationService
 
     private function derive(DplProposal $source, User $user, string $type, string $dateStart, string $dateEnd): DplProposal
     {
-        $source->load(['outlet.area.region.zone', 'items.terms', 'items.product']);
+        $source->load(['outlet.area.region.zone', 'items.terms', 'items.product', 'consolidation.outlets']);
         $outlet = $source->outlet;
 
-        if (! $outlet->is_active || $outlet->area?->region?->zone === null) {
+        if (! $source->isConsolidation() && (! $outlet->is_active || $outlet->area?->region?->zone === null)) {
             throw ValidationException::withMessages(['proposal' => 'Outlet DPL sumber sudah tidak aktif atau belum memiliki area/region/zona.']);
         }
 
         $items = $source->items->map(fn (DplItem $item) => $this->recalculatedItem($item, $source))->values()->all();
 
         return DB::transaction(function () use ($source, $user, $type, $dateStart, $dateEnd, $outlet, $items): DplProposal {
-            $proposal = $this->drafts->create($user, $outlet, $source->team_code, [
+            $header = [
                 'proposal_type' => $source->proposal_type,
                 'date_start' => $dateStart,
                 'date_end' => $dateEnd,
                 'is_contract' => $source->is_contract,
                 'bed_order_minimum' => $source->bed_order_minimum,
                 'description' => $source->description,
-            ], $items);
+            ];
+
+            // Konsolidasi: mode, group RS, dan outlet (Kontrak, 25% Bed) disalin; bisa diubah di draft.
+            $proposal = $source->isConsolidation()
+                ? $this->consolidations->create($user, $source->team_code, $header, [
+                    'mode' => $source->consolidation->mode,
+                    'outlet_group_id' => $source->consolidation->outlet_group_id,
+                    'outlets' => $source->consolidation->outlets->sortBy('id')->map(fn ($row) => [
+                        'outlet_id' => $row->outlet_id,
+                        'is_contract' => $row->is_contract,
+                        'bed_order_minimum' => $row->bed_order_minimum,
+                    ])->values()->all(),
+                ], $items)
+                : $this->drafts->create($user, $outlet, $source->team_code, $header, $items);
 
             DplRelation::query()->create([
                 'source_dpl_id' => $source->id,

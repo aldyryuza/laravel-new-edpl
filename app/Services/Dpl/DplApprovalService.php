@@ -63,7 +63,10 @@ class DplApprovalService
             $this->ensureConsolidationPics($proposal);
             $source = app(DplDerivationService::class)->amendmentSource($proposal);
 
-            if ($source === null) {
+            $consolidations = app(DplConsolidationService::class);
+
+            // Amendment konsolidasi dengan outlet berubah (tambah/hapus, Kontrak, 25% Bed): semua item approval ulang.
+            if ($source === null || ($proposal->isConsolidation() && $consolidations->outletSnapshot($proposal) != $consolidations->outletSnapshot($source))) {
                 $this->startInstance($proposal, $user);
             } else {
                 // Amendment: item yang sama persis dengan item sumber mewarisi approval sumber (tanpa cek ulang

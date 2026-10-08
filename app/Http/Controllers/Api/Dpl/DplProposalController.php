@@ -597,11 +597,8 @@ class DplProposalController extends Controller implements HasMiddleware
         $today = CarbonImmutable::now(config('dpl.timezone'))->toDateString();
 
         return $proposal->created_by_user_id === $user->id
-            && ! $proposal->isConsolidation()
             && $proposal->proposal_status === DplProposal::STATUS_APPROVED
-            && $proposal->program_status === DplProposal::PROGRAM_ACTIVE
-            && $proposal->date_start->toDateString() <= $today
-            && $proposal->date_end->toDateString() >= $today;
+            && app(DplDerivationService::class)->isAmendable($proposal, $today);
     }
 
     private function ensureEditable(Request $request, DplProposal $proposal): void
@@ -633,8 +630,7 @@ class DplProposalController extends Controller implements HasMiddleware
             'can_review_open' => $autoRejected !== [] && $approvals->isOverrideReviewer($user),
             // Make a Copy / Duplicate (hanya pemilik DPL approved) dan asal-usul DPL ini.
             'can_amend' => $this->canAmend($proposal, $user),
-            // Make a Copy / Duplicate konsolidasi belum tersedia.
-            'can_renew' => $proposal->created_by_user_id === $user->id && ! $proposal->isConsolidation() && $proposal->proposal_status === DplProposal::STATUS_APPROVED,
+            'can_renew' => $proposal->created_by_user_id === $user->id && $proposal->proposal_status === DplProposal::STATUS_APPROVED,
             'derived_from' => $proposal->incomingRelations()->with('source:id,dpl_number')->get()
                 ->map(fn ($relation) => ['type' => $relation->relation_type, 'id' => $relation->source_dpl_id, 'dpl_number' => $relation->source?->dpl_number])
                 ->first(),

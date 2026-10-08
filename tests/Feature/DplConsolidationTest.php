@@ -359,6 +359,112 @@ class DplConsolidationTest extends TestCase
         $this->assertSame(['APPROVED'], $steps->flatMap(fn (array $step) => array_column($step['item_states'], 'status'))->unique()->values()->all());
     }
 
+    /**
+     * Konsolidasi manual 2 outlet yang sudah approved & dipecah (periode berjalan).
+     */
+    private function approvedConsolidation(): DplProposal
+    {
+        $id = $this->create($this->payload([
+            ['outlet_id' => $this->outlet->id, 'is_contract' => true],
+            ['outlet_id' => $this->outletNoBed->id, 'bed_order_minimum' => '5'],
+        ]))->json('data.id');
+        $proposal = DplProposal::query()->findOrFail($id);
+        $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$id}/submit")->assertOk();
+        $this->approveAll($proposal);
+
+        return $proposal->fresh();
+    }
+
+    /**
+     * @return array<int, DplProposal> outlet_id => DPL outlet
+     */
+    private function children(DplProposal $proposal): array
+    {
+        return $proposal->consolidation->outlets()->with('generatedDpl')->get()
+            ->mapWithKeys(fn ($row) => [$row->outlet_id => $row->generatedDpl])->all();
+    }
+
+    public function test_make_a_copy_without_changes_is_approved_and_split_again_replacing_old_children(): void
+    {
+        $source = $this->approvedConsolidation();
+        $old = $this->children($source);
+
+        $this->actingAs($this->proposer)->getJson("/api/dpl/proposals/{$source->id}")
+            ->assertJsonPath('data.can_amend', true)
+            ->assertJsonPath('data.can_renew', true);
+
+        $copyId = $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$source->id}/amend")->assertCreated()->json('data.id');
+        $copy = DplProposal::query()->findOrFail($copyId);
+        $this->assertSame(DplProposal::TYPE_CONSOLIDATION, $copy->proposal_type);
+        $this->assertStringEndsWith('-C', $copy->dpl_number);
+        $this->assertSame($source->consolidation->outlets()->pluck('outlet_id')->sort()->values()->all(), $copy->consolidation->outlets()->pluck('outlet_id')->sort()->values()->all());
+        $this->assertTrue($copy->consolidation->outlets()->where('outlet_id', $this->outlet->id)->value('is_contract'));
+
+        // Outlet & item tidak berubah: approval diwarisi -> langsung approved & dipecah.
+        $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$copyId}/submit")
+            ->assertOk()
+            ->assertJsonPath('data.proposal_status', DplProposal::STATUS_APPROVED);
+
+        foreach ($this->children($copy->fresh()) as $outletId => $child) {
+            $this->assertSame(DplProposal::PROGRAM_ACTIVE, $child->program_status);
+            $this->assertSame(DplProposal::PROGRAM_SUPERSEDED, $old[$outletId]->fresh()->program_status);
+        }
+    }
+
+    public function test_make_a_copy_with_removed_outlet_requires_full_approval_and_keeps_removed_outlet_active(): void
+    {
+        $source = $this->approvedConsolidation();
+        $old = $this->children($source);
+        $copyId = $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$source->id}/amend")->assertCreated()->json('data.id');
+        $copy = DplProposal::query()->findOrFail($copyId);
+
+        $payload = $this->payload([['outlet_id' => $this->outlet->id, 'is_contract' => true]]);
+        unset($payload['date_start'], $payload['date_end']);
+        $payload['items'] = $copy->items()->with('terms')->get()->map(fn ($item) => [
+            'id' => $item->id,
+            'product_id' => $item->product_id,
+            'distributor_id' => $item->distributor_id,
+            'minimum_order' => $item->minimum_order,
+            ...$item->terms->only(['principle_discount_on', 'margin', 'logistic_fee']),
+        ])->all();
+        $this->actingAs($this->proposer)->putJson("/api/dpl/proposals/{$copyId}", $payload)->assertOk();
+
+        $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$copyId}/submit")
+            ->assertOk()
+            ->assertJsonPath('data.proposal_status', DplProposal::STATUS_IN_APPROVAL);
+
+        $this->approveAll($copy);
+
+        $this->assertSame(DplProposal::PROGRAM_SUPERSEDED, $old[$this->outlet->id]->fresh()->program_status);
+        $this->assertSame(DplProposal::PROGRAM_ACTIVE, $old[$this->outletNoBed->id]->fresh()->program_status);
+        $this->assertSame([$this->outlet->id], array_keys($this->children($copy->fresh())));
+    }
+
+    public function test_duplicate_consolidation_copies_outlets_and_starts_approval_from_scratch(): void
+    {
+        $source = $this->approvedConsolidation();
+
+        $copyId = $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$source->id}/renew", ['date_start' => '2027-01-01', 'date_end' => '2027-06-30'])
+            ->assertCreated()
+            ->json('data.id');
+        $copy = DplProposal::query()->findOrFail($copyId);
+        $this->assertSame('2027-01-01', $copy->date_start->toDateString());
+        $this->assertSame(2, $copy->consolidation->outlets()->count());
+
+        $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$copyId}/submit")
+            ->assertOk()
+            ->assertJsonPath('data.proposal_status', DplProposal::STATUS_IN_APPROVAL);
+    }
+
+    public function test_make_a_copy_requires_an_active_child(): void
+    {
+        $source = $this->approvedConsolidation();
+        DplProposal::query()->whereIn('id', collect($this->children($source))->pluck('id'))->update(['program_status' => DplProposal::PROGRAM_EXPIRED]);
+
+        $this->actingAs($this->proposer)->getJson("/api/dpl/proposals/{$source->id}")->assertJsonPath('data.can_amend', false);
+        $this->actingAs($this->proposer)->postJson("/api/dpl/proposals/{$source->id}/amend")->assertUnprocessable();
+    }
+
     public function test_editing_outlets_after_submit_requires_approval_again(): void
     {
         $id = $this->create($this->payload([['outlet_id' => $this->outlet->id], ['outlet_id' => $this->outletNoBed->id, 'bed_order_minimum' => '5']]))->json('data.id');
