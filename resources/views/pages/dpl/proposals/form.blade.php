@@ -78,6 +78,16 @@
                             <label class="form-check-label" for="proposal-contract">Kontrak</label>
                         </div>
                     </div>
+                    {{-- 25% Bed = Bed × rasio × hari (parameter komersial); dihitung ulang server, manual bila bed outlet 0/kosong. --}}
+                    <div class="col-md-3">
+                        <label for="proposal-bed" class="form-label">Bed</label>
+                        <input type="text" class="form-control" id="proposal-bed" readonly placeholder="Dari master outlet" />
+                    </div>
+                    <div class="col-md-3" id="proposal-bed-order-group" data-ratio="{{ $bedOrderRatio }}" data-days="{{ $bedOrderDays }}">
+                        <label for="proposal-bed-order" class="form-label">25% Bed</label>
+                        <input type="number" class="form-control" id="proposal-bed-order" name="bed_order_minimum" min="0" step="0.01" readonly />
+                        <div class="form-text" id="proposal-bed-order-info">Bed × {{ $bedOrderRatio ?? '-' }} × {{ $bedOrderDays ?? '-' }}.</div>
+                    </div>
                     <div class="col-12">
                         <label for="proposal-description" class="form-label">Keterangan</label>
                         <textarea class="form-control" id="proposal-description" name="description" rows="2" maxlength="5000"></textarea>

@@ -57,6 +57,8 @@ class DplProposalRequest extends FormRequest
             'date_start' => ['required', 'date', 'after_or_equal:'.$today],
             'date_end' => ['required', 'date', 'after_or_equal:'.$today, 'after_or_equal:date_start'],
             'is_contract' => ['required', 'boolean'],
+            // "25% Bed": dihitung server dari bed outlet; hanya dipakai bila bed outlet 0/kosong.
+            'bed_order_minimum' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99', 'decimal:0,2'],
             'description' => ['nullable', 'string', 'max:5000'],
 
             'items' => ['present', 'array'],
@@ -129,7 +131,7 @@ class DplProposalRequest extends FormRequest
      */
     public function proposalAttributes(): array
     {
-        return $this->safe()->only(['proposal_type', 'date_start', 'date_end', 'is_contract', 'description']);
+        return $this->safe()->only(['proposal_type', 'date_start', 'date_end', 'is_contract', 'bed_order_minimum', 'description']);
     }
 
     /**

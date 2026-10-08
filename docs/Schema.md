@@ -599,7 +599,8 @@ Logistic Fee (semua item, read-only; Direct boleh diganti manual; Ambil Dari Pab
 | `date_start` | date | No | no backdate enforced in application/business validation |
 | `date_end` | date | No | CHECK `date_end >= date_start` |
 | `is_contract` | boolean | No | default false |
-| `bed_count_snapshot` | integer | Yes | historical outlet snapshot |
+| `bed_count_snapshot` | integer | Yes | historical outlet snapshot (`outlets.bed_count`, diperbarui setiap draft disimpan) |
+| `bed_order_minimum` | numeric(14,2) | Yes | "25% Bed" (legacy `order_min`) = bed × `BED_ORDER_RATIO` (0,25) × `BED_ORDER_DAYS` (90); manual bila bed 0/kosong; CHECK `>= 0` |
 | `proposal_type` | varchar(30) | No | default `NORMAL` |
 | `proposal_status` | varchar(30) | No | default `DRAFT` |
 | `program_status` | varchar(30) | No | default `INACTIVE` |

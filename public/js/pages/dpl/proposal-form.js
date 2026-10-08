@@ -2,6 +2,7 @@
  * Form draft DPL (header + item).
  *
  * Buat: POST api/dpl/proposals, lalu pindah ke halaman detail (nomor DPL dibuat server).
+ * Header: Bed dari master outlet; "25% Bed" = Bed × rasio × hari (read-only), manual bila bed 0/kosong.
  * Detail: data dimuat dari GET api/dpl/proposals/{id}; bila draft milik user, bisa disimpan via PUT.
  * Item dikelola di browser (tabel + modal) dan dikirim bersama header sebagai JSON.
  *
@@ -131,6 +132,34 @@ $(function () {
 
         $select.val(value ? String(value) : '').trigger('change');
     }
+
+    // ---- Bed & "25% Bed" (order minimum header = Bed × rasio × hari; manual bila bed 0/kosong) ----
+
+    const $bedOrder = $('#proposal-bed-order');
+    const bedOrderRatio = Number($('#proposal-bed-order-group').data('ratio')) || null;
+    const bedOrderDays = Number($('#proposal-bed-order-group').data('days')) || null;
+
+    /** @param {number|null} bed  @param {string|number|null} savedValue nilai tersimpan (dipakai bila bed kosong) */
+    function applyBed(bed, savedValue = null) {
+        const hasBed = Number(bed) > 0 && bedOrderRatio !== null && bedOrderDays !== null;
+
+        $('#proposal-bed').val(isBlank(bed) ? '' : bed);
+
+        if (hasBed) {
+            $bedOrder.val((Math.round(Number(bed) * bedOrderRatio * bedOrderDays * 100) / 100).toFixed(2));
+        } else if (savedValue !== undefined) {
+            $bedOrder.val(isBlank(savedValue) ? '' : Number(savedValue));
+        }
+
+        $bedOrder.prop('readonly', hasBed);
+        $('#proposal-bed-order-info').text(hasBed
+            ? `Bed × ${bedOrderRatio} × ${bedOrderDays}.`
+            : 'Bed outlet kosong/0: isi manual.');
+    }
+
+    $('#proposal-outlet')
+        .on('select2:select', event => applyBed(event.params.data.bed_count ?? null, ''))
+        .on('select2:clear', () => applyBed(null, ''));
 
     // ---- Harga acuan (HNA/PPN), dipakai tabel item ----
 
@@ -688,6 +717,7 @@ $(function () {
             date_start: $form.find('[name="date_start"]').val(),
             date_end: $form.find('[name="date_end"]').val(),
             is_contract: $('#proposal-contract').is(':checked'),
+            bed_order_minimum: isBlank($bedOrder.val()) ? null : $bedOrder.val(),
             description: $form.find('[name="description"]').val() || null,
             items: items.map(({ labels, ...item }) => item)
         };
@@ -763,6 +793,7 @@ $(function () {
         $form.find('[name="date_start"]').val(proposal.date_start);
         $form.find('[name="date_end"]').val(proposal.date_end);
         $('#proposal-contract').prop('checked', proposal.is_contract);
+        applyBed(proposal.bed_count_snapshot, proposal.bed_order_minimum);
         $form.find('[name="description"]').val(proposal.description || '');
 
         items = proposal.items.map(item => {

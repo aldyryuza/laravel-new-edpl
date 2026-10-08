@@ -23,7 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Table('dpl.dpl_proposals')]
 #[Fillable([
     'dpl_number', 'outlet_id', 'team_code', 'created_by_user_id', 'date_offer', 'date_start', 'date_end',
-    'is_contract', 'bed_count_snapshot', 'proposal_type', 'proposal_status', 'program_status', 'description',
+    'is_contract', 'bed_count_snapshot', 'bed_order_minimum', 'proposal_type', 'proposal_status', 'program_status', 'description',
     'submitted_at', 'approved_at',
 ])]
 class DplProposal extends Model
@@ -72,6 +72,7 @@ class DplProposal extends Model
             'date_end' => 'date:Y-m-d',
             'is_contract' => 'boolean',
             'bed_count_snapshot' => 'integer',
+            'bed_order_minimum' => 'decimal:2',
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
         ];

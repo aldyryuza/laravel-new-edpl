@@ -17,6 +17,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Models\UserOrgAssignment;
 use Carbon\CarbonImmutable;
+use Database\Seeders\CommercialParameterSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -380,6 +381,27 @@ class DplProposalDraftTest extends TestCase
 
         $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['items' => [$this->item()]]))
             ->assertCreated()->assertJsonPath('data.items.0.terms.logistic_support', '0.0000');
+    }
+
+    public function test_bed_order_minimum_is_bed_times_ratio_times_days_or_manual_when_no_bed(): void
+    {
+        $this->seed(CommercialParameterSeeder::class);
+
+        // Bed 120 -> 120 × 0,25 × 90 = 2.700; nilai manual dari form diabaikan.
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['bed_order_minimum' => '5']))
+            ->assertCreated()
+            ->assertJsonPath('data.bed_count_snapshot', 120)
+            ->assertJsonPath('data.bed_order_minimum', '2700.00');
+
+        // Bed kosong/0 -> pakai nilai manual.
+        $noBed = Outlet::factory()->create(['area_id' => $this->outlet->area_id, 'bed_count' => 0]);
+        $this->actingAs($this->proposer)->postJson('/api/dpl/proposals', $this->payload(['outlet_id' => $noBed->id, 'bed_order_minimum' => '450.5']))
+            ->assertCreated()
+            ->assertJsonPath('data.bed_order_minimum', '450.50');
+
+        $this->actingAs($this->proposer)->getJson('/api/dpl/proposals/outlet-options?q='.urlencode($this->outlet->code))
+            ->assertOk()
+            ->assertJsonPath('data.0.bed_count', 120);
     }
 
     public function test_minimum_order_is_required(): void

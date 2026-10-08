@@ -40,6 +40,7 @@ class DplDraftService
         private DplNumberGenerator $numberGenerator,
         private DplPricing $pricing,
         private DplCalculator $calculator,
+        private CommercialParameterReader $parameters,
     ) {}
 
     /**
@@ -62,6 +63,7 @@ class DplDraftService
                 'team_code' => $teamCode,
                 'created_by_user_id' => $user->id,
                 'bed_count_snapshot' => $outlet->bed_count,
+                'bed_order_minimum' => $this->bedOrderMinimum($outlet->bed_count, $header['bed_order_minimum'] ?? null),
                 'proposal_status' => DplProposal::STATUS_DRAFT,
                 'program_status' => DplProposal::PROGRAM_INACTIVE,
             ]);
@@ -87,7 +89,12 @@ class DplDraftService
     public function update(DplProposal $proposal, array $header, array $items): DplProposal
     {
         return DB::transaction(function () use ($proposal, $header, $items): DplProposal {
-            $proposal->update([...$header, 'bed_count_snapshot' => $proposal->outlet->bed_count]);
+            $bedCount = $proposal->outlet->bed_count;
+            $proposal->update([
+                ...$header,
+                'bed_count_snapshot' => $bedCount,
+                'bed_order_minimum' => $this->bedOrderMinimum($bedCount, $header['bed_order_minimum'] ?? null),
+            ]);
             $this->syncItems($proposal, $items);
 
             return $proposal;
@@ -100,6 +107,22 @@ class DplDraftService
     public function delete(DplProposal $proposal): void
     {
         $proposal->delete();
+    }
+
+    /**
+     * "25% Bed" (legacy order_min) = bed outlet × BED_ORDER_RATIO × BED_ORDER_DAYS (legacy 0,25 × 90), 2 desimal.
+     * Bila bed outlet 0/kosong, dipakai nilai manual dari form.
+     */
+    public function bedOrderMinimum(?int $bedCount, mixed $manual): ?string
+    {
+        $ratio = $this->parameters->number('BED_ORDER_RATIO');
+        $days = $this->parameters->number('BED_ORDER_DAYS');
+
+        if ($bedCount !== null && $bedCount > 0 && $ratio !== null && $days !== null) {
+            return number_format(round($bedCount * (float) $ratio * (float) $days, 2), 2, '.', '');
+        }
+
+        return $manual === null || $manual === '' ? null : (string) $manual;
     }
 
     /**

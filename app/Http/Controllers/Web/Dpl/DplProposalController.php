@@ -7,6 +7,7 @@ use App\Models\Distributor;
 use App\Models\Dpl\BonusScheme;
 use App\Models\Dpl\DplProposal;
 use App\Models\Product;
+use App\Services\Dpl\CommercialParameterReader;
 use App\Services\Dpl\DplPricing;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -45,10 +46,14 @@ class DplProposalController extends Controller
     private function form(Request $request, ?DplProposal $proposal): View
     {
         $user = $request->user();
+        $parameters = app(CommercialParameterReader::class);
 
         return view('pages.dpl.proposals.form', [
             'proposal' => $proposal,
             'today' => now(config('dpl.timezone'))->toDateString(),
+            // Rumus "25% Bed" untuk tampilan; nilai resmi dihitung DplDraftService saat simpan.
+            'bedOrderRatio' => $parameters->number('BED_ORDER_RATIO'),
+            'bedOrderDays' => $parameters->number('BED_ORDER_DAYS'),
             // Default jenis harga ditaruh pertama.
             'priceTypes' => array_values(array_unique([DplPricing::defaultPriceType(), ...array_keys(DplPricing::priceTypes())])),
             'teams' => $user->effectiveTeams(),

@@ -100,7 +100,7 @@ class DplProposalController extends Controller implements HasMiddleware
                 ->orWhereLike('name', "%{$term}%")))
             ->orderBy('name')
             ->limit(20)
-            ->get(['id', 'code', 'name', 'area_id']);
+            ->get(['id', 'code', 'name', 'area_id', 'bed_count']);
 
         return response()->json([
             'success' => true,
@@ -108,6 +108,7 @@ class DplProposalController extends Controller implements HasMiddleware
             'data' => $outlets->map(fn (Outlet $outlet) => [
                 'id' => $outlet->id,
                 'text' => "{$outlet->name} ({$outlet->code})".($outlet->area ? " - {$outlet->area->name}" : ' - tanpa area'),
+                'bed_count' => $outlet->bed_count,
             ]),
         ]);
     }

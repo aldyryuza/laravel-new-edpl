@@ -41,6 +41,9 @@ class CommercialParameterSeeder extends Seeder
             'NATIONAL_DISTRIBUTOR_LOGISTIC_FEE' => ['number', '6', 'Logistic fee distributor nasional (%)'],
             'SPECIAL_LOGISTIC_DIVISOR' => ['number', '3', 'Pembagi logistic fee product volume kecil & produk tim B'],
             'DEFAULT_LOGISTIC_CITY_CODE' => ['text', '3216', 'Kode kota logistic fee bila kota distributor kosong'],
+            // "25% Bed" header DPL = bed outlet × rasio × hari (legacy order_min = bed × 0,25 × 90).
+            'BED_ORDER_RATIO' => ['number', '0.25', 'Rasio bed untuk "25% Bed" (order minimum header DPL)'],
+            'BED_ORDER_DAYS' => ['number', '90', 'Jumlah hari untuk "25% Bed" (order minimum header DPL)'],
         ];
 
         foreach ($itemDefaults as $code => [$type, $value, $description]) {
