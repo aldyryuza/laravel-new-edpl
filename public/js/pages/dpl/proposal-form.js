@@ -9,7 +9,8 @@
  * Aturan item (juga ditegakkan server):
  * - Pilih Product (radio): Satuan (default) = satu product dicari, HNA langsung tampil di modal;
  *   Group (1L/500ml/250ml/100ml/25ml dari volume, IV CAT WING/IV CAT PEN dari master Product) = semua product di
- *   group otomatis terpilih (Pilih semua/Kosongkan), HNA tampil di tabel setelah disimpan. Satu product = satu item
+ *   group otomatis terpilih (Pilih semua/Kosongkan), HNA tampil di tabel setelah disimpan. Satu product = satu item;
+ *   margin & logistic fee tiap product dihitung server saat disimpan (product_ids[], tanpa margin khusus outlet)
  *   dengan distributor & syarat yang sama. Edit item hanya mengubah syarat, bukan product.
  * - HNA = harga product yang berlaku pada Date Start sesuai jenis harga item (GET api/dpl/proposals/pricing),
  *   default PRICE_BARU_2026 (price), bisa diganti PRICE_LAMA_2025 (regular_price, hanya product 500 ml).
@@ -230,6 +231,14 @@ $(function () {
         });
         applyPriceTypeVolumes();
         updateItemPrices();
+
+        // Mode Group: margin tiap product dihitung server saat item disimpan.
+        const group = mode === 'group';
+        $itemForm.find('[name="margin"]').prop('readonly', group);
+        if (group) {
+            $itemForm.find('[name="margin"]').val('');
+            $('#item-margin-source').text('Mode Group: margin dihitung per product saat item disimpan.');
+        }
     }
 
     /** Isi pilihan product dengan product di group; semua otomatis terpilih. */
@@ -455,6 +464,13 @@ $(function () {
             const $box = $('#item-calculator');
             const $info = $('#item-calculator-info');
 
+            if (productMode() === 'group' && editingIndex === null) {
+                $total.text('-');
+                $box.removeClass('alert-danger').addClass('alert-secondary');
+                $info.removeClass('text-danger').text('Mode Group: Total Calculator dihitung per item di tabel setelah disimpan.');
+                return;
+            }
+
             if (!currentTeam()) {
                 $total.text('-');
                 $info.text('Pilih team dulu untuk menghitung.');
@@ -518,8 +534,13 @@ $(function () {
             .done(res => {
                 const result = res.data;
 
-                $itemForm.find('[name="margin"]').val(isBlank(result.margin) ? '' : Number(result.margin));
-                $('#item-margin-source').text(`Otomatis: ${result.margin_source}${isBlank(result.margin) ? ' (belum diatur)' : ''}. Bisa diubah.`);
+                if (groupMode) {
+                    $itemForm.find('[name="margin"]').val('');
+                    $('#item-margin-source').text('Mode Group: margin dihitung per product saat item disimpan.');
+                } else {
+                    $itemForm.find('[name="margin"]').val(isBlank(result.margin) ? '' : Number(result.margin));
+                    $('#item-margin-source').text(`Otomatis: ${result.margin_source}${isBlank(result.margin) ? ' (belum diatur)' : ''}. Bisa diubah.`);
+                }
 
                 if (!$pickup.is(':checked')) {
                     $logisticFee.val(isBlank(result.logistic_fee) ? '' : Number(result.logistic_fee));
@@ -687,15 +708,54 @@ $(function () {
             bonus: shared.bonus_scheme_id ? $('#item-bonus option:selected').text() : null
         });
 
-        if (editingIndex === null) {
-            productIds.forEach(productId => items.push({ id: null, product_id: productId, ...shared, labels: labels(productId) }));
-        } else {
+        if (editingIndex !== null) {
             const current = items[editingIndex];
             items[editingIndex] = { id: current.id, product_id: current.product_id, ...shared, labels: labels(current.product_id) };
+            itemModal.hide();
+            recalcItems();
+            return;
         }
 
-        itemModal.hide();
-        recalcItems();
+        if (productMode() !== 'group') {
+            productIds.forEach(productId => items.push({ id: null, product_id: productId, ...shared, labels: labels(productId) }));
+            itemModal.hide();
+            recalcItems();
+            return;
+        }
+
+        // Mode Group: margin & logistic fee dihitung per product di server (legacy getProductPrice).
+        // Direct: logistic fee di form (boleh diubah manual) berlaku untuk semua product.
+        const $submitItem = $itemForm.find('[type="submit"]').prop('disabled', true);
+
+        $.get(App.url('api/dpl/proposals/item-defaults'), {
+            product_ids: productIds,
+            distributor_id: distributorId,
+            outlet_id: outletId || $('#proposal-outlet').val() || '',
+            team_code: currentTeam(),
+            is_direct_delivery: shared.is_direct_delivery ? 1 : 0,
+            is_factory_pickup: shared.is_factory_pickup ? 1 : 0,
+            group_mode: 1
+        })
+            .done(res => {
+                productIds.forEach(productId => {
+                    const result = res.data[productId] || {};
+                    const logisticFee = shared.is_factory_pickup ? '0'
+                        : (shared.is_direct_delivery ? shared.logistic_fee : (result.logistic_fee ?? null));
+
+                    items.push({
+                        id: null,
+                        product_id: productId,
+                        ...shared,
+                        margin: result.margin ?? null,
+                        logistic_fee: logisticFee,
+                        labels: labels(productId)
+                    });
+                });
+                itemModal.hide();
+                recalcItems();
+            })
+            .fail(xhr => App.handleError(xhr))
+            .always(() => $submitItem.prop('disabled', false));
     });
 
     $('#btn-add-item').on('click', () => openItem());

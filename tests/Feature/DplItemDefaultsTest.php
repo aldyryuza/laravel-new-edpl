@@ -105,7 +105,17 @@ class DplItemDefaultsTest extends TestCase
         DistributorMarginRule::factory()->create(['distributor_group_code' => 'AMJ', 'product_id' => $this->product->id, 'city_id' => $this->javaCity->id, 'margin' => '9']);
         $this->assertSame('9.00', $this->margin());
 
-        $this->defaults(['group_mode' => 1])->assertJsonPath('data.margin', '0')->assertJsonPath('data.margin_source', 'Mode Group');
+        // Mode Group: aturan sama (margin khusus product menang), dihitung per product.
+        $other = Product::factory()->create(['volume' => 500]);
+        $response = $this->actingAs($this->user)->getJson('/api/dpl/proposals/item-defaults?'.http_build_query([
+            'product_ids' => [$this->product->id, $other->id],
+            'distributor_id' => $this->local->id,
+            'team_code' => 'A',
+            'group_mode' => 1,
+        ]))->assertOk();
+        $this->assertSame('9.0000', $response->json("data.{$this->product->id}.margin"));
+        $this->assertSame('8.0000', $response->json("data.{$other->id}.margin"));
+        $this->assertSame('3.5000', $response->json("data.{$other->id}.logistic_fee"));
     }
 
     public function test_outlet_margin_needs_flag_and_skips_excluded_team_and_small_volume(): void
@@ -119,6 +129,7 @@ class DplItemDefaultsTest extends TestCase
 
         $small = Product::factory()->create(['volume' => 25]);
         $this->assertSame('8.00', $this->margin(['product_id' => $small->id]), 'Product 25ml tidak memakai margin outlet.');
+        $this->assertSame('8.00', $this->margin(['group_mode' => 1]), 'Mode Group tidak memakai margin outlet.');
     }
 
     public function test_direct_margin_rules_for_kftd_and_instansi(): void

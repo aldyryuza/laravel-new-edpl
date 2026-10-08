@@ -16,7 +16,8 @@ use App\Models\Product;
  * Hasilnya mengisi form; user tetap boleh mengubah. Semua angka bisnis dari parameter komersial.
  *
  * Margin (berurutan, langkah belakangan menimpa):
- * 1. Mode Group -> 0.
+ * 1. Mode Group: tiap product tetap dihitung dengan aturan di bawah, kecuali margin khusus outlet
+ *    (legacy ProductController::getProductPrice).
  * 2. Margin khusus product (grup distributor + product + kota distributor/semua kota); bila tidak ada:
  *    margin distributor (Tim B: margin_team_b bila diisi).
  * 3. Margin khusus outlet (grup distributor + outlet): distributor is_special_case_margin, team tidak dikecualikan,
@@ -47,9 +48,7 @@ class DplItemDefaults
         $distributor->loadMissing('city.province');
         $outlet?->loadMissing('category');
 
-        [$margin, $marginSource] = $groupMode
-            ? ['0', 'Mode Group']
-            : $this->margin($product, $distributor, $outlet, mb_strtoupper($teamCode), $direct);
+        [$margin, $marginSource] = $this->margin($product, $distributor, $outlet, mb_strtoupper($teamCode), $direct, $groupMode);
 
         [$logisticFee, $logisticSource] = $this->logisticFee($product, $distributor, $direct, $factoryPickup);
 
@@ -64,7 +63,7 @@ class DplItemDefaults
     /**
      * @return array{0: string|null, 1: string}
      */
-    private function margin(Product $product, Distributor $distributor, ?Outlet $outlet, string $team, bool $direct): array
+    private function margin(Product $product, Distributor $distributor, ?Outlet $outlet, string $team, bool $direct, bool $groupMode): array
     {
         $rule = $distributor->group_code === null ? null : DistributorMarginRule::query()
             ->where('is_active', true)
@@ -82,7 +81,7 @@ class DplItemDefaults
             [$margin, $source] = [$distributor->margin, 'Margin distributor'];
         }
 
-        if ($outlet !== null && $distributor->is_special_case_margin && $distributor->group_code !== null && ! $this->isSmallVolume($product)
+        if (! $groupMode && $outlet !== null && $distributor->is_special_case_margin && $distributor->group_code !== null && ! $this->isSmallVolume($product)
             && ! in_array($team, $this->parameters->upperList('OUTLET_MARGIN_EXCLUDED_TEAMS'), true)) {
             $override = DistributorMarginOverride::query()
                 ->where('is_active', true)

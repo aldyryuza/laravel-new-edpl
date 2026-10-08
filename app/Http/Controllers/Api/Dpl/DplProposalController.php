@@ -165,12 +165,15 @@ class DplProposalController extends Controller implements HasMiddleware
 
     /**
      * Nilai awal Margin & Logistic Fee item (DplItemDefaults) untuk mengisi form saat product/distributor/Direct berubah.
+     * `product_ids[]` (mode Group) mengembalikan nilai per product: {product_id: {...}}.
      * Distributor dan outlet harus di wilayah user.
      */
     public function itemDefaults(Request $request, DplItemDefaults $defaults): JsonResponse
     {
         $data = $request->validate([
-            'product_id' => ['required', 'integer'],
+            'product_id' => ['required_without:product_ids', 'integer'],
+            'product_ids' => ['required_without:product_id', 'array', 'max:100'],
+            'product_ids.*' => ['integer'],
             'distributor_id' => ['required', 'integer'],
             'outlet_id' => ['nullable', 'integer'],
             'team_code' => ['required', 'string', 'max:20'],
@@ -180,22 +183,27 @@ class DplProposalController extends Controller implements HasMiddleware
         ]);
 
         $user = $request->user();
-        $product = Product::query()->findOrFail($data['product_id']);
         $distributor = Distributor::query()->visibleTo($user)->findOrFail($data['distributor_id']);
         $outlet = isset($data['outlet_id']) ? Outlet::query()->visibleTo($user)->findOrFail($data['outlet_id']) : null;
+        $resolve = fn (Product $product) => $defaults->resolve(
+            $product,
+            $distributor,
+            $outlet,
+            $data['team_code'],
+            $request->boolean('is_direct_delivery'),
+            $request->boolean('is_factory_pickup'),
+            $request->boolean('group_mode'),
+        );
+
+        // Mode Group: nilai per product, dikunci product_id.
+        $result = isset($data['product_ids'])
+            ? Product::query()->whereKey($data['product_ids'])->get()->mapWithKeys(fn (Product $product) => [$product->id => $resolve($product)])
+            : $resolve(Product::query()->findOrFail($data['product_id']));
 
         return response()->json([
             'success' => true,
             'message' => 'Data berhasil diambil',
-            'data' => $defaults->resolve(
-                $product,
-                $distributor,
-                $outlet,
-                $data['team_code'],
-                $request->boolean('is_direct_delivery'),
-                $request->boolean('is_factory_pickup'),
-                $request->boolean('group_mode'),
-            ),
+            'data' => $result,
         ]);
     }
 

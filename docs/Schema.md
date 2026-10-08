@@ -577,7 +577,7 @@ UNIQUE `(distributor_group_code, city_id)`.
 Dihitung di server (`App\Services\Dpl\DplItemDefaults`, `GET api/dpl/proposals/item-defaults`), mengisi form; user tetap bisa mengubah. Angka bisnis dari parameter komersial (di-seed `CommercialParameterSeeder`).
 
 Margin, berurutan:
-1. Mode Group -> 0.
+1. Mode Group: tiap product dihitung dengan aturan di bawah saat item disimpan (`product_ids[]`), kecuali margin khusus outlet (legacy `getProductPrice`). Field margin di form read-only.
 2. `distributor_margin_rules` (grup distributor + product + kota distributor / semua kota); bila tidak ada: `distributors.margin` (Tim B: `margin_team_b` bila diisi).
 3. `distributor_margin_overrides` (grup distributor + outlet; lihat syaratnya di atas).
 4. Direct: grup `KFTD_DISTRIBUTOR_GROUP` -> `DIRECT_MARGIN_KFTD_INSTANSI` (9) bila outlet kategori `INSTANSI_CATEGORY_CODE`, selain itu `DIRECT_MARGIN_KFTD_OTHER` (11); non-KFTD + outlet Instansi -> `DIRECT_MARGIN_INSTANSI_JAVA` (3) bila provinsi kota distributor `is_java`, selain itu `..._OUTSIDE_JAVA` (5). Bukan Direct: `product_margin_overrides`. Tidak ada pengurangan "nilai direct delivery" (di legacy tidak pernah berjalan).
