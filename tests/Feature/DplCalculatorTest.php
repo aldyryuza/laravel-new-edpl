@@ -79,7 +79,7 @@ class DplCalculatorTest extends TestCase
             $this->item(['is_support_satoria' => true]),
             // Ambil Dari Pabrik: logistic fee 0 -> 23,75
             $this->item(['is_direct_delivery' => false, 'is_factory_pickup' => true]),
-            // Via distributor (bukan Direct): logistic fee tidak dihitung -> 23,75
+            // Via distributor (bukan Direct): logistic fee tetap dihitung -> 25,25
             $this->item(['is_direct_delivery' => false]),
             // Tanpa bonus & kosong dianggap 0 -> 10
             ['principle_discount_on' => '10'],
@@ -87,7 +87,7 @@ class DplCalculatorTest extends TestCase
             ->assertJsonPath('data.0.total_discount', '25.25')
             ->assertJsonPath('data.1.total_discount', '19.25')
             ->assertJsonPath('data.2.total_discount', '23.75')
-            ->assertJsonPath('data.3.total_discount', '23.75')
+            ->assertJsonPath('data.3.total_discount', '25.25')
             ->assertJsonPath('data.4.total_discount', '10.00');
     }
 

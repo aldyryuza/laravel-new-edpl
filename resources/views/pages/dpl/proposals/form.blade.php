@@ -106,7 +106,8 @@
                             <th>Jenis Harga</th>
                             <th class="text-end">HNA - Disc On</th>
                             <th class="text-end">HNA+PPN - Disc On</th>
-                            <th class="text-end">Total Diskon</th>
+                            <th class="text-end">Logistic Fee</th>
+                            <th class="text-end">Total Calculator</th>
                             <th>Pengiriman</th>
                             <th>Bonus</th>
                             <th class="text-end">Aksi</th>
@@ -255,9 +256,9 @@
                             </div>
                             <div class="form-text">Pilih salah satu atau kosongkan (via distributor).</div>
                         </div>
-                        <div class="col-md-6 d-none" id="item-logistic-fee-group">
-                            <label for="item-logistic-fee" class="form-label">Logistic Fee (%) <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" id="item-logistic-fee" name="logistic_fee" min="0" step="0.0001" />
+                        <div class="col-md-6" id="item-logistic-fee-group">
+                            <label for="item-logistic-fee" class="form-label">Logistic Fee (%)</label>
+                            <input type="number" class="form-control" id="item-logistic-fee" name="logistic_fee" min="0" step="0.0001" readonly />
                             <div class="form-text" id="item-logistic-source"></div>
                         </div>
                         <div class="col-12">
@@ -277,7 +278,7 @@
                         <div class="col-12">
                             {{-- Dihitung server (api/dpl/proposals/calculate), rumus sama dengan yang disimpan. --}}
                             <div class="alert alert-secondary d-flex justify-content-between align-items-center mb-0 py-2" id="item-calculator">
-                                <span>Total Diskon (kalkulator)</span>
+                                <span>Total Calculator</span>
                                 <strong id="item-calculator-total">-</strong>
                             </div>
                             <div class="form-text" id="item-calculator-info"></div>

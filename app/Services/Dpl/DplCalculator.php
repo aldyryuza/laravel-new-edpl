@@ -12,7 +12,7 @@ use App\Models\Product;
  * (legacy punya rumus JS dan PHP yang berbeda untuk item Support; di sini hanya satu).
  *
  * Total Diskon (%) = Disc Principle ON + Disc Principle OFF + Bonus (total_discount skema bonus)
- *                  + Logistic Fee (hanya item Direct; Ambil Dari Pabrik / via distributor = 0) + Margin + Logistic Support
+ *                  + Logistic Fee (Ambil Dari Pabrik = 0) + Margin + Support Logistic Satoria
  *                  − (Disc Distributor ON + Disc Distributor OFF) bila Support Satoria dicentang.
  * Tanpa Support, diskon distributor tidak memengaruhi total. Hasil dibulatkan 2 desimal (setengah ke atas).
  *
@@ -67,10 +67,8 @@ class DplCalculator
      */
     public function totalDiscount(array $item, ?string $bonusPercent): string
     {
-        // Sama dengan aturan simpan: logistic fee hanya berlaku untuk Direct (Ambil Dari Pabrik = 0).
-        $logisticFee = $this->flag($item['is_direct_delivery'] ?? false) && ! $this->flag($item['is_factory_pickup'] ?? false)
-            ? $this->units($item['logistic_fee'] ?? null)
-            : 0;
+        // Logistic fee berlaku untuk semua item; Ambil Dari Pabrik = 0 (legacy addDplItem.js).
+        $logisticFee = $this->flag($item['is_factory_pickup'] ?? false) ? 0 : $this->units($item['logistic_fee'] ?? null);
 
         $total = $this->units($item['principle_discount_on'] ?? null)
             + $this->units($item['principle_discount_off'] ?? null)

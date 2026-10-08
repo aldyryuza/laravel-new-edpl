@@ -582,7 +582,7 @@ Margin, berurutan:
 3. `distributor_margin_overrides` (grup distributor + outlet; lihat syaratnya di atas).
 4. Direct: grup `KFTD_DISTRIBUTOR_GROUP` -> `DIRECT_MARGIN_KFTD_INSTANSI` (9) bila outlet kategori `INSTANSI_CATEGORY_CODE`, selain itu `DIRECT_MARGIN_KFTD_OTHER` (11); non-KFTD + outlet Instansi -> `DIRECT_MARGIN_INSTANSI_JAVA` (3) bila provinsi kota distributor `is_java`, selain itu `..._OUTSIDE_JAVA` (5). Bukan Direct: `product_margin_overrides`. Tidak ada pengurangan "nilai direct delivery" (di legacy tidak pernah berjalan).
 
-Logistic Fee (hanya Direct; Ambil Dari Pabrik = 0; via distributor = kosong): `distributor_logistic_rates` -> `cities.logistic_fee` kota distributor -> kota `DEFAULT_LOGISTIC_CITY_CODE` (3216); grup di `NATIONAL_DISTRIBUTOR_GROUPS` (KFTD, UDC, SDL, PPI) -> `NATIONAL_DISTRIBUTOR_LOGISTIC_FEE` (6); product volume `SMALL_VOLUME_ML` atau `is_team_b_product` -> dibagi `SPECIAL_LOGISTIC_DIVISOR` (3), 2 desimal.
+Logistic Fee (semua item, read-only; Direct boleh diganti manual; Ambil Dari Pabrik = 0): `distributor_logistic_rates` -> `cities.logistic_fee` kota distributor -> kota `DEFAULT_LOGISTIC_CITY_CODE` (3216); grup di `NATIONAL_DISTRIBUTOR_GROUPS` (KFTD, UDC, SDL, PPI) -> `NATIONAL_DISTRIBUTOR_LOGISTIC_FEE` (6); product volume `SMALL_VOLUME_ML` atau `is_team_b_product` -> dibagi `SPECIAL_LOGISTIC_DIVISOR` (3), 2 desimal.
 
 ## 9. DPL core
 
@@ -702,7 +702,7 @@ Current commercial terms, one row per DPL item.
 | `distributor_discount_off` | numeric(10,4) | No | default 0 |
 | `negotiated_price` | numeric(18,4) | Yes | tidak lagi diinput dari form DPL (user 2026-10-07) |
 | `margin` | numeric(10,4) | Yes | |
-| `logistic_fee` | numeric(18,4) | Yes | dalam %; hanya item Direct (Ambil Dari Pabrik = 0); not sourced from legacy `dpl_logistic` |
+| `logistic_fee` | numeric(18,4) | Yes | dalam %; semua item (otomatis, Direct boleh manual; Ambil Dari Pabrik = 0); not sourced from legacy `dpl_logistic` |
 | `logistic_support` | numeric(18,4) | Yes | dalam % |
 | `base_price` | numeric(18,4) | Yes | snapshot HNA pada Date Start sesuai `price_type`, disimpan setiap draft disimpan |
 | `final_price` | numeric(18,4) | Yes | snapshot/result if needed |

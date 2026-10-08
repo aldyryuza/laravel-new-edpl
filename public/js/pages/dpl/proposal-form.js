@@ -17,13 +17,14 @@
  * - Mode Satuan: HNA - Disc On bisa diketik; Discount Share Principle ON dihitung balik
  *   = (1 − target / HNA) × 100 − Distributor ON (2 desimal, tidak boleh negatif).
  * - Discount (Principle/Distributor ON/OFF) ditampilkan 2 angka di belakang koma; kosong = 0 (default 0.00).
- * - Total Diskon kalkulator dihitung server (POST api/dpl/proposals/calculate, sama dengan yang disimpan);
+ * - Total Calculator dihitung server (POST api/dpl/proposals/calculate, sama dengan yang disimpan);
  *   item di atas batas team ditandai merah ("Total discount is more than X%").
  * - Margin & Logistic Fee terisi otomatis dari server (GET api/dpl/proposals/item-defaults) saat product, distributor,
  *   Direct, atau Ambil Dari Pabrik berubah; tetap bisa diubah user.
  * - Minimum order per bulan wajib diisi.
  * - Discount Share Principle OFF diisi -> Buyer reward dicentang.
- * - Direct -> Logistic Fee wajib (boleh 0); Ambil Dari Pabrik -> Logistic Fee 0; keduanya tidak boleh bersamaan.
+ * - Logistic Fee selalu ada (otomatis, read-only); Direct -> boleh diganti manual dan wajib (boleh 0);
+ *   Ambil Dari Pabrik -> 0; Direct dan Ambil Dari Pabrik tidak boleh bersamaan.
  * - Satu product hanya sekali per distributor.
  */
 'use strict';
@@ -44,7 +45,7 @@ $(function () {
     const $direct = $('#item-is_direct_delivery');
     const $pickup = $('#item-is_factory_pickup');
     const $logisticFee = $('#item-logistic-fee');
-    const COLUMNS = 13;
+    const COLUMNS = 14;
 
     const FLAGS = ['is_direct_delivery', 'is_factory_pickup', 'is_buyer_reward', 'is_support_satoria', 'is_returnable'];
     const TERMS = [
@@ -332,7 +333,7 @@ $(function () {
         }
     });
 
-    /** Direct dan Ambil Dari Pabrik saling eksklusif; logistic fee tampil untuk keduanya, 0 untuk pabrik. */
+    /** Direct dan Ambil Dari Pabrik saling eksklusif; logistic fee hanya bisa diketik saat Direct, 0 untuk pabrik. */
     function applyDeliveryMode(changed = null) {
         if (changed === 'direct' && $direct.is(':checked')) {
             $pickup.prop('checked', false);
@@ -344,16 +345,11 @@ $(function () {
         const direct = $direct.is(':checked');
         const pickup = $pickup.is(':checked');
 
-        $('#item-logistic-fee-group').toggleClass('d-none', !direct && !pickup);
-
+        // Logistic fee selalu ada: otomatis (read-only), Direct boleh diganti manual, Ambil Dari Pabrik = 0.
         if (pickup) {
-            $logisticFee.val(0).prop('readonly', true);
-        } else {
-            $logisticFee.prop('readonly', false);
-            if (!direct) {
-                $logisticFee.val('');
-            }
+            $logisticFee.val(0);
         }
+        $logisticFee.prop('readonly', !direct || pickup);
     }
 
     $direct.on('change', () => applyDeliveryMode('direct'));
@@ -496,11 +492,11 @@ $(function () {
                 $itemForm.find('[name="margin"]').val(isBlank(result.margin) ? '' : Number(result.margin));
                 $('#item-margin-source').text(`Otomatis: ${result.margin_source}${isBlank(result.margin) ? ' (belum diatur)' : ''}. Bisa diubah.`);
 
-                if ($direct.is(':checked') && !$pickup.is(':checked')) {
+                if (!$pickup.is(':checked')) {
                     $logisticFee.val(isBlank(result.logistic_fee) ? '' : Number(result.logistic_fee));
                 }
-                $('#item-logistic-source').text($direct.is(':checked') || $pickup.is(':checked')
-                    ? `Otomatis: ${result.logistic_source}. Bisa diubah.` : '');
+                $('#item-logistic-source').text(`Otomatis: ${result.logistic_source}${isBlank(result.logistic_fee) ? ' (belum diatur)' : ''}.`
+                    + ($direct.is(':checked') ? ' Bisa diubah karena Direct.' : ''));
 
                 updateItemCalculator();
             })
@@ -524,7 +520,7 @@ $(function () {
 
     function deliveryLabel(item) {
         if (item.is_direct_delivery) {
-            return `Direct (fee ${number(item.logistic_fee)})`;
+            return 'Direct';
         }
 
         return item.is_factory_pickup ? 'Ambil Dari Pabrik' : muted('Distributor');
@@ -550,6 +546,7 @@ $(function () {
                 <td>${App.escape(item.price_type || defaultPriceType)}</td>
                 <td class="text-end">${money(result.hnaDisc)}</td>
                 <td class="text-end">${money(result.hnaPpnDisc)}</td>
+                <td class="text-end">${isBlank(item.logistic_fee) ? muted('-') : `${discount(item.logistic_fee)}%`}</td>
                 <td class="text-end">${calculatorCell(index)}</td>
                 <td>${deliveryLabel(item)}</td>
                 <td>${item.labels.bonus ? App.escape(item.labels.bonus) : muted('-')}</td>
@@ -654,10 +651,6 @@ $(function () {
         };
         TERMS.forEach(field => { shared[field] = DISCOUNTS.includes(field) ? (valueOrNull(field) ?? '0') : valueOrNull(field); });
         FLAGS.forEach(flag => { shared[flag] = $itemForm.find(`[name="${flag}"]`).is(':checked'); });
-
-        if (!shared.is_direct_delivery && !shared.is_factory_pickup) {
-            shared.logistic_fee = null;
-        }
 
         const labels = productId => ({
             product: productById[productId]?.label || $single.find(`option[value="${productId}"]`).text() || `#${productId}`,

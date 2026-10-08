@@ -154,7 +154,7 @@ class DplItemDefaultsTest extends TestCase
 
     public function test_logistic_fee_rules(): void
     {
-        $this->defaults()->assertJsonPath('data.logistic_fee', null);
+        $this->defaults()->assertJsonPath('data.logistic_fee', '3.5000');
         $this->defaults(['is_factory_pickup' => 1])->assertJsonPath('data.logistic_fee', '0');
         $this->assertSame('3.50', $this->logisticFee());
 

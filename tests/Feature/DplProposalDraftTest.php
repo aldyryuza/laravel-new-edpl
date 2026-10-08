@@ -303,7 +303,8 @@ class DplProposalDraftTest extends TestCase
 
         $post(['is_direct_delivery' => true, 'logistic_fee' => '0'])->assertCreated()->assertJsonPath('data.items.0.terms.logistic_fee', '0.0000');
         $post(['is_factory_pickup' => true, 'logistic_fee' => '5000'])->assertCreated()->assertJsonPath('data.items.0.terms.logistic_fee', '0.0000');
-        $post(['logistic_fee' => '5000'])->assertCreated()->assertJsonPath('data.items.0.terms.logistic_fee', null);
+        // Via distributor: logistic fee otomatis tetap disimpan (legacy: semua item punya logistic fee).
+        $post(['logistic_fee' => '2.5'])->assertCreated()->assertJsonPath('data.items.0.terms.logistic_fee', '2.5000');
     }
 
     public function test_database_rejects_direct_and_factory_pickup_together(): void

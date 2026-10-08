@@ -24,7 +24,7 @@ use App\Models\Product;
  * 4. Direct: KFTD -> outlet INSTANSI / lainnya; non-KFTD + outlet INSTANSI -> provinsi Jawa / luar Jawa.
  *    Bukan Direct: override margin per product (team + grup, team, grup, semua). Tanpa pengurangan "nilai direct".
  *
- * Logistic Fee (hanya Direct; Ambil Dari Pabrik = 0; via distributor = kosong):
+ * Logistic Fee (semua item; Ambil Dari Pabrik = 0; untuk Direct nilai ini bisa diganti manual):
  * tarif khusus grup distributor + kota -> logistic fee kota distributor -> kota default; distributor nasional
  * -> tarif nasional; product volume kecil atau produk tim B -> dibagi pembagi.
  */
@@ -151,10 +151,6 @@ class DplItemDefaults
     {
         if ($factoryPickup) {
             return ['0', 'Ambil Dari Pabrik'];
-        }
-
-        if (! $direct) {
-            return [null, 'Hanya untuk Direct'];
         }
 
         $city = $distributor->city ?? $this->defaultCity();

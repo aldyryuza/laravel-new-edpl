@@ -135,7 +135,7 @@ class DplProposalRequest extends FormRequest
     /**
      * Item siap simpan dengan aturan otomatis:
      * - Discount Share Principle OFF diisi (> 0) -> buyer reward dicentang;
-     * - Ambil Dari Pabrik -> logistic fee 0; bukan Direct/Ambil Dari Pabrik -> logistic fee kosong.
+     * - Ambil Dari Pabrik -> logistic fee 0 (item lain menyimpan logistic fee yang dikirim; Direct wajib diisi).
      *
      * @return array<int, array<string, mixed>>
      */
@@ -150,11 +150,9 @@ class DplProposalRequest extends FormRequest
                 $item['is_buyer_reward'] = true;
             }
 
-            $item['logistic_fee'] = match (true) {
-                (bool) ($item['is_factory_pickup'] ?? false) => '0',
-                (bool) ($item['is_direct_delivery'] ?? false) => $item['logistic_fee'] ?? null,
-                default => null,
-            };
+            if ((bool) ($item['is_factory_pickup'] ?? false)) {
+                $item['logistic_fee'] = '0';
+            }
 
             return $item;
         }, $this->validated('items', []));
