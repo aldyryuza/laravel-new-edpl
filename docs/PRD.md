@@ -339,8 +339,8 @@ Sistem harus:
 | BR-038 | Total Calculator = Disc Principle ON + OFF + Bonus (`total_discount` skema bonus) + Logistic Fee (%, semua item; Ambil Dari Pabrik = 0) + Margin + Support Logistic Satoria (`logistic_support`, %, input manual 0–100); bila Support Satoria dicentang dikurangi (Disc Distributor ON + OFF), tanpa Support diskon distributor tidak berpengaruh; dibulatkan 2 desimal. Rumus hanya di server (form memanggil API) | Legacy E-DPL + user confirmation (Support = versi JS) | Confirmed; penyesuaian margin otomatis, override margin per product, multiplier logistic item khusus, batas khusus per product, produk tim B dijual tim A masih pending |
 | BR-011 | Threshold commercial harus configurable dan tidak di-hardcode di schema/controller | Rebuild decision | Confirmed |
 | BR-012 | Maksimal satu DPL ACTIVE per outlet + team; Tim A dan Tim B dapat masing-masing active pada outlet yang sama | Legacy E-DPL + user confirmation | Confirmed |
-| BR-013 | Make a Copy dipetakan sebagai AMENDMENT; hanya dari active DPL dan periode tidak berubah | Legacy E-DPL | Confirmed |
-| BR-014 | Duplicate dipetakan sebagai RENEWAL; periode dapat berubah dan approval restart | Legacy E-DPL | Confirmed |
+| BR-013 | Make a Copy dipetakan sebagai AMENDMENT; hanya dari active DPL (periode berjalan) milik pengaju; periode hari ini s/d Date End sumber (dikunci); item boleh ditambah/diubah/dihapus; margin & logistic dihitung ulang; item yang sama dengan sumber tetap approved, item baru/berubah approval ulang; sumber tetap aktif sampai amendment aktif | Legacy E-DPL + user confirmation 2026-10-08 | Confirmed |
+| BR-014 | Duplicate dipetakan sebagai RENEWAL; dari DPL approved mana pun milik pengaju; periode baru dipilih; margin & logistic dihitung ulang; approval restart dari awal | Legacy E-DPL + user confirmation 2026-10-08 | Confirmed |
 | BR-015 | Product grouping 500/250/100/25 ml ditentukan berdasarkan `products.volume` | User confirmation | Confirmed |
 | BR-016 | Outlet GRUP1 adalah category (INSTANSI/RUMAH SAKIT) | User confirmation | Confirmed |
 | BR-017 | Outlet GRUP2 adalah ownership (PEMERINTAH/BUKAN) | User confirmation | Confirmed |

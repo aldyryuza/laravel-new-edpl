@@ -55,7 +55,29 @@ class DplApprovalService
             }
 
             $proposal->load(['outlet.area.region', 'outlet.city', 'items.terms']);
-            $this->startInstance($proposal, $user);
+            $source = app(DplDerivationService::class)->amendmentSource($proposal);
+
+            if ($source === null) {
+                $this->startInstance($proposal, $user);
+            } else {
+                // Amendment: item yang sama persis dengan item sumber mewarisi approval sumber (tanpa cek ulang
+                // auto reject); item baru / berubah (termasuk karena hitung ulang margin/logistic) approval ulang.
+                $derivation = app(DplDerivationService::class);
+                $sourceInstance = $this->currentInstance($source);
+                $sourceStates = $sourceInstance === null ? collect() : $this->statesOf($sourceInstance);
+                $matches = $proposal->items->mapWithKeys(fn (DplItem $item) => [$item->id => $derivation->matchingSourceItem($item, $source)]);
+
+                $this->startInstance(
+                    $proposal,
+                    $user,
+                    fn (DplItem $item, ApprovalWorkflowStep $step) => $matches[$item->id] === null ? null : $sourceStates->first(
+                        fn (ApprovalItemState $state) => $state->dpl_item_id === $matches[$item->id]->id
+                            && $state->stepInstance->workflow_step_id === $step->id
+                            && $state->status === ApprovalItemState::STATUS_APPROVED,
+                    ),
+                    fn (DplItem $item) => $matches[$item->id] === null,
+                );
+            }
 
             $this->changeProposalStatus($proposal, DplProposal::STATUS_IN_APPROVAL, $user, 'Diajukan');
             $proposal->update(['submitted_at' => now()]);

@@ -8,6 +8,7 @@ use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
 use App\Models\Product;
 use App\Services\Dpl\DplApprovalService;
+use App\Services\Dpl\DplDerivationService;
 use App\Services\Dpl\DplDraftService;
 use App\Services\Dpl\DplPricing;
 use Carbon\CarbonImmutable;
@@ -55,8 +56,11 @@ class DplProposalRequest extends FormRequest
             // CONSOLIDATION dibuat lewat alur konsolidasi, bukan dari form ini.
             'proposal_type' => ['required', Rule::in([DplProposal::TYPE_NORMAL, DplProposal::TYPE_CLEARANCE])],
             // Tanggal penawaran otomatis hari ini (diisi server). Semua tanggal tidak boleh backdated (BR-007).
-            'date_start' => ['required', 'date', 'after_or_equal:'.$today],
-            'date_end' => ['required', 'date', 'after_or_equal:'.$today, 'after_or_equal:date_start'],
+            // Amendment (Make a Copy): periode dikunci dari pembuatan, tidak divalidasi / diubah lagi.
+            ...($this->isAmendment() ? [] : [
+                'date_start' => ['required', 'date', 'after_or_equal:'.$today],
+                'date_end' => ['required', 'date', 'after_or_equal:'.$today, 'after_or_equal:date_start'],
+            ]),
             'is_contract' => ['required', 'boolean'],
             // "25% Bed": dihitung server dari bed outlet; hanya dipakai bila bed outlet 0/kosong.
             'bed_order_minimum' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99', 'decimal:0,2'],
@@ -132,7 +136,19 @@ class DplProposalRequest extends FormRequest
      */
     public function proposalAttributes(): array
     {
-        return $this->safe()->only(['proposal_type', 'date_start', 'date_end', 'is_contract', 'bed_order_minimum', 'description']);
+        $fields = ['proposal_type', 'date_start', 'date_end', 'is_contract', 'bed_order_minimum', 'description'];
+
+        return $this->safe()->only($this->isAmendment() ? array_diff($fields, ['date_start', 'date_end']) : $fields);
+    }
+
+    /**
+     * DPL yang diubah adalah amendment (Make a Copy): periodenya dikunci.
+     */
+    private function isAmendment(): bool
+    {
+        $proposal = $this->route('proposal');
+
+        return $proposal instanceof DplProposal && app(DplDerivationService::class)->amendmentSource($proposal) !== null;
     }
 
     /**
@@ -211,7 +227,7 @@ class DplProposalRequest extends FormRequest
 
     private function validatePeriod(Validator $validator): void
     {
-        if ($validator->errors()->hasAny(['date_start', 'date_end'])) {
+        if ($this->isAmendment() || $validator->errors()->hasAny(['date_start', 'date_end'])) {
             return;
         }
 

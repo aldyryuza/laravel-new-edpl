@@ -11,11 +11,14 @@ use App\Models\Dpl\ApprovalStepInstance;
 use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\Dpl\DplApprovalService;
 use App\Services\Dpl\DplCalculator;
+use App\Services\Dpl\DplDerivationService;
 use App\Services\Dpl\DplDraftService;
 use App\Services\Dpl\DplItemDefaults;
 use App\Services\Dpl\DplPricing;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,7 +54,7 @@ class DplProposalController extends Controller implements HasMiddleware
         return [
             new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing', 'calculate', 'itemDefaults', 'approval']),
             new Middleware('can:dpl-proposals.approve', only: ['approve', 'reject', 'reviewOverride']),
-            new Middleware('can:dpl-proposals.create', only: ['store', 'outletOptions']),
+            new Middleware('can:dpl-proposals.create', only: ['store', 'outletOptions', 'amend', 'renew']),
             new Middleware('can:dpl-proposals.update', only: ['update', 'submit', 'requestOverride']),
             new Middleware('can:dpl-proposals.delete', only: ['destroy']),
         ];
@@ -320,6 +323,40 @@ class DplProposalController extends Controller implements HasMiddleware
     }
 
     /**
+     * Make a Copy (AMENDMENT): draft baru dari DPL aktif milik user, periode hari ini s/d Date End sumber.
+     */
+    public function amend(Request $request, DplProposal $proposal, DplDerivationService $derivations): JsonResponse
+    {
+        $this->ensureVisible($request, $proposal);
+        $copy = $derivations->amend($proposal, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => "Draft amendment {$copy->dpl_number} dibuat dari {$proposal->dpl_number}",
+            'data' => ['id' => $copy->id, 'dpl_number' => $copy->dpl_number],
+        ], 201);
+    }
+
+    /**
+     * Duplicate (RENEWAL): draft baru dari DPL approved milik user dengan periode baru; approval dari awal.
+     */
+    public function renew(Request $request, DplProposal $proposal, DplDerivationService $derivations): JsonResponse
+    {
+        $this->ensureVisible($request, $proposal);
+        $data = $request->validate([
+            'date_start' => ['required', 'date_format:Y-m-d'],
+            'date_end' => ['required', 'date_format:Y-m-d'],
+        ]);
+        $copy = $derivations->renew($proposal, $request->user(), $data['date_start'], $data['date_end']);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Draft renewal {$copy->dpl_number} dibuat dari {$proposal->dpl_number}",
+            'data' => ['id' => $copy->id, 'dpl_number' => $copy->dpl_number],
+        ], 201);
+    }
+
+    /**
      * Ajukan draft ke approval (hanya pembuat draft). Jalur & approver per item ditentukan server.
      */
     public function submit(Request $request, DplProposal $proposal, DplApprovalService $approvals): JsonResponse
@@ -429,6 +466,17 @@ class DplProposalController extends Controller implements HasMiddleware
         abort_unless(DplProposal::query()->visibleTo($request->user())->whereKey($proposal->getKey())->exists(), 404);
     }
 
+    private function canAmend(DplProposal $proposal, User $user): bool
+    {
+        $today = CarbonImmutable::now(config('dpl.timezone'))->toDateString();
+
+        return $proposal->created_by_user_id === $user->id
+            && $proposal->proposal_status === DplProposal::STATUS_APPROVED
+            && $proposal->program_status === DplProposal::PROGRAM_ACTIVE
+            && $proposal->date_start->toDateString() <= $today
+            && $proposal->date_end->toDateString() >= $today;
+    }
+
     private function ensureEditable(Request $request, DplProposal $proposal): void
     {
         $this->ensureVisible($request, $proposal);
@@ -455,6 +503,19 @@ class DplProposalController extends Controller implements HasMiddleware
             'pending_open_item_ids' => $proposal->overrideRequests()->where('status', ApprovalOverrideRequest::STATUS_PENDING)->pluck('dpl_item_id')->all(),
             'can_request_open' => $autoRejected !== [] && $proposal->created_by_user_id === $user->id,
             'can_review_open' => $autoRejected !== [] && $approvals->isOverrideReviewer($user),
+            // Make a Copy / Duplicate (hanya pemilik DPL approved) dan asal-usul DPL ini.
+            'can_amend' => $this->canAmend($proposal, $user),
+            'can_renew' => $proposal->created_by_user_id === $user->id && $proposal->proposal_status === DplProposal::STATUS_APPROVED,
+            'derived_from' => $proposal->incomingRelations()->with('source:id,dpl_number')->get()
+                ->map(fn ($relation) => ['type' => $relation->relation_type, 'id' => $relation->source_dpl_id, 'dpl_number' => $relation->source?->dpl_number])
+                ->first(),
+            'derivatives' => $proposal->outgoingRelations()->with('target:id,dpl_number,proposal_status')->get()
+                ->map(fn ($relation) => [
+                    'type' => $relation->relation_type,
+                    'id' => $relation->target_dpl_id,
+                    'dpl_number' => $relation->target?->dpl_number,
+                    'proposal_status' => $relation->target?->proposal_status,
+                ])->values(),
         ];
     }
 }

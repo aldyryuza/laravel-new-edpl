@@ -113,6 +113,8 @@ Route::prefix('dpl')->name('dpl.')->group(function () {
     Route::post('proposals/calculate', [DplProposalController::class, 'calculate'])->name('proposals.calculate');
     Route::get('proposals/item-defaults', [DplProposalController::class, 'itemDefaults'])->name('proposals.item-defaults');
     Route::post('proposals/{proposal}/submit', [DplProposalController::class, 'submit'])->name('proposals.submit');
+    Route::post('proposals/{proposal}/amend', [DplProposalController::class, 'amend'])->name('proposals.amend');
+    Route::post('proposals/{proposal}/renew', [DplProposalController::class, 'renew'])->name('proposals.renew');
     Route::get('proposals/{proposal}/approval', [DplProposalController::class, 'approval'])->name('proposals.approval');
     Route::post('proposals/{proposal}/approve', [DplProposalController::class, 'approve'])->name('proposals.approve');
     Route::post('proposals/{proposal}/reject', [DplProposalController::class, 'reject'])->name('proposals.reject');

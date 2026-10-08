@@ -942,6 +942,70 @@ $(function () {
         });
     });
 
+    // ---- Make a Copy (amendment) / Duplicate (renewal) & asal-usul ----
+
+    const RELATION_LABELS = { AMENDMENT: 'Amendment (Make a Copy)', RENEWAL: 'Renewal (Duplicate)' };
+
+    function renderRelations(proposal) {
+        const parts = [];
+
+        if (proposal.derived_from) {
+            const from = proposal.derived_from;
+            parts.push(`${RELATION_LABELS[from.type] || from.type} dari <a href="${showUrl}/${from.id}">${App.escape(from.dpl_number || '#' + from.id)}</a>`);
+        }
+
+        (proposal.derivatives || []).forEach(child => {
+            parts.push(`${RELATION_LABELS[child.type] || child.type}: <a href="${showUrl}/${child.id}">${App.escape(child.dpl_number || '#' + child.id)}</a>`
+                + ` <span class="badge bg-label-secondary">${App.escape(child.proposal_status || '')}</span>`);
+        });
+
+        $('#proposal-relation').toggleClass('d-none', parts.length === 0).html(parts.join('<br>'));
+        $('#btn-amend').toggleClass('d-none', !proposal.can_amend);
+        $('#btn-renew').toggleClass('d-none', !proposal.can_renew);
+
+        // Amendment: periode dikunci (hari ini s/d Date End sumber).
+        if (proposal.derived_from?.type === 'AMENDMENT') {
+            $form.find('[name="date_start"], [name="date_end"]').prop('readonly', true).prop('disabled', false);
+        }
+    }
+
+    function openDerived(res) {
+        App.notify('success', res.message);
+        window.location.href = `${showUrl}/${res.data.id}`;
+    }
+
+    $('#btn-amend').on('click', function () {
+        App.confirm('Buat draft amendment (Make a Copy)? Periode: hari ini s/d Date End DPL ini. Item yang tidak berubah tetap approved.', 'Ya, buat')
+            .then(confirmed => {
+                if (!confirmed) {
+                    return;
+                }
+
+                $.post(App.url(`api/dpl/proposals/${proposalId}/amend`))
+                    .done(openDerived)
+                    .fail(xhr => App.handleError(xhr));
+            });
+    });
+
+    $('#btn-renew').on('click', () => {
+        App.clearErrors($('#renew-form'));
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('renew-modal')).show();
+    });
+
+    $('#renew-form').on('submit', function (event) {
+        event.preventDefault();
+        const $renewForm = $(this);
+
+        $.ajax({
+            url: App.url(`api/dpl/proposals/${proposalId}/renew`),
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ date_start: $renewForm.find('[name="date_start"]').val(), date_end: $renewForm.find('[name="date_end"]').val() })
+        })
+            .done(openDerived)
+            .fail(xhr => App.handleError(xhr, $renewForm));
+    });
+
     // ---- Ajukan & status ----
 
     const $submitProposal = $('#btn-submit-proposal');
@@ -1305,6 +1369,7 @@ $(function () {
             : '<i class="icon-base bx bx-revision me-1"></i> Simpan &amp; Ajukan Ulang');
         loadApproval(proposal);
         renderOpenPanel(proposal);
+        renderRelations(proposal);
     }
 
     if (proposalId) {

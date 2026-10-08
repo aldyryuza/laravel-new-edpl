@@ -6,6 +6,17 @@
     <x-page-header :title="$proposal ? 'DPL ' . $proposal->dpl_number : 'Buat DPL'"
         :breadcrumbs="[['label' => 'DPL'], ['label' => 'Pengajuan DPL', 'url' => route('dpl.proposals.index')]]">
         <x-slot:actions>
+            {{-- Make a Copy / Duplicate: tampil via JS bila user pemilik DPL approved (can_amend / can_renew). --}}
+            @if ($proposal)
+                @can('dpl-proposals.create')
+                    <button type="button" class="btn btn-label-primary d-none" id="btn-amend">
+                        <i class="icon-base bx bx-copy me-1"></i> Make a Copy
+                    </button>
+                    <button type="button" class="btn btn-label-info d-none" id="btn-renew">
+                        <i class="icon-base bx bx-duplicate me-1"></i> Duplicate
+                    </button>
+                @endcan
+            @endif
             <a href="{{ route('dpl.proposals.index') }}" class="btn btn-label-secondary">
                 <i class="icon-base bx bx-arrow-back me-1"></i> Kembali
             </a>
@@ -23,6 +34,8 @@
                 </div>
             </div>
             <div class="card-body">
+                {{-- Asal-usul (amendment / renewal dari DPL lain) dan DPL turunan. --}}
+                <div class="alert alert-info d-none" id="proposal-relation" role="alert"></div>
                 <div class="row g-4">
                     <div class="col-md-6">
                         <label for="proposal-outlet" class="form-label">Outlet <span class="text-danger">*</span></label>
@@ -242,6 +255,36 @@
 @endsection
 
 @push('modals')
+    @if ($proposal)
+        <div class="modal fade" id="renew-modal" tabindex="-1" aria-labelledby="renew-modal-title" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <form class="modal-content" id="renew-form" novalidate>
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="renew-modal-title">Duplicate DPL</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-body-secondary">Membuat draft baru dari DPL ini dengan periode baru. Margin & logistic fee dihitung ulang dan approval dimulai dari awal.</p>
+                        <div class="row g-4">
+                            <div class="col-sm-6">
+                                <label for="renew-start" class="form-label">Date Start <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="renew-start" name="date_start" min="{{ $today }}" required />
+                            </div>
+                            <div class="col-sm-6">
+                                <label for="renew-end" class="form-label">Date End <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="renew-end" name="date_end" min="{{ $today }}" required />
+                                <div class="form-text">Maksimal 1 tahun dari Date Start.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Buat Draft</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
     @if ($proposal)
         <div class="modal fade" id="approval-modal" tabindex="-1" aria-labelledby="approval-modal-title" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
