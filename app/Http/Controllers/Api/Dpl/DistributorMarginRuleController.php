@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\Dpl;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dpl\DistributorMarginRuleRequest;
+use App\Http\Requests\ExcelImportRequest;
 use App\Models\Dpl\DistributorMarginRule;
+use App\Services\DistributorMarginRuleImportService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,6 +31,8 @@ class DistributorMarginRuleController extends Controller implements HasMiddlewar
             new Middleware('can:distributor-margin-rules.create', only: ['store']),
             new Middleware('can:distributor-margin-rules.update', only: ['update']),
             new Middleware('can:distributor-margin-rules.delete', only: ['destroy']),
+            // Import bisa membuat dan memperbarui data sekaligus.
+            new Middleware(['can:distributor-margin-rules.create', 'can:distributor-margin-rules.update'], only: ['import']),
         ];
     }
 
@@ -76,6 +80,20 @@ class DistributorMarginRuleController extends Controller implements HasMiddlewar
             'success' => true,
             'message' => 'Margin khusus product berhasil diperbarui',
             'data' => $distributorMarginRule->load(self::RELATIONS),
+        ]);
+    }
+
+    /**
+     * Import Excel (upsert berdasarkan grup + product + kota). Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
+     */
+    public function import(ExcelImportRequest $request, DistributorMarginRuleImportService $importService): JsonResponse
+    {
+        $result = $importService->import($request->file('file'));
+
+        return response()->json([
+            'success' => true,
+            'message' => "Import Margin Khusus Product selesai: {$result['created']} dibuat, {$result['updated']} diperbarui, {$result['unchanged']} tidak berubah.",
+            'data' => $result,
         ]);
     }
 

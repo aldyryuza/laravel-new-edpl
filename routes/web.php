@@ -90,6 +90,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/cities/import-template', [CityController::class, 'template'])
         ->middleware(['can:cities.create', 'throttle:export'])
         ->name('cities.import-template');
+    Route::get('/cities/import-logistic-fee-template', [CityController::class, 'logisticFeeTemplate'])
+        ->middleware(['can:cities.update', 'throttle:export'])
+        ->name('cities.import-logistic-fee-template');
 
     // Master outlet (schema public)
     Route::get('/outlets', [OutletController::class, 'index'])->middleware('can:outlets.read')->name('outlets.index');
@@ -110,6 +113,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/distributors/import-template', [DistributorController::class, 'template'])
         ->middleware(['can:distributors.create', 'throttle:export'])
         ->name('distributors.import-template');
+    Route::get('/distributors/import-margin-template', [DistributorController::class, 'marginTemplate'])
+        ->middleware(['can:distributors.update', 'throttle:export'])
+        ->name('distributors.import-margin-template');
 
     // E-DPL (schema dpl)
     Route::prefix('dpl')->name('dpl.')->group(function () {
@@ -138,9 +144,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/distributor-margin-rules', [DistributorMarginRuleController::class, 'index'])
             ->middleware('can:distributor-margin-rules.read')
             ->name('distributor-margin-rules.index');
+        Route::get('/distributor-margin-rules/import-template', [DistributorMarginRuleController::class, 'template'])
+            ->middleware(['can:distributor-margin-rules.create', 'throttle:export'])
+            ->name('distributor-margin-rules.import-template');
         Route::get('/distributor-margin-overrides', [DistributorMarginOverrideController::class, 'index'])
             ->middleware('can:distributor-margin-overrides.read')
             ->name('distributor-margin-overrides.index');
+        Route::get('/distributor-margin-overrides/import-template', [DistributorMarginOverrideController::class, 'template'])
+            ->middleware(['can:distributor-margin-overrides.create', 'throttle:export'])
+            ->name('distributor-margin-overrides.import-template');
         Route::get('/product-margin-overrides', [ProductMarginOverrideController::class, 'index'])
             ->middleware('can:product-margin-overrides.read')
             ->name('product-margin-overrides.index');

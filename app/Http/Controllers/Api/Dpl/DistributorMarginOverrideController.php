@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api\Dpl;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dpl\DistributorMarginOverrideRequest;
+use App\Http\Requests\ExcelImportRequest;
+use App\Models\Distributor;
 use App\Models\Dpl\DistributorMarginOverride;
 use App\Models\Outlet;
+use App\Services\DistributorMarginOverrideImportService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,12 +17,12 @@ use Illuminate\Routing\Controllers\Middleware;
 use Yajra\DataTables\Facades\DataTables;
 
 /**
- * Margin khusus outlet per distributor (legacy dpl_distributor_spesial_margin_outlet).
- * Hanya berlaku bila distributor ditandai is_special_case_margin.
+ * Margin khusus outlet per grup distributor (legacy dpl_distributor_spesial_margin_outlet, KODEDIST = grup).
+ * Hanya berlaku untuk cabang grup itu yang ditandai is_special_case_margin.
  */
 class DistributorMarginOverrideController extends Controller implements HasMiddleware
 {
-    private const RELATIONS = ['distributor:id,code,name,is_special_case_margin', 'outlet:id,code,name'];
+    private const RELATIONS = ['outlet:id,code,name'];
 
     /**
      * @return array<int, Middleware>
@@ -31,27 +34,36 @@ class DistributorMarginOverrideController extends Controller implements HasMiddl
             new Middleware('can:distributor-margin-overrides.create', only: ['store']),
             new Middleware('can:distributor-margin-overrides.update', only: ['update']),
             new Middleware('can:distributor-margin-overrides.delete', only: ['destroy']),
+            // Import bisa membuat dan memperbarui data sekaligus.
+            new Middleware(['can:distributor-margin-overrides.create', 'can:distributor-margin-overrides.update'], only: ['import']),
         ];
     }
 
     /**
-     * Data tabel (Yajra). Pencarian: kode/nama distributor atau outlet.
+     * Data tabel (Yajra). Pencarian: kode grup, kode/nama outlet.
+     * `has_special_case_distributor` = ada distributor grup ini yang ditandai margin khusus outlet (untuk peringatan).
      */
     public function datatable(Request $request): JsonResponse
     {
         $query = DistributorMarginOverride::query()
-            ->select(['id', 'distributor_id', 'outlet_id', 'margin', 'note', 'is_active'])
+            ->select(['id', 'distributor_group_code', 'outlet_id', 'margin', 'note', 'is_active'])
+            ->addSelect(['has_special_case_distributor' => Distributor::query()
+                ->selectRaw('count(*) > 0')
+                ->whereColumn('distributors.group_code', 'distributor_margin_overrides.distributor_group_code')
+                ->where('distributors.is_special_case_margin', true)])
             ->with(self::RELATIONS);
 
         return DataTables::eloquent($query)
-            ->whitelist(['margin', 'is_active'])
+            ->whitelist(['distributor_group_code', 'margin', 'is_active'])
             ->filter(function (Builder $query) use ($request): void {
                 $term = trim((string) $request->input('search.value'));
 
                 if ($term !== '') {
-                    $match = fn (Builder $related) => $related->whereLike('code', "%{$term}%")->orWhereLike('name', "%{$term}%");
-
-                    $query->where(fn (Builder $query) => $query->whereHas('distributor', $match)->orWhereHas('outlet', $match));
+                    $query->where(fn (Builder $query) => $query
+                        ->whereLike('distributor_group_code', "%{$term}%")
+                        ->orWhereHas('outlet', fn (Builder $outlet) => $outlet
+                            ->whereLike('code', "%{$term}%")
+                            ->orWhereLike('name', "%{$term}%")));
                 }
             })
             ->toJson();
@@ -99,6 +111,20 @@ class DistributorMarginOverrideController extends Controller implements HasMiddl
             'success' => true,
             'message' => 'Margin khusus outlet berhasil diperbarui',
             'data' => $distributorMarginOverride->load(self::RELATIONS),
+        ]);
+    }
+
+    /**
+     * Import Excel (upsert berdasarkan grup + outlet). Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
+     */
+    public function import(ExcelImportRequest $request, DistributorMarginOverrideImportService $importService): JsonResponse
+    {
+        $result = $importService->import($request->file('file'));
+
+        return response()->json([
+            'success' => true,
+            'message' => "Import Margin Khusus Outlet selesai: {$result['created']} dibuat, {$result['updated']} diperbarui, {$result['unchanged']} tidak berubah.",
+            'data' => $result,
         ]);
     }
 

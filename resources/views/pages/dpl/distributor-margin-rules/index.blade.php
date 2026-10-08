@@ -6,6 +6,12 @@
     <x-page-header title="Margin Khusus Product" subtitle="Margin khusus product per grup distributor, opsional per kota (legacy dpl_distributor_margin)."
         :breadcrumbs="[['label' => 'Komersial DPL']]">
         <x-slot:actions>
+            {{-- Import membuat sekaligus memperbarui data: butuh hak create + update. --}}
+            @if (auth()->user()->can('distributor-margin-rules.create') && auth()->user()->can('distributor-margin-rules.update'))
+                <button type="button" class="btn btn-label-success" data-bs-toggle="modal" data-bs-target="#excel-import-modal">
+                    <i class="icon-base bx bx-upload me-1"></i> Import Excel
+                </button>
+            @endif
             @can('distributor-margin-rules.create')
                 <button type="button" class="btn btn-primary" id="btn-add-rule">
                     <i class="icon-base bx bx-plus me-1"></i> Tambah Margin
@@ -97,8 +103,15 @@
             </form>
         </div>
     </div>
+
+    @if (auth()->user()->can('distributor-margin-rules.create') && auth()->user()->can('distributor-margin-rules.update'))
+        <x-excel-import-modal title="Import Margin Khusus Product dari Excel" upload-path="api/dpl/distributor-margin-rules/import"
+            :template-url="route('dpl.distributor-margin-rules.import-template')"
+            columns="kode_grup, kode_product, kode_kota, margin, catatan, aktif" />
+    @endif
 @endpush
 
 @push('scripts')
+    <script src="{{ asset_v('js/excel-import.js') }}"></script>
     <script src="{{ asset_v('js/pages/dpl/distributor-margin-rules.js') }}"></script>
 @endpush

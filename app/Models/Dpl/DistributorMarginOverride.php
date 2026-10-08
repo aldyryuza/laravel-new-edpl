@@ -2,7 +2,6 @@
 
 namespace App\Models\Dpl;
 
-use App\Models\Distributor;
 use App\Models\Outlet;
 use App\Support\AuditLog;
 use Database\Factories\Dpl\DistributorMarginOverrideFactory;
@@ -15,11 +14,11 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
 /**
- * Margin khusus outlet per distributor (legacy dpl_distributor_spesial_margin_outlet).
- * Hanya berlaku bila distributor is_special_case_margin.
+ * Margin khusus outlet per grup distributor (legacy dpl_distributor_spesial_margin_outlet, KODEDIST = grup).
+ * Berlaku untuk cabang grup itu yang ditandai is_special_case_margin.
  */
 #[Table('dpl.distributor_margin_overrides')]
-#[Fillable(['distributor_id', 'outlet_id', 'margin', 'note', 'is_active'])]
+#[Fillable(['distributor_group_code', 'outlet_id', 'margin', 'note', 'is_active'])]
 class DistributorMarginOverride extends Model
 {
     /** @use HasFactory<DistributorMarginOverrideFactory> */
@@ -28,8 +27,8 @@ class DistributorMarginOverride extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return AuditLog::dataOptions(
-            ['distributor_id', 'outlet_id', 'margin', 'note', 'is_active'],
-            fn () => "Margin khusus outlet {$this->distributor?->code} - {$this->outlet?->code}",
+            ['distributor_group_code', 'outlet_id', 'margin', 'note', 'is_active'],
+            fn () => "Margin khusus outlet {$this->distributor_group_code} - {$this->outlet?->code}",
         );
     }
 
@@ -44,14 +43,6 @@ class DistributorMarginOverride extends Model
             'margin' => 'decimal:4',
             'is_active' => 'boolean',
         ];
-    }
-
-    /**
-     * @return BelongsTo<Distributor, $this>
-     */
-    public function distributor(): BelongsTo
-    {
-        return $this->belongsTo(Distributor::class);
     }
 
     /**

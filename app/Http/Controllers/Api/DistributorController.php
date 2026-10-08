@@ -8,6 +8,7 @@ use App\Http\Requests\DistributorRequest;
 use App\Http\Requests\ExcelImportRequest;
 use App\Models\Distributor;
 use App\Services\DistributorImportService;
+use App\Services\DistributorMarginImportService;
 use App\Services\DistributorService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -35,6 +36,8 @@ class DistributorController extends Controller implements HasMiddleware
             new Middleware('can:distributors.delete', only: ['destroy']),
             // Import bisa membuat dan memperbarui data sekaligus.
             new Middleware(['can:distributors.create', 'can:distributors.update'], only: ['import']),
+            // Import margin hanya memperbarui distributor yang sudah ada.
+            new Middleware('can:distributors.update', only: ['importMargin']),
         ];
     }
 
@@ -151,6 +154,23 @@ class DistributorController extends Controller implements HasMiddleware
         return response()->json([
             'success' => true,
             'message' => "Import Distributor selesai: {$result['created']} dibuat, {$result['updated']} diperbarui, {$result['unchanged']} tidak berubah.",
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Import Excel margin DPL (update-only berdasarkan kode), hanya untuk user Nasional seperti import distributor.
+     * Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
+     */
+    public function importMargin(ExcelImportRequest $request, DistributorMarginImportService $importService): JsonResponse
+    {
+        abort_unless($request->user()->regionScope()->isNational(), 403, 'Import margin distributor hanya untuk user dengan wilayah Nasional.');
+
+        $result = $importService->import($request->file('file'));
+
+        return response()->json([
+            'success' => true,
+            'message' => "Import Margin Distributor selesai: {$result['updated']} diperbarui, {$result['unchanged']} tidak berubah.",
             'data' => $result,
         ]);
     }

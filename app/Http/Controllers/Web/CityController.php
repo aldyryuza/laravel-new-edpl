@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Province;
+use App\Services\CityLogisticFeeImportService;
 use App\Services\CodeMasterImportService;
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Facades\Excel;
@@ -27,5 +28,13 @@ class CityController extends Controller
     public function template(CodeMasterImportService $importService): BinaryFileResponse
     {
         return Excel::download($importService->template(CodeMasterImportService::CITY), 'template-import-kota.xlsx');
+    }
+
+    /**
+     * Template Excel untuk import logistic fee kota (sheet Data + Petunjuk).
+     */
+    public function logisticFeeTemplate(CityLogisticFeeImportService $importService): BinaryFileResponse
+    {
+        return Excel::download($importService->template(), 'template-import-logistic-fee-kota.xlsx');
     }
 }

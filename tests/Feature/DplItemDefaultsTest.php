@@ -110,7 +110,7 @@ class DplItemDefaultsTest extends TestCase
 
     public function test_outlet_margin_needs_flag_and_skips_excluded_team_and_small_volume(): void
     {
-        DistributorMarginOverride::factory()->create(['distributor_id' => $this->local->id, 'outlet_id' => $this->hospital->id, 'margin' => '5']);
+        DistributorMarginOverride::factory()->create(['distributor_group_code' => 'AMJ', 'outlet_id' => $this->hospital->id, 'margin' => '5']);
         $this->assertSame('8.00', $this->margin(), 'Distributor belum ditandai margin khusus outlet.');
 
         $this->local->update(['is_special_case_margin' => true]);

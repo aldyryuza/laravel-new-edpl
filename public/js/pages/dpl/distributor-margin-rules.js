@@ -2,7 +2,7 @@
  * Margin khusus product per grup distributor (kota kosong = semua kota).
  *
  * Tabel: Yajra server-side (GET api/dpl/distributor-margin-rules/datatable), form tambah/edit di modal
- * (product & kota memakai select2, grup distributor input bebas dengan saran datalist).
+ * (product & kota memakai select2, grup distributor input bebas dengan saran datalist). Import Excel lewat js/excel-import.js.
  */
 'use strict';
 
@@ -58,6 +58,9 @@ $(function () {
         ],
         language: { emptyTable: 'Belum ada margin khusus', zeroRecords: 'Margin khusus tidak ditemukan', search: 'Cari grup/product:' }
     });
+
+    // Muat ulang tabel setelah import Excel berhasil (lihat js/excel-import.js).
+    $(document).on('excel-import:done', () => table.ajax.reload());
 
     function renderActions(row) {
         let html = '';

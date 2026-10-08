@@ -3,9 +3,15 @@
 @section('title', 'Margin Khusus Outlet')
 
 @section('content')
-    <x-page-header title="Margin Khusus Outlet" subtitle="Margin khusus per distributor dan outlet (legacy dpl_distributor_spesial_margin_outlet)."
+    <x-page-header title="Margin Khusus Outlet" subtitle="Margin khusus per grup distributor dan outlet (legacy dpl_distributor_spesial_margin_outlet)."
         :breadcrumbs="[['label' => 'Komersial DPL']]">
         <x-slot:actions>
+            {{-- Import membuat sekaligus memperbarui data: butuh hak create + update. --}}
+            @if (auth()->user()->can('distributor-margin-overrides.create') && auth()->user()->can('distributor-margin-overrides.update'))
+                <button type="button" class="btn btn-label-success" data-bs-toggle="modal" data-bs-target="#excel-import-modal">
+                    <i class="icon-base bx bx-upload me-1"></i> Import Excel
+                </button>
+            @endif
             @can('distributor-margin-overrides.create')
                 <button type="button" class="btn btn-primary" id="btn-add-override">
                     <i class="icon-base bx bx-plus me-1"></i> Tambah Margin
@@ -16,7 +22,7 @@
 
     <div class="alert alert-info d-flex align-items-start" role="alert">
         <i class="icon-base bx bx-info-circle me-2 mt-1"></i>
-        <div>Margin hanya berlaku bila distributor ditandai "Punya margin khusus per outlet" di master Distributor.</div>
+        <div>Berlaku untuk cabang grup distributor ini yang ditandai "Punya margin khusus per outlet" di master Distributor.</div>
     </div>
 
     {{-- Flag permission hanya untuk UX (tampil/sembunyi tombol); server tetap mengecek ulang. --}}
@@ -26,7 +32,7 @@
             <table class="table" id="overrides-table">
                 <thead>
                     <tr>
-                        <th>Distributor</th>
+                        <th>Grup Distributor</th>
                         <th>Outlet</th>
                         <th class="text-end">Margin (%)</th>
                         <th>Status</th>
@@ -49,14 +55,15 @@
                 </div>
                 <div class="modal-body">
                     <div class="row g-4">
-                        <div class="col-12">
-                            <label for="override-distributor" class="form-label">Distributor <span class="text-danger">*</span></label>
-                            <select class="form-select" id="override-distributor" name="distributor_id" required>
-                                <option value="">Pilih distributor</option>
-                                @foreach ($distributors as $distributor)
-                                    <option value="{{ $distributor->id }}">{{ $distributor->name }} ({{ $distributor->code }}){{ $distributor->is_active ? '' : ' - nonaktif' }}{{ $distributor->is_special_case_margin ? '' : ' - belum ditandai margin khusus outlet' }}</option>
+                        <div class="col-md-6">
+                            <label for="override-group" class="form-label">Grup Distributor <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control text-uppercase" id="override-group" name="distributor_group_code" maxlength="50"
+                                list="override-group-options" placeholder="Kode grup distributor" required />
+                            <datalist id="override-group-options">
+                                @foreach ($groupCodes as $groupCode)
+                                    <option value="{{ $groupCode }}"></option>
                                 @endforeach
-                            </select>
+                            </datalist>
                         </div>
                         <div class="col-12">
                             <label for="override-outlet" class="form-label">Outlet <span class="text-danger">*</span></label>
@@ -88,8 +95,15 @@
             </form>
         </div>
     </div>
+
+    @if (auth()->user()->can('distributor-margin-overrides.create') && auth()->user()->can('distributor-margin-overrides.update'))
+        <x-excel-import-modal title="Import Margin Khusus Outlet dari Excel" upload-path="api/dpl/distributor-margin-overrides/import"
+            :template-url="route('dpl.distributor-margin-overrides.import-template')"
+            columns="kode_grup, kode_outlet, margin, catatan, aktif" />
+    @endif
 @endpush
 
 @push('scripts')
+    <script src="{{ asset_v('js/excel-import.js') }}"></script>
     <script src="{{ asset_v('js/pages/dpl/distributor-margin-overrides.js') }}"></script>
 @endpush

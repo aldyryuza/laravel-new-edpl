@@ -11,6 +11,12 @@
                     <i class="icon-base bx bx-upload me-1"></i> Import Excel
                 </button>
             @endif
+            {{-- Import margin hanya memperbarui distributor yang sudah ada: butuh hak update dan wilayah Nasional. --}}
+            @if ($canImport && auth()->user()->can('distributors.update'))
+                <button type="button" class="btn btn-label-success" data-bs-toggle="modal" data-bs-target="#margin-import-modal">
+                    <i class="icon-base bx bx-upload me-1"></i> Import Margin
+                </button>
+            @endif
             @can('distributors.create')
                 <button type="button" class="btn btn-primary" id="btn-add-distributor">
                     <i class="icon-base bx bx-plus me-1"></i> Tambah Distributor
@@ -200,6 +206,11 @@
         <x-excel-import-modal title="Import Distributor dari Excel" upload-path="api/distributors/import"
             :template-url="route('distributors.import-template')"
             columns="kode, nama, grup_distributor, kode_kota, alamat, telepon, fax, email, npwp, latitude, longitude, radius_meter, cabang, kode_induk, kode_region, netsuite_id, aktif" />
+    @endif
+    @if ($canImport && auth()->user()->can('distributors.update'))
+        <x-excel-import-modal id="margin-import" title="Import Margin Distributor dari Excel" upload-path="api/distributors/import-margin"
+            :template-url="route('distributors.import-margin-template')" :update-only="true"
+            columns="kode_distributor, margin, margin_tim_b, margin_khusus_outlet" />
     @endif
 @endpush
 

@@ -525,19 +525,19 @@ UNIQUE `(distributor_group_code, product_id, COALESCE(city_id, 0))`. Fitur legac
 
 ### `distributor_margin_overrides` (schema `dpl`)
 
-Margin khusus outlet (legacy `dpl_distributor_spesial_margin_outlet`). Berlaku bila `distributors.is_special_case_margin`, team pengaju tidak ada di parameter `OUTLET_MARGIN_EXCLUDED_TEAMS` (default `B`), dan product bukan volume `SMALL_VOLUME_ML` (25).
+Margin khusus outlet per **grup distributor** (legacy `dpl_distributor_spesial_margin_outlet`, kunci `KODEDIST` = kode grup; user confirmation 2026-10-08, migration `2026_10_08_000065`). Berlaku untuk cabang grup itu yang `distributors.is_special_case_margin`, team pengaju tidak ada di parameter `OUTLET_MARGIN_EXCLUDED_TEAMS` (default `B`), dan product bukan volume `SMALL_VOLUME_ML` (25).
 
 | Column | Type | Nullable | Constraint/Note |
 |---|---|---:|---|
 | `id` | bigint | No | PK |
-| `distributor_id` | bigint | No | FK `distributors.id`, RESTRICT |
+| `distributor_group_code` | varchar(50) | No | `distributors.group_code` (huruf besar) |
 | `outlet_id` | bigint | No | FK `outlets.id`, RESTRICT, index |
 | `margin` | numeric(10,4) | No | % |
 | `note` | text | Yes | |
 | `is_active` | boolean | No | default true |
 | timestamps | timestamp | Yes | |
 
-UNIQUE `(distributor_id, outlet_id)`.
+UNIQUE `(distributor_group_code, outlet_id)`.
 
 ### `product_margin_overrides` (schema `dpl`)
 
@@ -579,7 +579,7 @@ Dihitung di server (`App\Services\Dpl\DplItemDefaults`, `GET api/dpl/proposals/i
 Margin, berurutan:
 1. Mode Group -> 0.
 2. `distributor_margin_rules` (grup distributor + product + kota distributor / semua kota); bila tidak ada: `distributors.margin` (Tim B: `margin_team_b` bila diisi).
-3. `distributor_margin_overrides` (lihat syaratnya di atas).
+3. `distributor_margin_overrides` (grup distributor + outlet; lihat syaratnya di atas).
 4. Direct: grup `KFTD_DISTRIBUTOR_GROUP` -> `DIRECT_MARGIN_KFTD_INSTANSI` (9) bila outlet kategori `INSTANSI_CATEGORY_CODE`, selain itu `DIRECT_MARGIN_KFTD_OTHER` (11); non-KFTD + outlet Instansi -> `DIRECT_MARGIN_INSTANSI_JAVA` (3) bila provinsi kota distributor `is_java`, selain itu `..._OUTSIDE_JAVA` (5). Bukan Direct: `product_margin_overrides`. Tidak ada pengurangan "nilai direct delivery" (di legacy tidak pernah berjalan).
 
 Logistic Fee (hanya Direct; Ambil Dari Pabrik = 0; via distributor = kosong): `distributor_logistic_rates` -> `cities.logistic_fee` kota distributor -> kota `DEFAULT_LOGISTIC_CITY_CODE` (3216); grup di `NATIONAL_DISTRIBUTOR_GROUPS` (KFTD, UDC, SDL, PPI) -> `NATIONAL_DISTRIBUTOR_LOGISTIC_FEE` (6); product volume `SMALL_VOLUME_ML` atau `is_team_b_product` -> dibagi `SPECIAL_LOGISTIC_DIVISOR` (3), 2 desimal.

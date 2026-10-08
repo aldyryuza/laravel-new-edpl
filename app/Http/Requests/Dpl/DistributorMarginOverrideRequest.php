@@ -5,11 +5,10 @@ namespace App\Http\Requests\Dpl;
 use App\Models\Dpl\DistributorMarginOverride;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
- * Margin khusus outlet per distributor (legacy dpl_distributor_spesial_margin_outlet).
+ * Margin khusus outlet per grup distributor (legacy dpl_distributor_spesial_margin_outlet, KODEDIST = grup).
  */
 class DistributorMarginOverrideRequest extends FormRequest
 {
@@ -29,7 +28,7 @@ class DistributorMarginOverrideRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'distributor_id' => ['required', 'integer', Rule::exists('distributors', 'id')],
+            'distributor_group_code' => ['required', 'string', 'max:50'],
             'outlet_id' => ['required', 'integer', DistributorMarginRuleRequest::activeOrCurrentRule('outlets', $this->route('distributor_margin_override')?->outlet_id)],
             'margin' => ['required', 'numeric', 'min:0', 'max:'.DistributorMarginRuleRequest::MAX_PERCENT, 'decimal:0,4'],
             'note' => ['nullable', 'string', 'max:2000'],
@@ -38,7 +37,7 @@ class DistributorMarginOverrideRequest extends FormRequest
     }
 
     /**
-     * Satu margin per distributor + outlet.
+     * Satu margin per grup distributor + outlet.
      *
      * @return array<int, callable(Validator): void>
      */
@@ -51,16 +50,26 @@ class DistributorMarginOverrideRequest extends FormRequest
                 }
 
                 $duplicate = DistributorMarginOverride::query()
-                    ->where('distributor_id', (int) $this->input('distributor_id'))
+                    ->where('distributor_group_code', $this->input('distributor_group_code'))
                     ->where('outlet_id', (int) $this->input('outlet_id'))
                     ->when($this->route('distributor_margin_override'), fn ($query, DistributorMarginOverride $current) => $query->whereKeyNot($current->getKey()))
                     ->exists();
 
                 if ($duplicate) {
-                    $validator->errors()->add('outlet_id', 'Margin khusus untuk distributor dan outlet ini sudah ada.');
+                    $validator->errors()->add('outlet_id', 'Margin khusus untuk grup distributor dan outlet ini sudah ada.');
                 }
             },
         ];
+    }
+
+    /**
+     * Kode grup disimpan huruf besar (mengikuti distributors.group_code).
+     */
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('distributor_group_code'))) {
+            $this->merge(['distributor_group_code' => mb_strtoupper(trim($this->input('distributor_group_code')))]);
+        }
     }
 
     /**
@@ -69,7 +78,7 @@ class DistributorMarginOverrideRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'distributor_id' => 'distributor',
+            'distributor_group_code' => 'grup distributor',
             'outlet_id' => 'outlet',
             'margin' => 'margin',
             'note' => 'catatan',

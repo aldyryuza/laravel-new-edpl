@@ -123,6 +123,24 @@ abstract class ExcelImporter
     }
 
     /**
+     * Nilai persen (margin, logistic fee) sebagai string desimal, batas kolom numeric(10,4): 0 s/d 999999.9999.
+     *
+     * @param  array<int, string>  $rowErrors  pesan error baris ditambahkan di sini
+     */
+    protected function percent(mixed $value, string $column, bool $required, array &$rowErrors): ?string
+    {
+        $text = $this->amount($value, $column, $required, $rowErrors);
+
+        if ($text !== null && strlen(ltrim(explode('.', $text)[0], '0')) > 6) {
+            $rowErrors[] = "{$column} maksimal 999999.9999";
+
+            return null;
+        }
+
+        return $text;
+    }
+
+    /**
      * Tanggal (Y-m-d) dari sel teks YYYY-MM-DD atau sel tanggal Excel (angka seri).
      *
      * @param  array<int, string>  $rowErrors  pesan error baris ditambahkan di sini

@@ -11,6 +11,12 @@
                     <i class="icon-base bx bx-upload me-1"></i> Import Excel
                 </button>
             @endif
+            {{-- Import logistic fee hanya memperbarui kota yang sudah ada: cukup hak update. --}}
+            @can('cities.update')
+                <button type="button" class="btn btn-label-success" data-bs-toggle="modal" data-bs-target="#logistic-fee-import-modal">
+                    <i class="icon-base bx bx-upload me-1"></i> Import Logistic Fee
+                </button>
+            @endcan
             @can('cities.create')
                 <button type="button" class="btn btn-primary" id="btn-add-city">
                     <i class="icon-base bx bx-plus me-1"></i> Tambah Kota
@@ -103,6 +109,10 @@
         <x-excel-import-modal title="Import Kota dari Excel" upload-path="api/cities/import"
             :template-url="route('cities.import-template')" columns="kode, nama, kode_provinsi, aktif" />
     @endif
+    @can('cities.update')
+        <x-excel-import-modal id="logistic-fee-import" title="Import Logistic Fee Kota dari Excel" upload-path="api/cities/import-logistic-fee"
+            :template-url="route('cities.import-logistic-fee-template')" :update-only="true" columns="kode_kota, logistic_fee" />
+    @endcan
 @endpush
 
 @push('scripts')

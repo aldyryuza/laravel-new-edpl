@@ -2,7 +2,6 @@
 
 namespace Database\Factories\Dpl;
 
-use App\Models\Distributor;
 use App\Models\Dpl\DistributorMarginOverride;
 use App\Models\Outlet;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,7 +19,7 @@ class DistributorMarginOverrideFactory extends Factory
     public function definition(): array
     {
         return [
-            'distributor_id' => Distributor::factory(),
+            'distributor_group_code' => fake()->unique()->bothify('GRP##??'),
             'outlet_id' => Outlet::factory(),
             'margin' => '6.0000',
             'note' => null,

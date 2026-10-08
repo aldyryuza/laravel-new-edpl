@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\City;
 use App\Models\SalesRegion;
 use App\Services\DistributorImportService;
+use App\Services\DistributorMarginImportService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -38,5 +39,13 @@ class DistributorController extends Controller
     public function template(DistributorImportService $importService): BinaryFileResponse
     {
         return Excel::download($importService->template(), 'template-import-distributor.xlsx');
+    }
+
+    /**
+     * Template Excel untuk import margin distributor (sheet Data + Petunjuk).
+     */
+    public function marginTemplate(DistributorMarginImportService $importService): BinaryFileResponse
+    {
+        return Excel::download($importService->template(), 'template-import-margin-distributor.xlsx');
     }
 }

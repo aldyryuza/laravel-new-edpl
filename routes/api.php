@@ -79,6 +79,7 @@ Route::post('provinces/import', [ProvinceController::class, 'import'])->name('pr
 Route::apiResource('provinces', ProvinceController::class)->only(['store', 'update', 'destroy']);
 Route::get('cities/datatable', [CityController::class, 'datatable'])->name('cities.datatable');
 Route::post('cities/import', [CityController::class, 'import'])->name('cities.import');
+Route::post('cities/import-logistic-fee', [CityController::class, 'importLogisticFee'])->name('cities.import-logistic-fee');
 Route::apiResource('cities', CityController::class)->only(['store', 'update', 'destroy']);
 
 // Master outlet (schema public)
@@ -99,6 +100,7 @@ Route::apiResource('products', ProductController::class)->except('index');
 Route::get('distributors/datatable', [DistributorController::class, 'datatable'])->name('distributors.datatable');
 Route::get('distributors/options', [DistributorController::class, 'options'])->name('distributors.options');
 Route::post('distributors/import', [DistributorController::class, 'import'])->name('distributors.import');
+Route::post('distributors/import-margin', [DistributorController::class, 'importMargin'])->name('distributors.import-margin');
 Route::apiResource('distributors', DistributorController::class)->except('index');
 
 // E-DPL (schema dpl)
@@ -126,8 +128,10 @@ Route::prefix('dpl')->name('dpl.')->group(function () {
     Route::get('commercial-parameters/datatable', [CommercialParameterController::class, 'datatable'])->name('commercial-parameters.datatable');
     Route::apiResource('commercial-parameters', CommercialParameterController::class)->only(['store', 'update', 'destroy']);
     Route::get('distributor-margin-rules/datatable', [DistributorMarginRuleController::class, 'datatable'])->name('distributor-margin-rules.datatable');
+    Route::post('distributor-margin-rules/import', [DistributorMarginRuleController::class, 'import'])->name('distributor-margin-rules.import');
     Route::apiResource('distributor-margin-rules', DistributorMarginRuleController::class)->only(['store', 'update', 'destroy']);
     Route::get('distributor-margin-overrides/datatable', [DistributorMarginOverrideController::class, 'datatable'])->name('distributor-margin-overrides.datatable');
+    Route::post('distributor-margin-overrides/import', [DistributorMarginOverrideController::class, 'import'])->name('distributor-margin-overrides.import');
     Route::get('distributor-margin-overrides/outlet-options', [DistributorMarginOverrideController::class, 'outletOptions'])->name('distributor-margin-overrides.outlet-options');
     Route::apiResource('distributor-margin-overrides', DistributorMarginOverrideController::class)->only(['store', 'update', 'destroy']);
     Route::get('product-margin-overrides/datatable', [ProductMarginOverrideController::class, 'datatable'])->name('product-margin-overrides.datatable');

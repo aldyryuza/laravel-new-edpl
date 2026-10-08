@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CityRequest;
 use App\Http\Requests\ExcelImportRequest;
 use App\Models\City;
+use App\Services\CityLogisticFeeImportService;
 use App\Services\CodeMasterImportService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -31,6 +32,8 @@ class CityController extends Controller implements HasMiddleware
             new Middleware('can:cities.delete', only: ['destroy']),
             // Import bisa membuat dan memperbarui data sekaligus.
             new Middleware(['can:cities.create', 'can:cities.update'], only: ['import']),
+            // Import logistic fee hanya memperbarui kota yang sudah ada.
+            new Middleware('can:cities.update', only: ['importLogisticFee']),
         ];
     }
 
@@ -91,6 +94,20 @@ class CityController extends Controller implements HasMiddleware
         return response()->json([
             'success' => true,
             'message' => "Import Kota selesai: {$result['created']} dibuat, {$result['updated']} diperbarui, {$result['unchanged']} tidak berubah.",
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Import Excel logistic fee (update-only berdasarkan kode). Bila ada baris error, tidak ada yang disimpan (422, error di `errors.file`).
+     */
+    public function importLogisticFee(ExcelImportRequest $request, CityLogisticFeeImportService $importService): JsonResponse
+    {
+        $result = $importService->import($request->file('file'));
+
+        return response()->json([
+            'success' => true,
+            'message' => "Import Logistic Fee Kota selesai: {$result['updated']} diperbarui, {$result['unchanged']} tidak berubah.",
             'data' => $result,
         ]);
     }

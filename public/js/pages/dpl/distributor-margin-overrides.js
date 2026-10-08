@@ -1,8 +1,9 @@
 /**
- * Margin khusus outlet per distributor. Hanya berlaku bila distributor ditandai is_special_case_margin.
+ * Margin khusus outlet per grup distributor. Berlaku untuk cabang grup itu yang ditandai is_special_case_margin.
  *
  * Tabel: Yajra server-side (GET api/dpl/distributor-margin-overrides/datatable), form tambah/edit di modal
- * (distributor select2 statis, outlet select2 AJAX ke api/dpl/distributor-margin-overrides/outlet-options).
+ * (grup distributor input bebas dengan saran datalist, outlet select2 AJAX ke api/dpl/distributor-margin-overrides/outlet-options).
+ * Import Excel lewat js/excel-import.js.
  */
 'use strict';
 
@@ -12,7 +13,6 @@ $(function () {
 
     const $form = $('#override-form');
     const $submit = $form.find('[type="submit"]');
-    const $distributor = $('#override-distributor');
     const $outlet = $('#override-outlet');
     const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('override-modal'));
     let editingId = null;
@@ -23,12 +23,6 @@ $(function () {
     const codeName = item => item
         ? `${App.escape(item.name)}<br><small class="text-body-secondary">${App.escape(item.code)}</small>`
         : '-';
-
-    $distributor.wrap('<div class="position-relative"></div>').select2({
-        dropdownParent: $distributor.parent(),
-        placeholder: 'Pilih distributor',
-        width: '100%'
-    });
 
     $outlet.wrap('<div class="position-relative"></div>').select2({
         dropdownParent: $outlet.parent(),
@@ -47,24 +41,19 @@ $(function () {
         serverSide: true,
         processing: true,
         searchDelay: 400,
-        order: [[2, 'desc']],
+        order: [[0, 'asc']],
         ajax: App.dataTableSource('api/dpl/distributor-margin-overrides/datatable'),
         columns: [
             {
-                data: 'distributor',
-                orderable: false,
-                searchable: false,
-                render: distributor => {
-                    if (!distributor) {
-                        return '-';
-                    }
-
-                    // Margin hanya berlaku bila flag margin khusus outlet distributor aktif.
-                    const warning = distributor.is_special_case_margin
+                data: 'distributor_group_code',
+                name: 'distributor_group_code',
+                render: (groupCode, type, row) => {
+                    // Margin hanya berlaku untuk cabang grup yang ditandai margin khusus outlet.
+                    const warning = row.has_special_case_distributor
                         ? ''
-                        : '<br><span class="badge bg-label-warning mt-1">distributor belum ditandai margin khusus outlet</span>';
+                        : '<br><span class="badge bg-label-warning mt-1">belum ada distributor grup ini yang ditandai margin khusus outlet</span>';
 
-                    return codeName(distributor) + warning;
+                    return App.escape(groupCode) + warning;
                 }
             },
             { data: 'outlet', orderable: false, searchable: false, render: codeName },
@@ -79,8 +68,11 @@ $(function () {
             },
             { data: null, orderable: false, searchable: false, className: 'text-end text-nowrap', render: renderActions }
         ],
-        language: { emptyTable: 'Belum ada margin khusus outlet', zeroRecords: 'Margin khusus outlet tidak ditemukan', search: 'Cari distributor/outlet:' }
+        language: { emptyTable: 'Belum ada margin khusus outlet', zeroRecords: 'Margin khusus outlet tidak ditemukan', search: 'Cari grup/outlet:' }
     });
+
+    // Muat ulang tabel setelah import Excel berhasil (lihat js/excel-import.js).
+    $(document).on('excel-import:done', () => table.ajax.reload());
 
     function renderActions(row) {
         let html = '';
@@ -111,7 +103,7 @@ $(function () {
         $outlet.empty();
 
         if (override) {
-            ['margin', 'note'].forEach(field => $form.find(`[name="${field}"]`).val(override[field] ?? ''));
+            ['distributor_group_code', 'margin', 'note'].forEach(field => $form.find(`[name="${field}"]`).val(override[field] ?? ''));
             $('#override-active').prop('checked', override.is_active);
 
             if (override.outlet) {
@@ -120,7 +112,6 @@ $(function () {
         }
 
         $outlet.trigger('change');
-        $distributor.val(override ? String(override.distributor_id) : '').trigger('change');
         modal.show();
     }
 
@@ -132,7 +123,7 @@ $(function () {
 
     $('#overrides-table').on('click', '.btn-delete', function () {
         const override = findRow($(this).data('id'));
-        const label = `${override.distributor ? override.distributor.code : ''} - ${override.outlet ? override.outlet.code : ''}`;
+        const label = `${override.distributor_group_code} - ${override.outlet ? override.outlet.code : ''}`;
 
         App.confirm(`Hapus margin khusus outlet ${label}?`, 'Ya, hapus').then(confirmed => {
             if (!confirmed) {

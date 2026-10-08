@@ -90,25 +90,46 @@ class DplMarginRulePagesTest extends TestCase
     public function test_distributor_margin_override_crud_and_uniqueness(): void
     {
         $actor = $this->userWithAccess(['distributor-margin-overrides' => ['create', 'read', 'update', 'delete']]);
-        $distributor = Distributor::factory()->create(['is_special_case_margin' => false]);
+        Distributor::factory()->create(['group_code' => 'GRP-X', 'is_special_case_margin' => false]);
         $outlet = Outlet::factory()->create();
-        $payload = ['distributor_id' => $distributor->id, 'outlet_id' => $outlet->id, 'margin' => '6', 'is_active' => true];
+        $payload = ['distributor_group_code' => ' grp-x ', 'outlet_id' => $outlet->id, 'margin' => '6', 'is_active' => true];
 
         $this->actingAs($actor)->postJson('/api/dpl/distributor-margin-overrides', $payload)
             ->assertCreated()
+            ->assertJsonPath('data.distributor_group_code', 'GRP-X')
             ->assertJsonPath('data.margin', '6.0000');
 
-        $this->actingAs($actor)->postJson('/api/dpl/distributor-margin-overrides', $payload)
+        $this->actingAs($actor)->postJson('/api/dpl/distributor-margin-overrides', [...$payload, 'distributor_group_code' => 'GRP-X'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('outlet_id');
+            ->assertJsonValidationErrors(['outlet_id' => 'grup distributor']);
 
-        $override = DistributorMarginOverride::query()->sole();
+        $this->actingAs($actor)->postJson('/api/dpl/distributor-margin-overrides', [...$payload, 'distributor_group_code' => ''])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('distributor_group_code');
+
+        // Grup lain + outlet sama boleh.
+        $this->actingAs($actor)->postJson('/api/dpl/distributor-margin-overrides', [...$payload, 'distributor_group_code' => 'GRP-Y'])
+            ->assertCreated();
+
+        $override = DistributorMarginOverride::query()->where('distributor_group_code', 'GRP-X')->sole();
 
         $this->actingAs($actor)
-            ->getJson('/api/dpl/distributor-margin-overrides/datatable?'.$this->dataTableQuery(['margin'], ['search' => $outlet->code]))
+            ->getJson('/api/dpl/distributor-margin-overrides/datatable?'.$this->dataTableQuery(['distributor_group_code', 'margin'], ['search' => 'grp-x']))
             ->assertOk()
             ->assertJsonPath('recordsFiltered', 1)
-            ->assertJsonPath('data.0.distributor.is_special_case_margin', false);
+            ->assertJsonPath('data.0.has_special_case_distributor', false);
+
+        // Peringatan hilang bila ada cabang grup ini yang ditandai margin khusus outlet.
+        Distributor::factory()->create(['group_code' => 'GRP-X', 'is_special_case_margin' => true]);
+
+        $this->actingAs($actor)
+            ->getJson('/api/dpl/distributor-margin-overrides/datatable?'.$this->dataTableQuery(['distributor_group_code', 'margin'], [
+                'search' => $outlet->code, 'order' => ['distributor_group_code', 'asc'],
+            ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 2)
+            ->assertJsonPath('data.0.has_special_case_distributor', true)
+            ->assertJsonPath('data.1.has_special_case_distributor', false);
 
         $this->actingAs($actor)->putJson("/api/dpl/distributor-margin-overrides/{$override->id}", [...$payload, 'margin' => '4.25'])
             ->assertOk()
@@ -116,6 +137,23 @@ class DplMarginRulePagesTest extends TestCase
 
         $this->actingAs($actor)->deleteJson("/api/dpl/distributor-margin-overrides/{$override->id}")->assertOk();
         $this->assertModelMissing($override);
+    }
+
+    public function test_distributor_margin_override_page_offers_group_codes_and_import(): void
+    {
+        Distributor::factory()->create(['group_code' => 'GRP-SARAN']);
+
+        $this->actingAs($this->userWithAccess(['distributor-margin-overrides' => ['read']]))
+            ->get('/dpl/distributor-margin-overrides')
+            ->assertOk()
+            ->assertSee('<option value="GRP-SARAN">', escape: false)
+            ->assertDontSee('excel-import-modal');
+
+        $this->actingAs($this->userWithAccess(['distributor-margin-overrides' => ['read', 'create', 'update']]))
+            ->get('/dpl/distributor-margin-overrides')
+            ->assertOk()
+            ->assertSee('id="excel-import-modal"', escape: false)
+            ->assertSee(route('dpl.distributor-margin-overrides.import-template'));
     }
 
     public function test_outlet_options_return_matching_active_outlets(): void

@@ -19,7 +19,8 @@ use App\Models\Product;
  * 1. Mode Group -> 0.
  * 2. Margin khusus product (grup distributor + product + kota distributor/semua kota); bila tidak ada:
  *    margin distributor (Tim B: margin_team_b bila diisi).
- * 3. Margin khusus outlet: distributor is_special_case_margin, team tidak dikecualikan, product bukan volume kecil.
+ * 3. Margin khusus outlet (grup distributor + outlet): distributor is_special_case_margin, team tidak dikecualikan,
+ *    product bukan volume kecil.
  * 4. Direct: KFTD -> outlet INSTANSI / lainnya; non-KFTD + outlet INSTANSI -> provinsi Jawa / luar Jawa.
  *    Bukan Direct: override margin per product (team + grup, team, grup, semua). Tanpa pengurangan "nilai direct".
  *
@@ -81,11 +82,11 @@ class DplItemDefaults
             [$margin, $source] = [$distributor->margin, 'Margin distributor'];
         }
 
-        if ($outlet !== null && $distributor->is_special_case_margin && ! $this->isSmallVolume($product)
+        if ($outlet !== null && $distributor->is_special_case_margin && $distributor->group_code !== null && ! $this->isSmallVolume($product)
             && ! in_array($team, $this->parameters->upperList('OUTLET_MARGIN_EXCLUDED_TEAMS'), true)) {
             $override = DistributorMarginOverride::query()
                 ->where('is_active', true)
-                ->where('distributor_id', $distributor->id)
+                ->where('distributor_group_code', $distributor->group_code)
                 ->where('outlet_id', $outlet->id)
                 ->first();
 
