@@ -288,7 +288,7 @@ class DplProposalRequest extends FormRequest
             'description' => 'keterangan',
             'items.*.product_id' => 'product',
             'items.*.distributor_id' => 'distributor',
-            'items.*.minimum_order' => 'minimum order',
+            'items.*.minimum_order' => 'minimum order per bulan',
             'items.*.bonus_scheme_id' => 'skema bonus',
             'items.*.remark' => 'catatan item',
             'items.*.principle_discount_on' => 'Discount Share Principle ON',

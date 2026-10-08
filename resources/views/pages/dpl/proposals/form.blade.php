@@ -100,7 +100,7 @@
                             <th>#</th>
                             <th>Product</th>
                             <th>Distributor</th>
-                            <th class="text-end">Min. Order</th>
+                            <th class="text-end">Min. Order / Bulan</th>
                             <th class="text-end">Principle On/Off (%)</th>
                             <th class="text-end">Distributor On/Off (%)</th>
                             <th>Jenis Harga</th>
@@ -229,7 +229,7 @@
                             <input type="number" class="form-control" id="item-logistic" name="logistic_support" min="0" step="0.0001" />
                         </div>
                         <div class="col-md-3">
-                            <label for="item-minimum" class="form-label">Minimum Order <span class="text-danger">*</span></label>
+                            <label for="item-minimum" class="form-label">Minimum Order per Bulan <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="item-minimum" name="minimum_order" min="0" step="1" required />
                         </div>
                         <div class="col-md-6">

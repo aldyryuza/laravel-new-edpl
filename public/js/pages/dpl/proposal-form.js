@@ -17,7 +17,7 @@
  * - Mode Satuan: HNA - Disc On bisa diketik; Discount Share Principle ON dihitung balik
  *   = (1 − target / HNA) × 100 − Distributor ON (2 desimal, tidak boleh negatif).
  * - Discount (Principle/Distributor ON/OFF) ditampilkan 2 angka di belakang koma.
- * - Minimum order wajib diisi.
+ * - Minimum order per bulan wajib diisi.
  * - Discount Share Principle OFF diisi -> Buyer reward dicentang.
  * - Direct -> Logistic Fee wajib (boleh 0); Ambil Dari Pabrik -> Logistic Fee 0; keduanya tidak boleh bersamaan.
  * - Satu product hanya sekali per distributor.
@@ -462,7 +462,7 @@ $(function () {
             errors[productField] = `Sudah ada untuk distributor yang sama: ${names}.`;
         }
         if (isBlank(valueOrNull('minimum_order'))) {
-            errors.minimum_order = 'Minimum order wajib diisi.';
+            errors.minimum_order = 'Minimum order per bulan wajib diisi.';
         }
         if ($direct.is(':checked') && isBlank($logisticFee.val())) {
             errors.logistic_fee = 'Logistic fee wajib diisi (boleh 0) untuk item Direct.';
