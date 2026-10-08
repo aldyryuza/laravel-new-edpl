@@ -111,6 +111,10 @@ Route::prefix('dpl')->name('dpl.')->group(function () {
     Route::get('proposals/pricing', [DplProposalController::class, 'pricing'])->name('proposals.pricing');
     Route::post('proposals/calculate', [DplProposalController::class, 'calculate'])->name('proposals.calculate');
     Route::get('proposals/item-defaults', [DplProposalController::class, 'itemDefaults'])->name('proposals.item-defaults');
+    Route::post('proposals/{proposal}/submit', [DplProposalController::class, 'submit'])->name('proposals.submit');
+    Route::get('proposals/{proposal}/approval', [DplProposalController::class, 'approval'])->name('proposals.approval');
+    Route::post('proposals/{proposal}/approve', [DplProposalController::class, 'approve'])->name('proposals.approve');
+    Route::post('proposals/{proposal}/reject', [DplProposalController::class, 'reject'])->name('proposals.reject');
     Route::apiResource('proposals', DplProposalController::class)->except('index');
 
     Route::get('approver-assignments/datatable', [ApproverAssignmentController::class, 'datatable'])->name('approver-assignments.datatable');

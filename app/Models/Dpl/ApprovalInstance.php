@@ -17,6 +17,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['dpl_proposal_id', 'workflow_id', 'status', 'started_at', 'completed_at'])]
 class ApprovalInstance extends Model
 {
+    public const STATUS_IN_PROGRESS = 'IN_PROGRESS';
+
+    public const STATUS_APPROVED = 'APPROVED';
+
+    public const STATUS_REJECTED = 'REJECTED';
+
+    public const STATUS_CANCELLED = 'CANCELLED';
+
     /** @use HasFactory<ApprovalInstanceFactory> */
     use HasFactory;
 

@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Step workflow; approver step ditentukan lewat role existing (role_id).
  */
 #[Table('dpl.approval_workflow_steps')]
-#[Fillable(['workflow_id', 'sequence', 'role_id', 'can_edit', 'can_reject', 'is_required'])]
+#[Fillable(['workflow_id', 'sequence', 'role_id', 'can_edit', 'can_reject', 'is_required', 'is_gate'])]
 class ApprovalWorkflowStep extends Model
 {
     /** @use HasFactory<ApprovalWorkflowStepFactory> */
@@ -32,6 +32,7 @@ class ApprovalWorkflowStep extends Model
             'can_edit' => 'boolean',
             'can_reject' => 'boolean',
             'is_required' => 'boolean',
+            'is_gate' => 'boolean',
         ];
     }
 

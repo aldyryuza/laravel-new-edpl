@@ -18,14 +18,16 @@ class ApprovalReferenceSeeder extends Seeder
      * Urutan = sequence step. can_edit NSM mengikuti PRD (NSM dapat edit sesuai workflow rejection);
      * kapan edit diizinkan tetap ditentukan approval service.
      *
-     * @var array<int, array{name: string, description: string, can_edit: bool}>
+     * is_gate (legacy): RM lalu NSM berurutan; GM, SMD, DMD cukup menunggu NSM (tidak saling menunggu).
+     *
+     * @var array<int, array{name: string, description: string, can_edit: bool, is_gate: bool}>
      */
     private const STEPS = [
-        ['name' => 'RM', 'description' => 'Regional Manager - approver berdasarkan regional', 'can_edit' => false],
-        ['name' => 'NSM', 'description' => 'National Sales Manager - approver berdasarkan zona', 'can_edit' => true],
-        ['name' => 'GM', 'description' => 'General Manager - approver global', 'can_edit' => false],
-        ['name' => 'SMD', 'description' => 'SMD - approver global', 'can_edit' => false],
-        ['name' => 'DMD', 'description' => 'DMD - approver global (final)', 'can_edit' => false],
+        ['name' => 'RM', 'description' => 'Regional Manager - approver berdasarkan regional', 'can_edit' => true, 'is_gate' => true],
+        ['name' => 'NSM', 'description' => 'National Sales Manager - approver berdasarkan zona', 'can_edit' => true, 'is_gate' => true],
+        ['name' => 'GM', 'description' => 'General Manager - approver global', 'can_edit' => false, 'is_gate' => false],
+        ['name' => 'SMD', 'description' => 'SMD - approver global', 'can_edit' => false, 'is_gate' => false],
+        ['name' => 'DMD', 'description' => 'DMD - approver global (final)', 'can_edit' => false, 'is_gate' => false],
     ];
 
     /**
@@ -43,7 +45,7 @@ class ApprovalReferenceSeeder extends Seeder
 
             $workflow->steps()->updateOrCreate(
                 ['sequence' => $index + 1],
-                ['role_id' => $role->id, 'can_edit' => $step['can_edit'], 'can_reject' => true, 'is_required' => true],
+                ['role_id' => $role->id, 'can_edit' => $step['can_edit'], 'can_reject' => true, 'is_required' => true, 'is_gate' => $step['is_gate']],
             );
         }
     }

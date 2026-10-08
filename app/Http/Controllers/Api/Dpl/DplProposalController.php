@@ -8,6 +8,7 @@ use App\Models\Distributor;
 use App\Models\Dpl\DplProposal;
 use App\Models\Outlet;
 use App\Models\Product;
+use App\Services\Dpl\DplApprovalService;
 use App\Services\Dpl\DplCalculator;
 use App\Services\Dpl\DplDraftService;
 use App\Services\Dpl\DplItemDefaults;
@@ -44,9 +45,10 @@ class DplProposalController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing', 'calculate', 'itemDefaults']),
+            new Middleware('can:dpl-proposals.read', only: ['datatable', 'show', 'pricing', 'calculate', 'itemDefaults', 'approval']),
+            new Middleware('can:dpl-proposals.approve', only: ['approve', 'reject']),
             new Middleware('can:dpl-proposals.create', only: ['store', 'outletOptions']),
-            new Middleware('can:dpl-proposals.update', only: ['update']),
+            new Middleware('can:dpl-proposals.update', only: ['update', 'submit']),
             new Middleware('can:dpl-proposals.delete', only: ['destroy']),
         ];
     }
@@ -238,6 +240,96 @@ class DplProposalController extends Controller implements HasMiddleware
             'success' => true,
             'message' => "Draft DPL {$proposal->dpl_number} berhasil disimpan",
             'data' => $this->present($request, $proposal),
+        ]);
+    }
+
+    /**
+     * Ajukan draft ke approval (hanya pembuat draft). Jalur & approver per item ditentukan server.
+     */
+    public function submit(Request $request, DplProposal $proposal, DplApprovalService $approvals): JsonResponse
+    {
+        $this->ensureVisible($request, $proposal);
+        $proposal = $approvals->submit($proposal, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => $proposal->proposal_status === DplProposal::STATUS_REJECTED
+                ? "DPL {$proposal->dpl_number} diajukan, tetapi ada item yang ditolak otomatis (melewati batas kalkulator)."
+                : "DPL {$proposal->dpl_number} berhasil diajukan",
+            'data' => $this->present($request, $proposal),
+        ]);
+    }
+
+    /**
+     * Status approval per step & item, plus item yang bisa ditindak user sekarang.
+     */
+    public function approval(Request $request, DplProposal $proposal, DplApprovalService $approvals): JsonResponse
+    {
+        $this->ensureVisible($request, $proposal);
+
+        $instance = $proposal->approvalInstances()
+            ->latest('id')
+            ->with([
+                'steps' => fn ($query) => $query->join('dpl.approval_workflow_steps as ws', 'ws.id', '=', 'approval_step_instances.workflow_step_id')
+                    ->orderBy('ws.sequence')
+                    ->select('approval_step_instances.*'),
+                'steps.workflowStep.role:id,name',
+                'steps.assigneeUsers:id,nik,name',
+                'steps.itemStates',
+                'steps.actions' => fn ($query) => $query->latest('id'),
+                'steps.actions.actor:id,nik,name',
+            ])
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil diambil',
+            'data' => [
+                'instance' => $instance,
+                'actionable_item_ids' => $approvals->actionableStates($proposal, $request->user())->keys()->values(),
+            ],
+        ]);
+    }
+
+    /**
+     * Approve item (satu atau banyak / "approve all") pada step yang menjadi giliran user.
+     */
+    public function approve(Request $request, DplProposal $proposal, DplApprovalService $approvals): JsonResponse
+    {
+        $this->ensureVisible($request, $proposal);
+        $data = $request->validate([
+            'item_ids' => ['required', 'array', 'min:1'],
+            'item_ids.*' => ['integer'],
+            'reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $count = $approvals->approve($proposal, $request->user(), $data['item_ids'], $data['reason'] ?? null);
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$count} item berhasil di-approve",
+            'data' => $this->present($request, $proposal->fresh()),
+        ]);
+    }
+
+    /**
+     * Tolak item (alasan wajib). DPL menjadi REJECTED sampai diedit dan diajukan ulang.
+     */
+    public function reject(Request $request, DplProposal $proposal, DplApprovalService $approvals): JsonResponse
+    {
+        $this->ensureVisible($request, $proposal);
+        $data = $request->validate([
+            'item_ids' => ['required', 'array', 'min:1'],
+            'item_ids.*' => ['integer'],
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $count = $approvals->reject($proposal, $request->user(), $data['item_ids'], $data['reason']);
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$count} item ditolak",
+            'data' => $this->present($request, $proposal->fresh()),
         ]);
     }
 

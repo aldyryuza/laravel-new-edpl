@@ -805,11 +805,32 @@ UNIQUE `(consolidation_id, outlet_id)`.
 | `can_edit` | boolean | No | default false |
 | `can_reject` | boolean | No | default true |
 | `is_required` | boolean | No | default true |
+| `is_gate` | boolean | No | default true; step sesudahnya menunggu step ini (seed: RM, NSM = true; GM, SMD, DMD = false), migration `2026_10_08_000068` |
 | timestamps | timestamp | Yes | |
 
 UNIQUE `(workflow_id, sequence)`.
 
 Role rows for RM/NSM/GM/SMD/DMD must be seeded/configured; application behavior must not rely only on role name string.
+
+### `approval_rules`, `approval_rule_steps`, `approval_rule_provinces` (schema `dpl`)
+
+Jalur approval per item (legacy `dpl_config` `DPL_ITEM_APPROVAL_RULE`), migration `2026_10_08_000067`.
+
+| Tabel | Kolom |
+|---|---|
+| `approval_rules` | `name`, `discount_lower` numeric(10,4) null (eksklusif), `discount_upper` numeric(10,4) null (inklusif), `sort_order`, `note`, `is_active`; CHECK `upper > lower` |
+| `approval_rule_steps` | `approval_rule_id` FK, `workflow_step_id` FK; UNIQUE pasangan |
+| `approval_rule_provinces` | `approval_rule_id` FK, `province_id` FK; UNIQUE pasangan; kosong = semua provinsi |
+
+Aturan aktif dicek urut `sort_order`, `id`; pertama yang cocok (Total Calculator item & provinsi kota outlet) dipakai. Tidak ada yang cocok = jalur lengkap (step `is_required`). Legacy memakai provinsi kota distributor dan fallback ke aturan pertama; sistem baru memakai provinsi outlet dan fallback jalur lengkap (user confirmation 2026-10-08).
+
+### Alur submit & approval (`App\Services\Dpl\DplApprovalService`)
+
+- Submit (pembuat draft): buat `approval_instances` (IN_PROGRESS), `approval_step_instances` (PENDING) untuk step yang dipakai minimal satu item, `approval_step_assignees` dari `approver_assignments` role step yang berlaku (region outlet -> zona outlet -> global; tanpa approver = submit ditolak), dan `approval_item_states` PENDING per item per step di jalurnya.
+- Auto reject saat submit: item dengan Total Calculator > batas (DplCalculator) -> semua state REJECTED, alasan "Total discount is more than X%", aksi `AUTO_REJECT`. DPL CLEARANCE dikecualikan.
+- Aksi: approver step bisa bertindak bila state item PENDING dan semua step `is_gate` sebelumnya di jalur item APPROVED (RM -> NSM -> GM/SMD/DMD bebas urutan). Beberapa approver satu step: aksi pertama dihitung. Reject wajib alasan. Hak akses dicek di server.
+- Status proposal: IN_APPROVAL -> PARTIALLY_APPROVED (ada approve) -> APPROVED (semua state approve); ada state REJECTED -> REJECTED dan approval berhenti. Semua transisi dicatat `dpl_status_histories`.
+- Aktivasi: APPROVED + Date Start <= hari ini -> program ACTIVE, DPL ACTIVE lama outlet + team sama -> SUPERSEDED. Job harian `dpl:refresh-program-status` (00:05 Asia/Jakarta) mengaktifkan yang Date Start-nya tiba dan meng-EXPIRED yang lewat Date End.
 
 ### `approver_assignments`
 

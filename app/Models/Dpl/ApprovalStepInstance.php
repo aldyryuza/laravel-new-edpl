@@ -20,6 +20,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['approval_instance_id', 'workflow_step_id', 'status', 'started_at', 'completed_at'])]
 class ApprovalStepInstance extends Model
 {
+    public const STATUS_PENDING = 'PENDING';
+
+    public const STATUS_COMPLETED = 'COMPLETED';
+
+    public const STATUS_REJECTED = 'REJECTED';
+
     /** @use HasFactory<ApprovalStepInstanceFactory> */
     use HasFactory;
 

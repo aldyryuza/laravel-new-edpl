@@ -33,6 +33,9 @@ class ApprovalAction extends Model
 
     public const OVERRIDE = 'OVERRIDE';
 
+    /** Ditolak otomatis saat submit karena Total Calculator melewati batas. */
+    public const AUTO_REJECT = 'AUTO_REJECT';
+
     /**
      * Get the attributes that should be cast.
      *

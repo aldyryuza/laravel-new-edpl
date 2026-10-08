@@ -16,6 +16,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['step_instance_id', 'dpl_item_id', 'status', 'approved_at', 'rejected_at', 'reject_reason'])]
 class ApprovalItemState extends Model
 {
+    public const STATUS_PENDING = 'PENDING';
+
+    public const STATUS_APPROVED = 'APPROVED';
+
+    public const STATUS_REJECTED = 'REJECTED';
+
     /** @use HasFactory<ApprovalItemStateFactory> */
     use HasFactory;
 

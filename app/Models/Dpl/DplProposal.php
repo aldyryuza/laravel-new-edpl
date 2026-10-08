@@ -79,14 +79,17 @@ class DplProposal extends Model
     }
 
     /**
-     * DPL yang outlet-nya berada di wilayah user (lihat App\Support\RegionScope).
+     * DPL yang outlet-nya berada di wilayah user (lihat App\Support\RegionScope), ditambah DPL di mana user
+     * menjadi approver (mis. GM global, atau RM untuk outlet di luar wilayah penugasannya).
      *
      * @param  Builder<DplProposal>  $query
      */
     #[Scope]
     protected function visibleTo(Builder $query, User $user): void
     {
-        $query->whereHas('outlet', fn (Builder $outlet) => $user->regionScope()->applyToOutlets($outlet));
+        $query->where(fn (Builder $query) => $query
+            ->whereHas('outlet', fn (Builder $outlet) => $user->regionScope()->applyToOutlets($outlet))
+            ->orWhereHas('approvalInstances.steps.assignees', fn (Builder $assignee) => $assignee->where('user_id', $user->id)));
     }
 
     /**

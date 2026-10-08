@@ -328,6 +328,10 @@ Sistem harus:
 | BR-005 | GM/SMD/DMD menggunakan global/fixed assignment | User confirmation | Confirmed |
 | BR-006 | Approval dapat berlangsung per item dan menghasilkan partial approved state | Legacy DB + manual | Confirmed |
 | BR-007 | Date Start tidak boleh backdated | Legacy E-DPL | Confirmed |
+| BR-040 | Jalur approval item dari master Aturan Approval (rentang Total Calculator + provinsi kota outlet), tanpa aturan cocok = jalur lengkap; approver RM dari region outlet, NSM dari zona outlet, GM/SMD/DMD global | Legacy E-DPL + user confirmation 2026-10-08 | Confirmed |
+| BR-041 | Urutan: RM, lalu NSM, lalu GM/SMD/DMD tanpa saling menunggu; hak approve dicek server; reject wajib alasan dan menghentikan approval DPL sampai diedit & diajukan ulang | Legacy E-DPL + user confirmation | Confirmed |
+| BR-042 | DPL aktif hanya bila semua item approve; aktif pada Date Start (job harian), expired setelah Date End; DPL aktif lama outlet + team sama menjadi SUPERSEDED | Legacy E-DPL + user confirmation | Confirmed |
+| BR-043 | Auto reject saat submit bila Total Calculator melewati batas (kecuali Clearance); pengaju bisa minta Open, GM membuka; approver boleh approve/reject semua item gilirannya sekaligus; pengaju, RM, NSM boleh edit setelah reject (approval ulang dari level pengedit) | Legacy E-DPL + user confirmation | Confirmed (edit ulang & Open: tahap berikut) |
 | BR-039 | Header DPL menampilkan Bed outlet dan "25% Bed" (order minimum) = Bed × 0,25 × 90 (parameter `BED_ORDER_RATIO`, `BED_ORDER_DAYS`), read-only; bila bed outlet 0/kosong diisi manual | Legacy E-DPL (create/content.php) + user | Confirmed |
 | BR-008 | Maksimum masa program legacy adalah satu tahun dari Date Start | Legacy E-DPL | Confirmed |
 | BR-009 | Minimal order produk per bulan 200 botol untuk memperoleh discount SAI; order di bawah itu tidak otomatis berarti data tidak boleh disimpan | Legacy E-DPL | Confirmed |
