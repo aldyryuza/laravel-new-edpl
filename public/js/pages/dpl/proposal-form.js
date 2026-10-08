@@ -16,7 +16,7 @@
  *   dibulatkan ke rupiah (desimal >= 0,5 ke atas, < 0,5 ke bawah).
  * - Mode Satuan: HNA - Disc On bisa diketik; Discount Share Principle ON dihitung balik
  *   = (1 − target / HNA) × 100 − Distributor ON (2 desimal, tidak boleh negatif).
- * - Discount (Principle/Distributor ON/OFF) ditampilkan 2 angka di belakang koma.
+ * - Discount (Principle/Distributor ON/OFF) ditampilkan 2 angka di belakang koma; kosong = 0 (default 0.00).
  * - Minimum order per bulan wajib diisi.
  * - Discount Share Principle OFF diisi -> Buyer reward dicentang.
  * - Direct -> Logistic Fee wajib (boleh 0); Ambil Dari Pabrik -> Logistic Fee 0; keduanya tidak boleh bersamaan.
@@ -274,6 +274,14 @@ $(function () {
     });
     $itemForm.on('change', '[name="product_mode"]', applyProductMode);
     $priceType.on('change', () => updateItemPrices());
+
+    // Discount yang dikosongkan kembali ke 0.00.
+    $itemForm.on('change', DISCOUNTS.map(field => `[name="${field}"]`).join(', '), function () {
+        if (isBlank($(this).val())) {
+            $(this).val('0.00');
+            updateItemPrices();
+        }
+    });
     $itemForm.on('input', '[name="principle_discount_on"], [name="distributor_discount_on"]', () => updateItemPrices());
 
     /** Angka format Indonesia (85.000 / 85000 / 85000,5) -> number; null bila kosong/tidak valid. */
@@ -408,9 +416,10 @@ $(function () {
         selectValue($('#item-bonus'), item?.bonus_scheme_id, item?.labels.bonus);
         $itemForm.find('[name="minimum_order"]').val(item?.minimum_order ?? '');
         $itemForm.find('[name="remark"]').val(item?.remark ?? '');
-        TERMS.forEach(field => $itemForm.find(`[name="${field}"]`).val(item && !isBlank(item[field])
-            ? (DISCOUNTS.includes(field) ? Number(item[field]).toFixed(2) : Number(item[field]))
-            : ''));
+        // Discount kosong = 0 (default 0.00); field lain kosong tetap kosong.
+        TERMS.forEach(field => $itemForm.find(`[name="${field}"]`).val(DISCOUNTS.includes(field)
+            ? Number(item?.[field] || 0).toFixed(2)
+            : (item && !isBlank(item[field]) ? Number(item[field]) : '')));
         FLAGS.forEach(flag => $itemForm.find(`[name="${flag}"]`).prop('checked', Boolean(item?.[flag])));
         $priceType.val(item?.price_type || defaultPriceType);
 
@@ -480,7 +489,7 @@ $(function () {
             price_type: $priceType.val(),
             remark: valueOrNull('remark')
         };
-        TERMS.forEach(field => { shared[field] = valueOrNull(field); });
+        TERMS.forEach(field => { shared[field] = DISCOUNTS.includes(field) ? (valueOrNull(field) ?? '0') : valueOrNull(field); });
         FLAGS.forEach(flag => { shared[flag] = $itemForm.find(`[name="${flag}"]`).is(':checked'); });
 
         if (!shared.is_direct_delivery && !shared.is_factory_pickup) {
